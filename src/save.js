@@ -5,6 +5,7 @@ import { DEFAULT_BINDINGS } from './input.js';
 
 const DEFAULT = {
   storyProgress: 0,            // index of next opponent to face (0..9)
+  savedMatch: null,           // an in-progress match parked from the pause menu (null = none)
   settings: {
     volume: { master: 0.8, music: 0.7, sfx: 0.9 },
     scale: 'fit',              // 'fit' | 'integer'

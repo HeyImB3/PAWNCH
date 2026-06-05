@@ -80,6 +80,9 @@ export class BoxingState {
     setTimeout(() => game.resolveBoxing(result), 1100);
   }
 
+  // Esc opens the pause menu — but not while a KO/timeout is resolving.
+  canPause() { return !this.ended; }
+
   update(game, dt) {
     this.t += dt / 1000;
     if (this.bannerT > 0) this.bannerT -= dt / 1000;

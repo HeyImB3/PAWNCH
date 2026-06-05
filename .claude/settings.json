@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm start:*)",
+      "Bash(npm run server:*)",
+      "Bash(npx serve:*)",
+      "Bash(python3 -m http.server:*)",
+      "Bash(python3 tools/devserver.py:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)"
+    ]
+  }
+}

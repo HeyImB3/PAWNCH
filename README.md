@@ -4,9 +4,21 @@
 throw down in the ring for a minute. Win *either* the chess **or** the boxing
 and you take the whole match. Ten rounds. One champion.
 
-Inspired by *Mike Tyson's Punch-Out!!* (boxing feel) and *Street Fighter*
-(title energy). Built to be clean, open, and easy to keep iterating toward a
-Steam release. All art + audio here are **procedurally generated placeholders**
+### ▶︎ [**Play it in your browser → heyimb3.github.io/PAWNCH**](https://heyimb3.github.io/PAWNCH/)
+
+<p align="center">
+  <img src="screenshots/title.png" alt="PAWNCH title screen" width="32%" />
+  <img src="screenshots/chess.png" alt="PAWNCH chess half" width="32%" />
+  <img src="screenshots/boxing.png" alt="PAWNCH boxing half" width="32%" />
+</p>
+
+> Click or press a key first — browsers need a gesture before the audio can
+> start. Story Mode and local hotseat work on the live link; online multiplayer
+> needs a server (see [docs/HOSTING.md](docs/HOSTING.md)).
+
+Built in the spirit of classic 16-bit boxing games (the dodge/jab/hook feel) and
+arcade-fighter title screens. Clean, open (MIT), and easy to keep iterating
+toward a Steam release. All art + audio are **procedurally generated placeholders**
 (orange & blue palette) meant to be repainted in Aseprite later.
 
 ---

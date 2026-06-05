@@ -4,7 +4,7 @@
 // is asset-free — but if Aseprite art is registered (see assets.js) it's
 // blitted instead of the procedural fallback.
 
-import { PAL } from './config.js';
+import { PAL, AURA } from './config.js';
 
 // ---- Aseprite sprite registry -----------------------------------------
 // assets.js loads optional PNGs and registers them here keyed by name. Draw
@@ -73,8 +73,8 @@ function pieceAura(ctx, cx, cy, size, white, t, phase, glow, layer) {
   const cyA = cy - size * 0.05;                 // center the aura on the piece body
   if (layer === 'back') {
     const pulse = 0.5 + 0.5 * Math.sin(t * 2 + phase);
-    const rad = size * (0.6 + 0.06 * pulse);
-    const a = (white ? 0.12 : 0.16) * glow;
+    const rad = size * (AURA.haloRadius + AURA.haloPulse * pulse);
+    const a = (white ? AURA.whiteAlpha : AURA.darkAlpha) * glow;
     const col = white ? PAL.auraLite : PAL.auraDark;
     const gr = ctx.createRadialGradient(cx, cyA, 1, cx, cyA, rad);
     gr.addColorStop(0, withA(col, a));
@@ -87,33 +87,33 @@ function pieceAura(ctx, cx, cy, size, white, t, phase, glow, layer) {
   ctx.globalCompositeOperation = 'lighter';     // additive glow
   if (!white) {
     // orbiting purple/magenta motes — split front/back for a 3D swirl
-    const N = 4;
+    const N = AURA.moteCount;
     for (let i = 0; i < N; i++) {
       const ang = t * 1.6 + phase + i * (Math.PI * 2 / N);
       const depth = (Math.sin(ang) + 1) / 2;     // 1 = near (front), 0 = far (back)
       if ((depth >= 0.5) !== (layer === 'front')) continue;
-      const px = cx + Math.cos(ang) * size * 0.46;
-      const py = cyA + Math.sin(ang) * size * 0.30;
-      const r = (0.6 + 0.7 * depth) * size * 0.06;
+      const px = cx + Math.cos(ang) * size * AURA.moteOrbitX;
+      const py = cyA + Math.sin(ang) * size * AURA.moteOrbitY;
+      const r = (0.6 + 0.7 * depth) * size * AURA.moteSize;
       glowDot(ctx, px, py, r, i % 2 ? PAL.moteMagenta : PAL.moteViolet, (0.18 + 0.28 * depth) * glow);
     }
-    // rising dark-magic embers (over the piece)
+    // rising dark-magic embers (over the piece) — kept low so they hug the piece
     if (layer === 'front') for (let j = 0; j < 2; j++) {
       const u = (t * 0.5 + phase * 0.3 + j * 0.5) % 1;
-      const px = cx + Math.sin(u * 6.283 + j * 2) * size * 0.16;
-      const py = cyA + size * 0.32 - u * size * 0.8;
-      glowDot(ctx, px, py, size * 0.035, PAL.ember, Math.sin(u * Math.PI) * 0.22 * glow);
+      const px = cx + Math.sin(u * 6.283 + j * 2) * size * AURA.emberSway;
+      const py = cyA + size * 0.30 - u * size * AURA.emberRise;
+      glowDot(ctx, px, py, size * 0.032, PAL.ember, Math.sin(u * Math.PI) * 0.22 * glow);
     }
   } else if (layer === 'front') {
-    // twinkling celestial star-glints orbiting slowly
-    const N = 5;
+    // twinkling celestial star-glints orbiting slowly, tight to the piece
+    const N = AURA.glintCount;
     for (let i = 0; i < N; i++) {
       const ang = t * 0.5 + phase + i * (Math.PI * 2 / N);
-      const px = cx + Math.cos(ang) * size * 0.5;
-      const py = cyA + Math.sin(ang) * size * 0.44;
+      const px = cx + Math.cos(ang) * size * AURA.glintOrbitX;
+      const py = cyA + Math.sin(ang) * size * AURA.glintOrbitY;
       let tw = Math.sin(t * 2.3 + phase * 1.3 + i * 1.9);
       tw = tw > 0 ? tw * tw * tw : 0;            // sharp blink
-      if (tw > 0.03) starGlint(ctx, px, py, size * 0.085 * (0.5 + tw), tw * 0.85 * glow);
+      if (tw > 0.03) starGlint(ctx, px, py, size * AURA.glintSize * (0.5 + tw), tw * 0.85 * glow);
     }
   }
   ctx.restore();
@@ -347,7 +347,7 @@ export function piece(ctx, type, cx, cy, size, white, { t = 0, phase = 0, lift =
   // magical aura
   if (glow > 0) {
     const pulse = 0.5 + 0.5 * Math.sin(t * 3 + phase);
-    const rad = size * (0.62 + 0.06 * pulse);
+    const rad = size * (AURA.haloRadius + AURA.haloPulse * pulse);
     const gr = ctx.createRadialGradient(cx, cy - lift, 1, cx, cy - lift, rad);
     gr.addColorStop(0, withA(aura, (0.10 + 0.18 * pulse) * glow));
     gr.addColorStop(1, withA(aura, 0));

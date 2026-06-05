@@ -3,15 +3,17 @@
 // back to the Game (checkmate / flag = decisive; timeout / draw = go box).
 
 import { MATCH, PAL, CHESS } from '../config.js';
-import { text, panel, piece as drawPiece, boxer } from '../gfx.js';
+import { text, textWidth, panel, piece as drawPiece, boxer } from '../gfx.js';
 import * as audio from '../audio.js';
 import * as Chess from '../chess/board.js';
 import { bestMove } from '../chess/engine.js';
 import { HUE } from '../opponents.js';
 
-const SQ = 34;
-const OX = 28, OY = 92;          // board origin
-const BOARD_PX = SQ * 8;
+// Board geometry. The board is enlarged to dominate the chess screen; the
+// right-hand info panel slims to fit (clocks/material/HP all kept, just smaller).
+const SQ = 44;
+const OX = 17, OY = 40;          // board origin (left/right margins balanced ~9px each)
+const BOARD_PX = SQ * 8;         // 352
 
 export class ChessState {
   enter(game) {
@@ -377,7 +379,7 @@ export class ChessState {
         const cap = mv.flag === 'capture' || mv.flag === 'ep';
         ctx.fillStyle = cap ? 'rgba(255,59,83,0.7)' : 'rgba(57,217,138,0.7)';
         if (cap) { ctx.fillRect(hx - SQ / 2 + 2, hy - SQ / 2 + 2, SQ - 4, 3); ctx.fillRect(hx - SQ / 2 + 2, hy + SQ / 2 - 5, SQ - 4, 3); }
-        else { ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2); ctx.fill(); }
+        else { ctx.beginPath(); ctx.arc(hx, hy, 6, 0, Math.PI * 2); ctx.fill(); }
       }
     }
     // check highlight
@@ -434,18 +436,18 @@ export class ChessState {
     this._banner(game, ctx);
   }
 
-  // small, always-on controls reminder under the board (non-distracting).
+  // slim one-line controls reminder tucked under the board (non-distracting).
   _controls(game, ctx) {
-    const rows = ['ARROWS MOVE', 'ENTER SELECT', 'ESC BACK', 'MOUSE DRAG/CLICK'];
-    const lh = 9, w = 112;
-    const h = (rows.length + 1) * lh + 8;
-    const x = OX - 8, y = game.H - h - 4;
+    const line = 'ARROWS MOVE   ENTER SELECT   ESC BACK   MOUSE DRAG/CLICK';
+    const cx = OX + BOARD_PX / 2;
+    const y = OY + BOARD_PX + 14;            // just below the board frame
+    const w = textWidth(line, 1) + 16, h = 16;
+    const x = Math.round(cx - w / 2);
     ctx.fillStyle = 'rgba(7,10,22,0.5)';
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = 'rgba(58,74,120,0.6)'; ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    text(ctx, 'CONTROLS', x + 5, y + 5, { scale: 1, color: PAL.textDim });
-    rows.forEach((r, i) => text(ctx, r, x + 5, y + 5 + (i + 1) * lh, { scale: 1, color: PAL.textDim }));
+    text(ctx, line, cx, y + 5, { scale: 1, color: PAL.textDim, align: 'center' });
   }
 
   _promoPicker(game, ctx) {
@@ -469,53 +471,53 @@ export class ChessState {
 
   _sidePanel(game, ctx) {
     const W = game.W, m = this.m;
-    const px = OX + BOARD_PX + 24, pw = W - px - 18;
+    const px = OX + BOARD_PX + 14, pw = W - px - 9;    // 383 / 120: slim column beside the bigger board
     // header
-    text(ctx, 'PAWNCH', px, 14, { scale: 2, color: PAL.orange, shadow: PAL.ink });
-    text(ctx, 'ROUND ' + m.round + '/' + MATCH.TOTAL_ROUNDS, px, 36, { scale: 1, color: PAL.textDim });
-    text(ctx, 'CHESS HALF', px, 50, { scale: 1, color: PAL.blueLite });
+    text(ctx, 'PAWNCH', px, 12, { scale: 2, color: PAL.orange, shadow: PAL.ink });
+    text(ctx, 'ROUND ' + m.round + '/' + MATCH.TOTAL_ROUNDS, px, 32, { scale: 1, color: PAL.textDim });
+    text(ctx, 'CHESS HALF', px, 44, { scale: 1, color: PAL.blueLite });
 
-    // clocks
+    // clocks (smaller than before to fit the slim column, but still the focal info)
     const myColor = m.playerColor, oppColor = myColor === Chess.WHITE ? Chess.BLACK : Chess.WHITE;
-    this._clock(ctx, px, 78, 'OPPONENT', m.clocks[oppColor], m.chess.turn === oppColor, PAL.orange);
-    this._clock(ctx, px, 78 + 86, 'YOU', m.clocks[myColor], m.chess.turn === myColor, PAL.blue);
+    this._clock(ctx, px, 60, pw, 'OPPONENT', m.clocks[oppColor], m.chess.turn === oppColor, PAL.orange);
+    this._clock(ctx, px, 114, pw, 'YOU', m.clocks[myColor], m.chess.turn === myColor, PAL.blue);
 
     // material
     const mat = Chess.material(m.chess.board);
     const myMat = myColor === Chess.WHITE ? mat.diff : -mat.diff;
-    const my = 78 + 172 + 6;
+    const my = 176;
     text(ctx, 'MATERIAL', px, my, { scale: 1, color: PAL.textDim });
     const sign = myMat > 0 ? '+' : '';
-    text(ctx, myMat === 0 ? 'EVEN' : sign + myMat, px, my + 14, { scale: 2, color: myMat > 0 ? PAL.green : myMat < 0 ? PAL.red : PAL.textDim });
+    text(ctx, myMat === 0 ? 'EVEN' : sign + myMat, px, my + 13, { scale: 2, color: myMat > 0 ? PAL.green : myMat < 0 ? PAL.red : PAL.textDim });
 
     // half timer + turn
-    const hy = my + 50;
+    const hy = my + 44;
     text(ctx, 'HALF ENDS', px, hy, { scale: 1, color: PAL.textDim });
-    text(ctx, Math.ceil(Math.max(0, this.halfTime) / 1000) + 'S', px, hy + 14, { scale: 2, color: PAL.gold });
+    text(ctx, Math.ceil(Math.max(0, this.halfTime) / 1000) + 'S', px, hy + 13, { scale: 2, color: PAL.gold });
 
     // mini portraits of fighters' HP carried into boxing
-    const by = hy + 50;
+    const by = hy + 44;
     text(ctx, 'CARRIED HP', px, by, { scale: 1, color: PAL.textDim });
-    this._hpBar(ctx, px, by + 14, pw, m.hp.player, PAL.blue, 'YOU');
-    this._hpBar(ctx, px, by + 34, pw, m.hp.enemy, PAL.orange, 'OPP');
+    this._hpBar(ctx, px, by + 13, pw, m.hp.player, PAL.blue, 'YOU');
+    this._hpBar(ctx, px, by + 31, pw, m.hp.enemy, PAL.orange, 'OPP');
 
     if (this.phase === 'aithink') {
       const dots = '.'.repeat(1 + (Math.floor(this.t * 3) % 3));
-      text(ctx, 'THINKING' + dots, px, game.H - 28, { scale: 1, color: PAL.orangeLite });
+      text(ctx, 'THINKING' + dots, px, game.H - 24, { scale: 1, color: PAL.orangeLite });
     } else if (this.myTurn && this.phase === 'play') {
-      text(ctx, 'YOUR MOVE', px, game.H - 28, { scale: 1, color: PAL.blueLite });
+      text(ctx, 'YOUR MOVE', px, game.H - 24, { scale: 1, color: PAL.blueLite });
     }
   }
 
-  _clock(ctx, x, y, label, ms, active, col) {
-    const w = 150;
-    panel(ctx, x, y, w, 70, { fill: active ? PAL.panel2 : PAL.panel, border: active ? col : PAL.line, border2: PAL.ink });
-    text(ctx, label, x + 8, y + 8, { scale: 1, color: active ? PAL.white : PAL.textDim });
+  _clock(ctx, x, y, w, label, ms, active, col) {
+    const h = 48;
+    panel(ctx, x, y, w, h, { fill: active ? PAL.panel2 : PAL.panel, border: active ? col : PAL.line, border2: PAL.ink });
+    text(ctx, label, x + 7, y + 7, { scale: 1, color: active ? PAL.white : PAL.textDim });
     const s = Math.max(0, ms / 1000);
     const mm = Math.floor(s / 60), ss = Math.floor(s % 60);
     const str = mm + ':' + String(ss).padStart(2, '0');
     const low = s < 10;
-    text(ctx, str, x + 8, y + 24, { scale: 4, color: low ? PAL.red : active ? col : PAL.textDim, shadow: PAL.ink });
+    text(ctx, str, x + 7, y + 20, { scale: 3, color: low ? PAL.red : active ? col : PAL.textDim, shadow: PAL.ink });
   }
 
   _hpBar(ctx, x, y, w, hp, col, label) {

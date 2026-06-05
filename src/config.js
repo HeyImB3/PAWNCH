@@ -60,6 +60,28 @@ export const PAL = {
   ringPost:   '#1a2244',
 };
 
+// Chess-half piece aura sizing. Kept TIGHT so the magic hugs each piece and
+// reads as atmosphere instead of muddling the board. Every radius/size below is
+// a fraction of the piece's on-screen `size`; alphas are the base (pre-pulse).
+export const AURA = {
+  haloRadius: 0.46,   // soft glow radius behind the piece (was ~0.60)
+  haloPulse:  0.05,   // how much the halo breathes
+  whiteAlpha: 0.11,   // white-piece halo strength
+  darkAlpha:  0.14,   // dark-piece halo strength
+  // white celestial star-glints (twinkle around the piece)
+  glintCount:  4,
+  glintOrbitX: 0.34,  // horizontal orbit radius (was 0.50)
+  glintOrbitY: 0.30,  // vertical orbit radius   (was 0.44)
+  glintSize:   0.07,  // glint scale             (was 0.085)
+  // dark orbiting motes + rising embers
+  moteCount:  4,
+  moteOrbitX: 0.34,   // (was 0.46)
+  moteOrbitY: 0.24,   // (was 0.30)
+  moteSize:   0.05,   // (was 0.06)
+  emberRise:  0.48,   // how high embers climb above the piece (was 0.80)
+  emberSway:  0.12,   // ember horizontal drift (was 0.16)
+};
+
 // Boxing feel (Punch-Out-inspired). Times in ms unless noted.
 export const BOX = {
   MAX_HP: 100,

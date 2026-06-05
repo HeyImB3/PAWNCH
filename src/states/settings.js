@@ -16,7 +16,10 @@ function keyName(code) {
 }
 
 export class SettingsState {
-  enter(game) {
+  enter(game, params = {}) {
+    // Where BACK / Esc returns to: a state name (default 'title'), or a callback
+    // (the in-game pause menu passes one so Settings returns to its overlay).
+    this.returnTo = params.returnTo || 'title';
     this.tab = 0;             // 0 sound, 1 controls, 2 display
     this.sel = 0;
     this.tabs = ['SOUND', 'CONTROLS', 'DISPLAY'];
@@ -51,13 +54,13 @@ export class SettingsState {
     if (i.pressedCode('KeyQ')) { this.tab = (this.tab + 2) % 3; this.sel = 0; audio.sfx.select(); }
     if (i.pressed('confirm')) {
       const row = rows[this.sel];
-      if (row === 'BACK') { audio.sfx.confirm(); game.persist(); game.changeState('title'); }
+      if (row === 'BACK') { audio.sfx.confirm(); game.persist(); this._back(game); }
       else if (row === 'RESET') { this._resetBindings(game); }
       else if (row === 'SCANLINES') { game.save.settings.scanlines = !game.save.settings.scanlines; audio.sfx.select(); }
       else if (row === 'SCALE') { this._cycleScale(game); }
       else if (this.tab === 1) { this._beginRebind(game, row); }
     }
-    if (i.pressed('cancel')) { audio.sfx.confirm(); game.persist(); game.changeState('title'); }
+    if (i.pressed('cancel')) { audio.sfx.confirm(); game.persist(); this._back(game); }
   }
 
   _beginRebind(game, action) {
@@ -80,6 +83,12 @@ export class SettingsState {
     game.input.setBindings(game.save.settings.bindings);
     game.persist();
     audio.sfx.confirm();
+  }
+
+  // return to wherever Settings was opened from: a state name or a callback
+  _back(game) {
+    if (typeof this.returnTo === 'function') this.returnTo(game);
+    else game.changeState(this.returnTo);
   }
 
   _adjust(game, dir) {

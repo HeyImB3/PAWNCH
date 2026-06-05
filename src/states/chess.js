@@ -57,6 +57,13 @@ export class ChessState {
   get remoteTurn() { return !!this.m.net && this.m.chess.turn !== this.m.playerColor; }
   get aiTurn() { return this.m.mode === 'story' && this.m.chess.turn !== this.m.playerColor; }
 
+  // Esc opens the pause menu — but only when it isn't already busy doing
+  // something Esc should back out of first (a selected piece, the promotion
+  // picker) or resolving the half.
+  canPause() {
+    return (this.phase === 'play' || this.phase === 'aithink' || this.phase === 'anim') && this.selected < 0;
+  }
+
   update(game, dt) {
     this.t += dt / 1000;
     if (this.bannerT > 0) this.bannerT -= dt / 1000;

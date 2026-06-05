@@ -5,17 +5,19 @@ import { PAL } from '../config.js';
 import { text, logo, panel, bgGradient } from '../gfx.js';
 import * as audio from '../audio.js';
 
-const ITEMS = [
-  { id: 'story', label: 'STORY MODE' },
-  { id: 'multiplayer', label: 'MULTIPLAYER' },
-  { id: 'settings', label: 'SETTINGS' },
-];
-
 export class TitleState {
   enter(game) {
     this.t = 0;
     this.sel = 0;
     this.started = false;
+    // CONTINUE appears only when a match was parked via the in-game pause menu
+    this.items = [];
+    if (game.hasSavedMatch()) this.items.push({ id: 'continue', label: 'CONTINUE' });
+    this.items.push(
+      { id: 'story', label: 'STORY MODE' },
+      { id: 'multiplayer', label: 'MULTIPLAYER' },
+      { id: 'settings', label: 'SETTINGS' },
+    );
     audio.playTitleTheme();
   }
 
@@ -23,11 +25,13 @@ export class TitleState {
     this.t += dt / 1000;
     audio.playTitleTheme();
     const i = game.input;
-    if (i.pressed('down')) { this.sel = (this.sel + 1) % ITEMS.length; audio.sfx.select(); }
-    if (i.pressed('up')) { this.sel = (this.sel - 1 + ITEMS.length) % ITEMS.length; audio.sfx.select(); }
+    if (i.pressed('down')) { this.sel = (this.sel + 1) % this.items.length; audio.sfx.select(); }
+    if (i.pressed('up')) { this.sel = (this.sel - 1 + this.items.length) % this.items.length; audio.sfx.select(); }
     if (i.pressed('confirm')) {
       audio.sfx.confirm();
-      game.changeState(ITEMS[this.sel].id);
+      const id = this.items[this.sel].id;
+      if (id === 'continue') game.continueSavedMatch();
+      else game.changeState(id);
     }
   }
 
@@ -44,8 +48,8 @@ export class TitleState {
 
     // menu
     const baseY = 230;
-    panel(ctx, W / 2 - 120, baseY - 16, 240, ITEMS.length * 34 + 16, { fill: PAL.panel, border: PAL.orange, border2: PAL.orangeDark });
-    ITEMS.forEach((it, idx) => {
+    panel(ctx, W / 2 - 120, baseY - 16, 240, this.items.length * 34 + 16, { fill: PAL.panel, border: PAL.orange, border2: PAL.orangeDark });
+    this.items.forEach((it, idx) => {
       const y = baseY + idx * 34;
       const on = idx === this.sel;
       if (on) {

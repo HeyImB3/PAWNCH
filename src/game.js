@@ -26,6 +26,7 @@ import { BoxingState } from './states/boxing.js';
 import { RoundBreakState } from './states/roundbreak.js';
 import { MatchEndState } from './states/matchend.js';
 import { MultiplayerState } from './states/multiplayer.js';
+import { PauseOverlay } from './states/pause.js';
 
 const STATES = {
   title: TitleState,
@@ -62,6 +63,9 @@ export class Game {
 
     this.freeze = 0;         // hit-stop timer (ms): pauses sim, keeps drawing
     this.toast = null;       // { msg, t } transient HUD message (e.g. mute toggle)
+
+    this.paused = false;     // in-game pause overlay active? (freezes the half)
+    this.pause = null;       // PauseOverlay instance while paused
 
     this.last = performance.now();
     this._loop = this._loop.bind(this);
@@ -160,6 +164,70 @@ export class Game {
 
   persist() { save(this.save); }
 
+  // ---- pause overlay + save / continue --------------------------------
+  openPause() { this.paused = true; this.pause = new PauseOverlay(); }
+  closePause() { this.paused = false; this.pause = null; }
+
+  // pause is allowed only mid chess/boxing, offline, and when the active state
+  // isn't mid-something Esc should back out of first (e.g. a chess selection)
+  _canPauseNow() {
+    if (this.transitionDir !== 0) return false;
+    if (this.stateName !== 'chess' && this.stateName !== 'boxing') return false;
+    if (this.match?.net) return false;
+    if (this.state?.canPause && !this.state.canPause(this)) return false;
+    return true;
+  }
+
+  // serialize the live match so it can be resumed later (chess via FEN)
+  snapshotMatch(half) {
+    const m = this.match;
+    return {
+      v: 1,
+      mode: m.mode,
+      opponent: m.opponent,          // plain data (story roster entry or { name })
+      playerColor: m.playerColor,
+      round: m.round,
+      fen: Chess.toFen(m.chess),
+      clocks: { ...m.clocks },
+      hp: { ...m.hp },
+      fightTrack: m.fightTrack,
+      pgnMoves: (m.pgnMoves || []).slice(),
+      half,                          // 'chess' | 'boxing'
+    };
+  }
+
+  hasSavedMatch() { return !!(this.save && this.save.savedMatch); }
+
+  // pause menu -> "Save & Quit": park the match, then cut to the title
+  saveMatchAndExit() {
+    if (this.match) { this.save.savedMatch = this.snapshotMatch(this.stateName); this.persist(); }
+    this.match = null;
+    this.closePause();
+    this.setState('title');          // instant (no wipe) so the old half can't tick a dead match
+  }
+
+  // title -> "Continue": rebuild the parked match and drop back into its half
+  continueSavedMatch() {
+    const s = this.save?.savedMatch;
+    if (!s) return;
+    this.match = {
+      mode: s.mode,
+      opponent: s.opponent,
+      net: null,
+      playerColor: s.playerColor,
+      round: s.round,
+      chess: Chess.loadFen(s.fen),
+      clocks: { ...s.clocks },
+      hp: { ...s.hp },
+      fightTrack: s.fightTrack || 0,
+      over: false, winner: null, reason: null, lastChessResult: null,
+      pgnMoves: s.pgnMoves ? [...s.pgnMoves] : [],
+    };
+    this.save.savedMatch = null;     // single slot: consumed on continue
+    this.persist();
+    this.changeState(s.half === 'boxing' ? 'boxing' : 'chess');
+  }
+
   // ---- main loop -------------------------------------------------------
   _loop(t) {
     let dt = t - this.last;
@@ -179,6 +247,13 @@ export class Game {
   update(dt) {
     // first input resumes audio (browser autoplay policy)
     if (this.input.consumeAnyKey()) audio.resume();
+
+    // paused: the in-game pause overlay owns everything; the half is frozen
+    if (this.paused) { this.pause.update(this, dt); return; }
+
+    // open the pause menu (Esc) — only mid chess/boxing, offline (see _canPauseNow)
+    if (this.input.pressed('cancel') && this._canPauseNow()) { audio.sfx.select(); this.openPause(); return; }
+
     // global: M toggles music mute (with a now-playing toast)
     if (this.input.pressedCode('KeyM')) {
       const muted = audio.toggleMusicMute();
@@ -216,6 +291,9 @@ export class Game {
     this.fx.draw(ctx);
     this.fx.drawFlash(ctx, this.W, this.H);
     ctx.restore();
+
+    // in-game pause menu draws over the frozen half
+    if (this.paused && this.pause) this.pause.draw(this, ctx);
 
     if (this.save.settings.scanlines) scanlines(ctx, this.W, this.H);
     this._drawNetStatus(ctx);

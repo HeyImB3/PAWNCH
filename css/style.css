@@ -1,0 +1,77 @@
+/* PAWNCH — global shell styling. The game itself renders to a single canvas;
+   CSS only handles the letterboxed, pixel-crisp container + a couple of hints. */
+
+:root {
+  --pawnch-orange: #ff7a18;
+  --pawnch-blue: #2b6cff;
+  --bg: #05060c;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  font-family: monospace;
+  color: #cfe0ff;
+  -webkit-font-smoothing: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  /* subtle vignette so the cabinet feels framed */
+  background:
+    radial-gradient(120% 120% at 50% 40%, #0b1024 0%, #05060c 70%, #000 100%);
+}
+
+#frame {
+  position: relative;
+  /* keep 512:448 aspect; fit within viewport */
+  width: min(96vw, calc(96vh * (512 / 448)));
+  aspect-ratio: 512 / 448;
+  box-shadow:
+    0 0 0 4px #11162b,
+    0 0 0 8px #1d2647,
+    0 0 40px rgba(43, 108, 255, 0.25),
+    0 0 80px rgba(255, 122, 24, 0.12);
+  border-radius: 6px;
+  background: #000;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border-radius: 4px;
+}
+
+#loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pawnch-orange);
+  letter-spacing: 4px;
+  font-size: 18px;
+  background: #000;
+}
+
+#hint {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #5e6b94;
+  user-select: none;
+}
+
+:fullscreen #frame, :-webkit-full-screen #frame {
+  width: min(100vw, calc(100vh * (512 / 448)));
+}

@@ -1,0 +1,522 @@
+// PAWNCH graphics toolkit: a 5x7 pixel bitmap font, UI panels, the big
+// arcade-fighter logo, chess-piece glyphs, boxer sprites, the ring, and a
+// small particle/fx system. All drawn procedurally to the canvas so the game
+// is asset-free — but if Aseprite art is registered (see assets.js) it's
+// blitted instead of the procedural fallback.
+
+import { PAL } from './config.js';
+
+// ---- Aseprite sprite registry -----------------------------------------
+// assets.js loads optional PNGs and registers them here keyed by name. Draw
+// helpers below prefer a registered image and otherwise return false so the
+// procedural art runs. Boxer keys: `${front|back}:${pose}`. Piece keys:
+// `${w|b}${type}` e.g. 'wq', 'bn'.
+const SPRITES = { boxers: {}, pieces: {} };
+export function registerSprite(group, key, img) { (SPRITES[group] ||= {})[key] = img; }
+export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.keys(SPRITES.pieces).length > 0; }
+
+function drawBoxerSprite(ctx, x, y, scale, hue, pose, facing, step) {
+  const img = SPRITES.boxers[`${facing === 1 ? 'front' : 'back'}:${pose}`] ||
+              SPRITES.boxers[`${facing === 1 ? 'front' : 'back'}:idle`];
+  if (!img) return false;
+  // sprites are authored ~22 wide x 32 tall in sprite-units; scale to match
+  const w = 22 * scale, h = 32 * scale;
+  ctx.drawImage(img, Math.round(x - w / 2), Math.round(y - 5 * scale), Math.round(w), Math.round(h));
+  return true;
+}
+function drawPieceSprite(ctx, type, cx, cy, size, white) {
+  const img = SPRITES.pieces[(white ? 'w' : 'b') + type.toLowerCase()];
+  if (!img) return false;
+  const h = size * 1.1, w = h * (img.width / img.height);
+  ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+  return true;
+}
+
+// ---- 5x7 bitmap font ---------------------------------------------------
+const F = {
+  A:['01110','10001','10001','11111','10001','10001','10001'],
+  B:['11110','10001','11110','10001','10001','10001','11110'],
+  C:['01110','10001','10000','10000','10000','10001','01110'],
+  D:['11110','10001','10001','10001','10001','10001','11110'],
+  E:['11111','10000','11110','10000','10000','10000','11111'],
+  F:['11111','10000','11110','10000','10000','10000','10000'],
+  G:['01110','10001','10000','10111','10001','10001','01110'],
+  H:['10001','10001','10001','11111','10001','10001','10001'],
+  I:['01110','00100','00100','00100','00100','00100','01110'],
+  J:['00111','00010','00010','00010','10010','10010','01100'],
+  K:['10001','10010','10100','11000','10100','10010','10001'],
+  L:['10000','10000','10000','10000','10000','10000','11111'],
+  M:['10001','11011','10101','10101','10001','10001','10001'],
+  N:['10001','11001','10101','10011','10001','10001','10001'],
+  O:['01110','10001','10001','10001','10001','10001','01110'],
+  P:['11110','10001','10001','11110','10000','10000','10000'],
+  Q:['01110','10001','10001','10001','10101','10010','01101'],
+  R:['11110','10001','10001','11110','10100','10010','10001'],
+  S:['01111','10000','10000','01110','00001','00001','11110'],
+  T:['11111','00100','00100','00100','00100','00100','00100'],
+  U:['10001','10001','10001','10001','10001','10001','01110'],
+  V:['10001','10001','10001','10001','10001','01010','00100'],
+  W:['10001','10001','10001','10101','10101','11011','10001'],
+  X:['10001','10001','01010','00100','01010','10001','10001'],
+  Y:['10001','10001','01010','00100','00100','00100','00100'],
+  Z:['11111','00010','00100','01000','10000','10000','11111'],
+  '0':['01110','10011','10101','10101','11001','10001','01110'],
+  '1':['00100','01100','00100','00100','00100','00100','01110'],
+  '2':['01110','10001','00001','00110','01000','10000','11111'],
+  '3':['11111','00010','00100','00010','00001','10001','01110'],
+  '4':['00010','00110','01010','10010','11111','00010','00010'],
+  '5':['11111','10000','11110','00001','00001','10001','01110'],
+  '6':['00110','01000','10000','11110','10001','10001','01110'],
+  '7':['11111','00001','00010','00100','01000','01000','01000'],
+  '8':['01110','10001','10001','01110','10001','10001','01110'],
+  '9':['01110','10001','10001','01111','00001','00010','01100'],
+  ' ':['00000','00000','00000','00000','00000','00000','00000'],
+  '.':['00000','00000','00000','00000','00000','01100','01100'],
+  ',':['00000','00000','00000','00000','00000','00100','01000'],
+  '!':['00100','00100','00100','00100','00100','00000','00100'],
+  '?':['01110','10001','00010','00100','00100','00000','00100'],
+  ':':['00000','01100','01100','00000','01100','01100','00000'],
+  '-':['00000','00000','00000','11111','00000','00000','00000'],
+  '+':['00000','00100','00100','11111','00100','00100','00000'],
+  '/':['00001','00010','00100','00100','00100','01000','10000'],
+  "'":['00100','00100','00100','00000','00000','00000','00000'],
+  '(':['00010','00100','01000','01000','01000','00100','00010'],
+  ')':['01000','00100','00010','00010','00010','00100','01000'],
+  '#':['01010','11111','01010','01010','11111','01010','00000'],
+  '%':['11001','11010','00100','01011','10011','00000','00000'],
+  '*':['00000','10101','01110','11111','01110','10101','00000'],
+  '=':['00000','00000','11111','00000','11111','00000','00000'],
+  '<':['00010','00100','01000','10000','01000','00100','00010'],
+  '>':['01000','00100','00010','00001','00010','00100','01000'],
+};
+
+// Draw text. scale = pixel size. Returns width in px.
+export function text(ctx, str, x, y, { scale = 2, color = PAL.text, align = 'left', shadow = null, spacing = 1 } = {}) {
+  str = String(str).toUpperCase();
+  const cw = (5 + spacing) * scale;
+  const w = str.length * cw - spacing * scale;
+  let ox = x;
+  if (align === 'center') ox = x - w / 2;
+  if (align === 'right') ox = x - w;
+  ox = Math.round(ox);
+  if (shadow) drawStr(ctx, str, ox + scale, Math.round(y) + scale, scale, shadow, spacing);
+  drawStr(ctx, str, ox, Math.round(y), scale, color, spacing);
+  return w;
+}
+function drawStr(ctx, str, x, y, scale, color, spacing) {
+  ctx.fillStyle = color;
+  let ox = x;
+  for (const ch of str) {
+    const g = F[ch] || F['?'];
+    for (let r = 0; r < 7; r++) {
+      const row = g[r];
+      for (let c = 0; c < 5; c++) if (row[c] === '1') ctx.fillRect(ox + c * scale, y + r * scale, scale, scale);
+    }
+    ox += (5 + spacing) * scale;
+  }
+}
+export function textWidth(str, scale = 2, spacing = 1) {
+  return String(str).length * (5 + spacing) * scale - spacing * scale;
+}
+
+// ---- UI primitives -----------------------------------------------------
+export function panel(ctx, x, y, w, h, { fill = PAL.panel, border = PAL.blue, border2 = PAL.blueDark, glow = false } = {}) {
+  if (glow) { ctx.fillStyle = 'rgba(43,108,255,0.10)'; ctx.fillRect(x - 6, y - 6, w + 12, h + 12); }
+  ctx.fillStyle = border2; ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+  ctx.fillStyle = border;  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = fill;    ctx.fillRect(x, y, w, h);
+}
+
+export function barH(ctx, x, y, w, h, pct, { fill = PAL.green, back = '#10162e', border = PAL.ink } = {}) {
+  ctx.fillStyle = border; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = back; ctx.fillRect(x, y, w, h);
+  const fw = Math.max(0, Math.round(w * Math.max(0, Math.min(1, pct))));
+  ctx.fillStyle = fill; ctx.fillRect(x, y, fw, h);
+  // segmented sheen
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y, fw, Math.max(1, h / 3 | 0));
+}
+
+// ---- big logo ----------------------------------------------------------
+// "PAWNCH" rendered as a chunky, forward-leaning, beveled arcade-fighter logo
+// (an original wordmark that EVOKES the early-'90s fighting-game look — not a
+// copy of any real game's trademarked logo). Warm gold->orange->red metallic
+// gradient, bright chrome top highlight, thick black outline, blue brand rim,
+// bold drop shadow, an upward arch, and a chiseled 3D bevel on every block.
+// Pixel-crisp (per-row integer italic shear).
+const LOGO_GRAD = ['#fff3c8', '#ffe070', '#ffbe33', '#ff8a1e', '#f4600f', '#cf3c08', '#9c2402'];
+
+export function logo(ctx, cx, y, scale = 11, wobble = 0) {
+  const word = 'PAWNCH';
+  const s = scale;
+  const shear = 0.34;                          // italic lean (top pushed right)
+  const cw = (5 + 1) * s;                       // glyph cell incl. 1-col gap
+  const totalW = word.length * cw - s;
+  const maxShear = Math.round(6 * s * shear);
+  const ox = cx - totalW / 2 - maxShear / 2;    // center accounting for the lean
+  const mid = (word.length - 1) / 2;
+  for (let i = 0; i < word.length; i++) {
+    // upward marquee arch: ends sit lower than the middle
+    const arch = Math.round(s * 0.9 * Math.pow((i - mid) / mid, 2));
+    const bob = Math.round(Math.sin(wobble + i * 0.6) * s * 0.35);
+    bevelGlyph(ctx, word[i], ox + i * cw, y + arch + bob, s, shear);
+  }
+}
+
+// shift x per glyph-row for the italic lean (integer px -> stays pixelated)
+const shearPx = (r, s, shear) => Math.round((6 - r) * s * shear);
+
+function bevelGlyph(ctx, ch, x, y, s, shear) {
+  const g = F[ch] || F['?'];
+  const out = Math.max(2, Math.round(s / 4));   // black outline thickness
+  const rim = Math.max(1, Math.round(s / 6));   // blue brand rim thickness
+  const bev = Math.max(1, Math.round(s / 4));   // bevel thickness
+  const px = (c, r) => Math.round(x + c * s + shearPx(r, s, shear));
+  const py = (r) => Math.round(y + r * s);
+  const each = (fn) => { for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) if (g[r][c] === '1') fn(c, r); };
+
+  // 1) bold drop shadow (down-right)
+  ctx.fillStyle = '#120500';
+  const sh = Math.round(s * 0.55);
+  each((c, r) => ctx.fillRect(px(c, r) + sh, py(r) + sh, s, s));
+
+  // 2) blue brand rim (widest), then thick black outline on top of it
+  ctx.fillStyle = PAL.blue;
+  each((c, r) => ctx.fillRect(px(c, r) - out - rim, py(r) - out - rim, s + (out + rim) * 2, s + (out + rim) * 2));
+  ctx.fillStyle = PAL.ink;
+  each((c, r) => ctx.fillRect(px(c, r) - out, py(r) - out, s + out * 2, s + out * 2));
+
+  // 3) beveled metallic face with the warm gold->orange->red gradient
+  each((c, r) => {
+    const base = LOGO_GRAD[r];
+    const X = px(c, r), Y = py(r);
+    ctx.fillStyle = base; ctx.fillRect(X, Y, s, s);
+    // bright chrome top + left highlight
+    ctx.fillStyle = shade(base, 70);
+    ctx.fillRect(X, Y, s, bev);
+    ctx.fillRect(X, Y, bev, s);
+    // deep bottom + right shadow
+    ctx.fillStyle = shade(base, -70);
+    ctx.fillRect(X, Y + s - bev, s, bev);
+    ctx.fillRect(X + s - bev, Y, bev, s);
+  });
+}
+
+// lighten/darken a #rrggbb hex by amt (-255..255)
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const cl = (v) => Math.max(0, Math.min(255, v));
+  const r = cl(((n >> 16) & 255) + amt), g = cl(((n >> 8) & 255) + amt), b = cl((n & 255) + amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+// ---- chess piece glyphs (8 wide x 11 tall pixel art) -------------------
+// Taller, more recognizable Staunton-ish silhouettes. '1' = body.
+const PIECE = {
+  p:['00111100','01111110','01111110','00111100','00111100','01111110','01111110','00111100','01111110','11111111','11111111'],
+  n:['00011000','00111100','01111100','11111110','11011110','00111110','00111100','01111110','01111110','11111111','11111111'],
+  b:['00011000','00111100','00111100','00011000','00111100','00111100','00111100','00111100','01111110','11111111','11111111'],
+  r:['10100101','11111111','11111111','01111110','00111100','00111100','00111100','01111110','01111110','11111111','11111111'],
+  q:['01000010','10100101','11111111','01111110','00111100','00111100','01111110','01111110','01111110','11111111','11111111'],
+  k:['00011000','00011000','01111110','00011000','00111100','00111100','01111110','01111110','01111110','11111111','11111111'],
+};
+
+// Draw a piece centered at (cx,cy) sized to ~`size` px tall, with a magical
+// glow, gentle float, and a shimmer. `t`+`phase` desync the animation per
+// square; `lift` raises it (selection/drag); `glow` controls the aura.
+export function piece(ctx, type, cx, cy, size, white, { t = 0, phase = 0, lift = 0, glow = 1, shadow = true, clean = false } = {}) {
+  if (!clean && drawPieceSprite(ctx, type, cx, cy - lift, size, white)) return; // asset override (skip when exporting)
+  const g = PIECE[type.toLowerCase()];
+  const ROWS = g.length, COLS = 8;
+  const s = Math.max(1, Math.round(size / ROWS));
+  const w = COLS * s, h = ROWS * s;
+  const bob = Math.sin(t * 2.2 + phase) * (size * 0.045);
+  const x = Math.round(cx - w / 2);
+  const y = Math.round(cy - h / 2 - lift - bob);
+
+  const aura = white ? PAL.blueLite : PAL.orangeLite;
+  const body = white ? '#f3e6cf' : '#27304f';
+  const bodySh = white ? '#cbb38c' : '#171d33';
+  const hi = white ? '#ffffff' : '#586494';
+
+  // magical aura
+  if (glow > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3 + phase);
+    const rad = size * (0.62 + 0.06 * pulse);
+    const gr = ctx.createRadialGradient(cx, cy - lift, 1, cx, cy - lift, rad);
+    gr.addColorStop(0, withA(aura, (0.10 + 0.18 * pulse) * glow));
+    gr.addColorStop(1, withA(aura, 0));
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(cx, cy - lift, rad, 0, Math.PI * 2); ctx.fill();
+  }
+  // floating ground shadow (shrinks as it lifts; skipped for clean export)
+  if (shadow) {
+    const shA = Math.max(0.05, 0.28 - lift * 0.012);
+    ctx.fillStyle = `rgba(0,0,0,${shA})`;
+    ctx.fillRect(Math.round(cx - w * 0.32), Math.round(cy + h * 0.42), Math.round(w * 0.64), Math.max(1, Math.round(s * 0.7)));
+  }
+
+  const fill = (col, test) => {
+    ctx.fillStyle = col;
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (g[r][c] === '1' && test(r, c)) ctx.fillRect(x + c * s, y + r * s, s, s);
+  };
+  // outline (expand)
+  ctx.fillStyle = PAL.ink;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (g[r][c] === '1') ctx.fillRect(x + c * s - 1, y + r * s - 1, s + 2, s + 2);
+  // body + shading + top highlight
+  fill(body, () => true);
+  fill(bodySh, (r, c) => c >= 5);            // right-side shadow
+  fill(hi, (r) => r < 3);                     // top highlight (crown/head)
+  // shimmer sparkle that travels up the piece
+  const spk = (Math.sin(t * 4 + phase) + 1) / 2;
+  const sr = Math.floor(spk * (ROWS - 1));
+  for (let c = 0; c < COLS; c++) if (g[sr]?.[c] === '1') { ctx.fillStyle = `rgba(255,255,255,${0.5 * glow})`; ctx.fillRect(x + c * s, y + sr * s, s, Math.max(1, s / 2)); break; }
+}
+
+function withA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+
+// ---- boxer sprite ------------------------------------------------------
+// A 16-bit caricature boxer (Punch-Out-ish): rounded head, neck, sloped
+// shoulders, shaded tapered torso, trunks, boots, oversized gloves, and a
+// face on the front view. `hue` is {body,trim,skin}.
+// pose: 'idle'|'guard'|'windupL'|'windupR'|'punchL'|'punchR'|'hurt'|'down'|'walk'
+// facing: 1 (front, opponent) | -1 (back, player POV). `step` drives bob/walk.
+// If an Aseprite sprite is registered for this look it's blitted instead.
+export function boxer(ctx, x, y, scale, hue, pose = 'idle', facing = 1, step = 0, opts = {}) {
+  if (!opts.clean && drawBoxerSprite(ctx, x, y, scale, hue, pose, facing, step)) return; // asset override (skip when exporting frames)
+  const s = scale;
+  const R = (a, b, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x + a * s), Math.round(y + b * s), Math.max(1, Math.ceil(w * s)), Math.max(1, Math.ceil(h * s))); };
+  // rounded rect (1-unit chamfered corners) for a softer, less-blocky silhouette
+  const RR = (a, b, w, h, col) => { R(a, b + 1, w, h - 2, col); R(a + 1, b, w - 2, 1, col); R(a + 1, b + h - 1, w - 2, 1, col); };
+
+  const skin = hue.skin, skinSh = shade(skin, -28), skinHi = shade(skin, 26);
+  const body = hue.body, bodySh = shade(body, -38), bodyHi = shade(body, 42);
+  const trim = hue.trim, trimHi = shade(trim, 30);
+  const hair = '#241813';
+  const gl = '#ededf2', glSh = '#b9b9c6', glHi = '#ffffff';
+  const boot = '#15151d';
+
+  const bob = pose === 'walk' ? Math.round(Math.sin(step) * 1.6) : Math.round(Math.sin(step * 0.5) * 0.7);
+  const dy = bob;
+
+  if (pose === 'down') {
+    ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(Math.round(x - 13 * s), Math.round(y + 24 * s), Math.ceil(28 * s), Math.ceil(3 * s));
+    RR(-12, 18, 22, 8, body); R(-12, 18, 22, 2, bodyHi);   // sprawled torso
+    R(-4, 20, 12, 4, trim);                                // trunks
+    RR(8, 16, 9, 8, skin); R(8, 16, 9, 2, hair);           // head to the side
+    R(-15, 19, 6, 6, gl); R(13, 21, 6, 6, gl);             // gloves out
+    return;
+  }
+
+  const lean = pose === 'hurt' ? facing * 3 : 0;
+  // ground shadow (skipped when exporting a clean frame)
+  if (!opts.clean) { ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(Math.round(x - 9 * s), Math.round(y + 26 * s), Math.ceil(20 * s), Math.ceil(3 * s)); }
+
+  // legs (with a little walk swing)
+  const sw = pose === 'walk' ? Math.round(Math.sin(step) * 2) : 0;
+  R(-6 + sw, 19 + dy, 5, 7, body); R(-6 + sw, 19 + dy, 2, 7, bodyHi);
+  R(2 - sw, 19 + dy, 5, 7, body); R(5 - sw, 19 + dy, 2, 7, bodySh);
+  RR(-6 + sw, 25 + dy, 5, 3, boot); RR(2 - sw, 25 + dy, 5, 3, boot);     // boots
+  // trunks (waistband = trim, side stripe)
+  RR(-7, 15 + dy, 14, 5, trim); R(-7, 15 + dy, 14, 1, trimHi);
+  R(-7, 16 + dy, 1, 4, trimHi); R(6, 16 + dy, 1, 4, shade(trim, -30));
+
+  // torso: tapered, shaded (light left / dark right), singlet panel
+  RR(-8 + lean, 6 + dy, 16, 6, body);    // shoulders (wide)
+  RR(-7 + lean, 11 + dy, 14, 5, body);   // chest -> waist taper
+  R(0 + lean, 6 + dy, 8, 10, bodySh);    // right-side shading
+  R(-8 + lean, 6 + dy, 3, 10, bodyHi);   // left-side highlight
+  R(-3 + lean, 8 + dy, 6, 7, trim);      // singlet front panel
+  R(-3 + lean, 8 + dy, 6, 1, trimHi);
+
+  // neck + head (rounded)
+  R(-2 + lean, 4 + dy, 4, 3, skinSh);
+  RR(-5 + lean, -4 + dy, 10, 9, skin);
+  R(2 + lean, -3 + dy, 3, 8, skinSh);    // face shading (right)
+  RR(-5 + lean, -4 + dy, 10, 3, hair);   // hair cap
+  R(-5 + lean, -2 + dy, 1, 4, hair);     // sideburn L
+  if (facing === 1) {                    // face the camera
+    R(-3 + lean, 0 + dy, 1, 1, hair);    // brows
+    R(2 + lean, 0 + dy, 1, 1, hair);
+    R(-3 + lean, 1 + dy, 2, 2, '#1a1a1a'); // eyes
+    R(2 + lean, 1 + dy, 2, 2, '#1a1a1a');
+    R(0 + lean, 2 + dy, 1, 2, skinSh);     // nose
+    R(-2 + lean, 4 + dy, 5, 1, pose === 'hurt' ? '#3a1010' : shade(skin, -45)); // mouth
+  } else {
+    RR(-5 + lean, -4 + dy, 10, 6, hair);   // back of head = hair
+  }
+
+  // arms + oversized gloves
+  const guard = pose === 'guard';
+  const lift = guard ? -5 : 0;
+  // glove anchor per pose
+  let lx = -11, ly = 11 + dy, rx = 7, ry = 11 + dy, lz = 6, rz = 6;
+  if (guard) { lx = -6; ly = 2 + dy; rx = 2; ry = 2 + dy; }
+  if (pose === 'windupL') { lx = -13; ly = 8 + dy; }
+  if (pose === 'windupR') { rx = 9; ry = 8 + dy; }
+  if (pose === 'punchL') { lx = -3; ly = 13 + dy; lz = 7; }
+  if (pose === 'punchR') { rx = 1; ry = 13 + dy; rz = 7; }
+  if (pose === 'hurt') { ly += 2; ry += 2; }
+  // upper arms (shaded)
+  R(-9 + lean, 7 + dy + lift, 4, 6, bodySh);
+  R(6 + lean, 7 + dy + lift, 4, 6, bodySh);
+  const drawGlove = (gx, gy, gz) => {
+    RR(gx, gy, gz, gz, gl);
+    R(gx, gy, gz, 2, glHi);                 // top highlight
+    R(gx, gy + gz - 2, gz, 2, glSh);        // bottom shadow
+    R(gx + gz - 2, gy + 1, 1, gz - 2, glSh);// right edge
+    R(gx + 1, gy + Math.floor(gz / 2), gz - 2, 1, glSh); // lace seam
+  };
+  drawGlove(lx, ly, lz);
+  drawGlove(rx, ry, rz);
+}
+
+// ---- particle / fx system ---------------------------------------------
+export class FX {
+  constructor() { this.parts = []; this.shake = 0; this.flash = 0; this.flashColor = '#fff'; }
+  burst(x, y, color, n = 12, speed = 2.4, life = 28) {
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 * i) / n + Math.random();
+      const sp = speed * (0.5 + Math.random());
+      this.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 0.6, g: 0.12, life, max: life, color, size: 2 + (Math.random() * 2 | 0) });
+    }
+  }
+  spark(x, y, color, n = 6) { this.burst(x, y, color, n, 3.2, 18); }
+  ring(x, y, color, life = 20) { this.parts.push({ ring: true, x, y, r: 2, vr: 2.2, life, max: life, color }); }
+  doShake(amt) { this.shake = Math.max(this.shake, amt); }
+  doFlash(color = '#fff', amt = 0.6) { this.flash = amt; this.flashColor = color; }
+  update() {
+    for (const p of this.parts) {
+      if (p.ring) { p.r += p.vr; }
+      else { p.x += p.vx; p.y += p.vy; p.vy += p.g; }
+      p.life--;
+    }
+    this.parts = this.parts.filter((p) => p.life > 0);
+    this.shake *= 0.82; if (this.shake < 0.3) this.shake = 0;
+    this.flash *= 0.86; if (this.flash < 0.02) this.flash = 0;
+  }
+  draw(ctx) {
+    for (const p of this.parts) {
+      const a = p.life / p.max;
+      ctx.globalAlpha = a;
+      if (p.ring) { ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.stroke(); }
+      else { ctx.fillStyle = p.color; ctx.fillRect(p.x | 0, p.y | 0, p.size, p.size); }
+    }
+    ctx.globalAlpha = 1;
+  }
+  drawFlash(ctx, w, h) {
+    if (this.flash > 0) { ctx.globalAlpha = this.flash; ctx.fillStyle = this.flashColor; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1; }
+  }
+  shakeOffset() { return this.shake ? [(Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake] : [0, 0]; }
+}
+
+// ---- shared scene bits -------------------------------------------------
+export function bgGradient(ctx, w, h, top = PAL.ink2, bottom = PAL.ink) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, top); g.addColorStop(1, bottom);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}
+
+// Boxing ring: perspective floor, ropes, corner posts, crowd glow.
+// `accent` tints the arena per-opponent; `crowd` (0..1) flares the crowd on big hits.
+export function ring(ctx, W, H, { floorTop = 150, accent = PAL.blue, crowd = 0 } = {}) {
+  // arena backdrop (tinted toward the accent)
+  const g = ctx.createLinearGradient(0, 0, 0, floorTop);
+  g.addColorStop(0, mix('#070b1e', accent, 0.16)); g.addColorStop(1, '#10152b');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, floorTop);
+
+  // overhead spotlights
+  for (const [sx, col] of [[W * 0.28, PAL.orange], [W * 0.72, accent]]) {
+    const gr = ctx.createLinearGradient(sx, 0, sx, floorTop);
+    gr.addColorStop(0, mixA(col, 0.18 + crowd * 0.15)); gr.addColorStop(1, mixA(col, 0));
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(sx - 10, 0); ctx.lineTo(sx + 10, 0); ctx.lineTo(sx + 70, floorTop); ctx.lineTo(sx - 70, floorTop); ctx.closePath(); ctx.fill();
+  }
+
+  // tiered crowd (3 bands, nearer = bigger/brighter), flares with `crowd`
+  for (let band = 0; band < 3; band++) {
+    const by = 12 + band * 26, bh = 22, sz = 2 + band;
+    ctx.fillStyle = `rgba(${200 + band * 18},${205},${230},${0.10 + band * 0.05 + crowd * 0.45})`;
+    for (let i = 0; i < 26; i++) {
+      const cx2 = ((i * 41 + band * 13) % W);
+      ctx.fillRect(cx2, by + ((i * 7) % bh), sz, sz);
+    }
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(accent, crowd * 0.22); ctx.fillRect(0, 0, W, floorTop); }
+
+  // ring apron (front skirt) + canvas floor
+  ctx.fillStyle = mix(PAL.ringFloor, '#000', 0.35);
+  ctx.fillRect(0, floorTop, W, 10);
+  ctx.fillStyle = PAL.ringFloor;
+  ctx.beginPath();
+  ctx.moveTo(W * 0.16, floorTop + 8); ctx.lineTo(W * 0.84, floorTop + 8);
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = PAL.ringFloor2;
+  for (let i = 0; i < 6; i++) {
+    const t0 = i / 6, t1 = (i + 0.5) / 6;
+    const y0 = floorTop + 8 + (H - floorTop - 8) * t0, y1 = floorTop + 8 + (H - floorTop - 8) * t1;
+    const xl0 = lerp(W * 0.16, 0, t0), xr0 = lerp(W * 0.84, W, t0);
+    const xl1 = lerp(W * 0.16, 0, t1), xr1 = lerp(W * 0.84, W, t1);
+    ctx.beginPath(); ctx.moveTo(xl0, y0); ctx.lineTo(xr0, y0); ctx.lineTo(xr1, y1); ctx.lineTo(xl1, y1); ctx.closePath(); ctx.fill();
+  }
+  // center canvas emblem (subtle)
+  ctx.save(); ctx.globalAlpha = 0.10;
+  ctx.strokeStyle = accent; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(W / 2, H - 70, 120, 34, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.globalAlpha = 0.12; text(ctx, 'PAWNCH', W / 2, H - 78, { scale: 2, color: accent, align: 'center' });
+  ctx.restore();
+
+  // ropes: 3, sagging in the middle, with highlight + a little color
+  const ropeYs = [floorTop - 40, floorTop - 26, floorTop - 12];
+  const ropeCols = [PAL.ringRope, '#f0f0f0', accent];
+  ropeYs.forEach((ry, i) => {
+    for (let x = 0; x <= W; x += 12) {
+      const sag = Math.sin((x / W) * Math.PI) * 4;
+      ctx.fillStyle = ropeCols[i]; ctx.fillRect(x, ry + sag, 13, 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x, ry + sag, 13, 1);
+    }
+  });
+
+  // corner posts with turnbuckle pads + corner light
+  for (const px of [8, W - 24]) {
+    ctx.fillStyle = '#0e1430'; ctx.fillRect(px, floorTop - 52, 16, 66);            // post
+    ctx.fillStyle = shade(accent, -20); ctx.fillRect(px - 1, floorTop - 52, 18, 4); // cap
+    // turnbuckle pads at each rope height
+    for (const ry of ropeYs) { ctx.fillStyle = accent; ctx.fillRect(px - 2, ry - 2, 20, 9); ctx.fillStyle = shade(accent, 35); ctx.fillRect(px - 2, ry - 2, 20, 2); }
+    // corner light
+    ctx.fillStyle = '#fff7d0'; ctx.fillRect(px + 5, floorTop - 56, 6, 6);
+    ctx.fillStyle = mixA('#ffe680', 0.4); ctx.fillRect(px + 3, floorTop - 58, 10, 10);
+  }
+}
+// blend two #rrggbb hex colors; t=0 -> a, t=1 -> b
+function mix(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const r = Math.round(((pa >> 16 & 255)) * (1 - t) + (pb >> 16 & 255) * t);
+  const g = Math.round(((pa >> 8 & 255)) * (1 - t) + (pb >> 8 & 255) * t);
+  const bch = Math.round(((pa & 255)) * (1 - t) + (pb & 255) * t);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + bch).toString(16).slice(1);
+}
+function mixA(hex, alpha) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${alpha})`;
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// A little 8-bit chess table off in the corner (for the walk intro).
+export function chessTable(ctx, x, y, scale) {
+  // table
+  ctx.fillStyle = '#3a2a18'; ctx.fillRect(x - 2, y, 8 * scale + 4, 3 * scale);
+  ctx.fillStyle = '#241a0e'; ctx.fillRect(x, y + 3 * scale, 4, 6 * scale);
+  ctx.fillStyle = '#241a0e'; ctx.fillRect(x + 8 * scale - 4, y + 3 * scale, 4, 6 * scale);
+  // mini board
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) {
+    ctx.fillStyle = (r + c) % 2 ? PAL.boardDark : PAL.boardLight;
+    ctx.fillRect(x + c * scale, y - r * scale - scale, scale, scale);
+  }
+}
+
+// scanline overlay for CRT vibe
+export function scanlines(ctx, w, h, alpha = 0.08) {
+  ctx.globalAlpha = alpha; ctx.fillStyle = '#000';
+  for (let y = 0; y < h; y += 2) ctx.fillRect(0, y, w, 1);
+  ctx.globalAlpha = 1;
+}

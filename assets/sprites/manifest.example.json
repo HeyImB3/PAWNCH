@@ -1,0 +1,16 @@
+{
+  "_comment": "Rename to manifest.json and point at your PNGs to override the procedural art. Any key you omit stays procedural.",
+  "boxers": {
+    "front:idle": "boxer_front_idle.png",
+    "front:guard": "boxer_front_guard.png",
+    "front:punchL": "boxer_front_punchL.png",
+    "front:punchR": "boxer_front_punchR.png",
+    "back:idle": "boxer_back_idle.png"
+  },
+  "pieces": {
+    "wp": "white_pawn.png", "wn": "white_knight.png", "wb": "white_bishop.png",
+    "wr": "white_rook.png", "wq": "white_queen.png", "wk": "white_king.png",
+    "bp": "black_pawn.png", "bn": "black_knight.png", "bb": "black_bishop.png",
+    "br": "black_rook.png", "bq": "black_queen.png", "bk": "black_king.png"
+  }
+}

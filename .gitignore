@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Build / temp
+dist/
+build/
+.cache/
+*.tmp
+
+# Local env
+.env
+.env.local
+
+# Claude local-only settings (keep launch.json so others can run the preview)
+.claude/settings.local.json

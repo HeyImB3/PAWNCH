@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PAWNCH · Sprite Frame Generator</title>
+  <style>
+    body { background:#0b1024; color:#cfe0ff; font-family:monospace; padding:18px; }
+    h1 { color:#ff7a18; letter-spacing:2px; }
+    a, button, input { font-family:monospace; }
+    button { background:#2b6cff; color:#fff; border:0; padding:8px 14px; cursor:pointer; border-radius:4px; }
+    button:hover { background:#6fa0ff; }
+    .grid { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; }
+    .cell { background:#141a33; border:1px solid #3a4a78; border-radius:6px; padding:8px; text-align:center; }
+    .cell canvas { image-rendering:pixelated; background:
+       linear-gradient(45deg,#222 25%,transparent 25%),linear-gradient(-45deg,#222 25%,transparent 25%),
+       linear-gradient(45deg,transparent 75%,#222 75%),linear-gradient(-45deg,transparent 75%,#222 75%);
+       background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; display:block; margin:0 auto 6px; }
+    .cell a { display:block; color:#ffb05a; font-size:12px; margin-top:4px; }
+    label { font-size:13px; }
+    textarea { width:100%; height:180px; background:#070a16; color:#9fe6c0; border:1px solid #3a4a78; margin-top:10px; }
+    .hint { color:#8ea0cf; font-size:13px; max-width:760px; line-height:1.5; }
+  </style>
+</head>
+<body>
+  <h1>PAWNCH SPRITE FRAME GENERATOR</h1>
+  <p class="hint">
+    Renders the game's procedural boxers + chess pieces to transparent PNG frames
+    so you have editable, Aseprite-ready starting art. Pick a scale, generate,
+    download the PNGs into <code>assets/sprites/</code>, then save the manifest
+    below as <code>assets/sprites/manifest.json</code>. The game loads them
+    automatically (any frame you don't supply stays procedural).
+  </p>
+  <p>
+    Scale <input id="scale" type="number" value="5" min="1" max="16" style="width:48px" />
+    <button id="gen">Generate</button>
+    <button id="dlall">Download all PNGs</button>
+  </p>
+
+  <h3 style="color:#6fa0ff">Boxers</h3>
+  <div id="boxers" class="grid"></div>
+  <h3 style="color:#6fa0ff">Pieces</h3>
+  <div id="pieces" class="grid"></div>
+
+  <h3 style="color:#6fa0ff">manifest.json</h3>
+  <textarea id="manifest" readonly></textarea>
+
+  <script type="module">
+    import { boxer, piece } from '../src/gfx.js';
+    import { HUE } from '../src/opponents.js';
+
+    const POSES = ['idle','guard','windupL','windupR','punchL','punchR','hurt','down','walk'];
+    const PIECES = ['p','n','b','r','q','k'];
+    const PIECE_NAME = { p:'pawn', n:'knight', b:'bishop', r:'rook', q:'queen', k:'king' };
+    const frames = []; // { name, canvas }
+
+    function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+    function genBoxer(facing, pose, S) {
+      const c = makeCanvas(Math.round(22 * S), Math.round(34 * S));
+      const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+      // anchor matches the loader: image top-left = (x-11u, y-5u)
+      boxer(ctx, 11 * S, 5 * S, S, HUE.player, pose, facing, 0, { clean: true });
+      return c;
+    }
+    function genPiece(type, white, S) {
+      const ps = S; const c = makeCanvas(10 * ps, 13 * ps);
+      const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+      piece(ctx, type, c.width / 2, c.height / 2, 11 * ps, white, { t: 0, glow: 0, shadow: false, clean: true });
+      return c;
+    }
+
+    function cell(parent, label, canvas, fileName) {
+      frames.push({ name: fileName, canvas });
+      const d = document.createElement('div'); d.className = 'cell';
+      const sc = document.createElement('canvas'); sc.width = canvas.width; sc.height = canvas.height;
+      sc.style.width = canvas.width + 'px'; sc.getContext('2d').drawImage(canvas, 0, 0);
+      d.appendChild(sc);
+      const t = document.createElement('div'); t.textContent = label; t.style.fontSize = '11px'; d.appendChild(t);
+      const a = document.createElement('a'); a.textContent = '↓ ' + fileName; a.href = '#';
+      a.onclick = (e) => { e.preventDefault(); download(canvas, fileName); };
+      d.appendChild(a);
+      parent.appendChild(d);
+    }
+
+    function download(canvas, name) {
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
+    }
+
+    function generate() {
+      const S = Math.max(1, Math.min(16, +document.getElementById('scale').value || 5));
+      frames.length = 0;
+      const bWrap = document.getElementById('boxers'); bWrap.innerHTML = '';
+      const pWrap = document.getElementById('pieces'); pWrap.innerHTML = '';
+      const manifest = { boxers: {}, pieces: {} };
+
+      for (const facing of [['front', 1], ['back', -1]]) {
+        for (const pose of POSES) {
+          const file = `boxer_${facing[0]}_${pose}.png`;
+          cell(bWrap, `${facing[0]}:${pose}`, genBoxer(facing[1], pose, S), file);
+          manifest.boxers[`${facing[0]}:${pose}`] = file;
+        }
+      }
+      for (const white of [true, false]) {
+        for (const t of PIECES) {
+          const key = (white ? 'w' : 'b') + t;
+          const file = `${white ? 'white' : 'black'}_${PIECE_NAME[t]}.png`;
+          cell(pWrap, key, genPiece(t, white, S), file);
+          manifest.pieces[key] = file;
+        }
+      }
+      document.getElementById('manifest').value = JSON.stringify(manifest, null, 2);
+    }
+
+    async function downloadAll() {
+      for (const f of frames) { download(f.canvas, f.name); await new Promise(r => setTimeout(r, 180)); }
+    }
+
+    document.getElementById('gen').onclick = generate;
+    document.getElementById('dlall').onclick = downloadAll;
+    generate();
+  </script>
+</body>
+</html>

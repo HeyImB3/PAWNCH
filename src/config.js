@@ -15,7 +15,7 @@ export const MATCH = {
   // fraction of max health restored at the start of each NEW round (rounds 2..10)
   HEAL_MIN: 0.10,
   HEAL_MAX: 0.15,
-  WALK_SECONDS: 4,     // walk-to-the-board flair (3-5s)
+  WALK_SECONDS: 2.6,   // walk-to-the-board flair (snappy, not awkward)
 };
 
 // 16-bit-ish palette. Orange + blue lead; everything else supports.

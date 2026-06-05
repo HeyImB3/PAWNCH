@@ -6,6 +6,9 @@
 export const WHITE = 'w';
 export const BLACK = 'b';
 
+// digital coin toss — pick a side at random (used to seat each new match)
+export const tossColor = () => (Math.random() < 0.5 ? WHITE : BLACK);
+
 const rc = (i) => [i >> 3, i & 7];           // -> [row, col]
 const idx = (r, c) => r * 8 + c;
 const onBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;

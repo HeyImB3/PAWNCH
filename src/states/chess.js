@@ -24,7 +24,9 @@ export class ChessState {
     this.t = 0;
     this.terminal = Chess.status(m.chess) !== 'ongoing'; // game already finished (e.g. drawn)?
 
-    this.cursor = 52;            // e2-ish starting cursor
+    // board orientation: a black player sees their own pieces at the bottom
+    this.flip = m.playerColor === Chess.BLACK;
+    this.cursor = this.flip ? 11 : 52;   // start near the player's own pawns
     this.selected = -1;
     this.legalFrom = [];         // legal moves from selected square
     this.allLegal = Chess.legalMoves(m.chess);
@@ -56,6 +58,9 @@ export class ChessState {
   }
   get remoteTurn() { return !!this.m.net && this.m.chess.turn !== this.m.playerColor; }
   get aiTurn() { return this.m.mode === 'story' && this.m.chess.turn !== this.m.playerColor; }
+  // which color the local keyboard/mouse may move right now:
+  // hotseat hands the shared controls to whoever is to move; otherwise it's the player's own color.
+  get controlColor() { return (this.m.mode === 'pvp' && !this.m.net) ? this.m.chess.turn : this.m.playerColor; }
 
   // Esc opens the pause menu — but only when it isn't already busy doing
   // something Esc should back out of first (a selected piece, the promotion
@@ -108,12 +113,13 @@ export class ChessState {
   // ---- player ----------------------------------------------------------
   _playerInput(game) {
     const i = game.input;
-    // keyboard cursor
-    const [r, c] = Chess.rc(this.cursor);
-    if (i.pressed('up') && r > 0) { this.cursor -= 8; audio.sfx.select(); }
-    if (i.pressed('down') && r < 7) { this.cursor += 8; audio.sfx.select(); }
-    if (i.pressed('left') && c > 0) { this.cursor -= 1; audio.sfx.select(); }
-    if (i.pressed('right') && c < 7) { this.cursor += 1; audio.sfx.select(); }
+    // keyboard cursor — arrows move relative to the player's view (works flipped too)
+    let [vr, vc] = this._visRC(this.cursor);
+    if (i.pressed('up') && vr > 0) { vr--; audio.sfx.select(); }
+    if (i.pressed('down') && vr < 7) { vr++; audio.sfx.select(); }
+    if (i.pressed('left') && vc > 0) { vc--; audio.sfx.select(); }
+    if (i.pressed('right') && vc < 7) { vc++; audio.sfx.select(); }
+    this.cursor = this._idxFromVis(vr, vc);
     if (i.pressed('cancel')) { this._deselect(); audio.sfx.select(); }
     if (i.pressed('confirm')) this._selectOrMove(game, this.cursor);
     // mouse / touch
@@ -126,14 +132,14 @@ export class ChessState {
   _selectOrMove(game, sq) {
     const m = this.m, piece = m.chess.board[sq];
     if (this.selected === -1) {
-      if (piece && Chess.colorOf(piece) === m.playerColor) {
+      if (piece && Chess.colorOf(piece) === this.controlColor) {
         this.legalFrom = this.allLegal.filter((mv) => mv.from === sq);
         if (this.legalFrom.length) { this.selected = sq; audio.sfx.confirm(); } else audio.sfx.select();
       }
       return;
     }
     if (this.legalFrom.some((mv) => mv.to === sq)) return this._moveTo(game, sq, false);
-    if (piece && Chess.colorOf(piece) === m.playerColor) {
+    if (piece && Chess.colorOf(piece) === this.controlColor) {
       this.selected = sq; this.legalFrom = this.allLegal.filter((mv) => mv.from === sq); audio.sfx.confirm();
     } else this._deselect();
   }
@@ -147,7 +153,7 @@ export class ChessState {
     if (i.mPressed && sq >= 0) {
       this.cursor = sq;
       const piece = this.m.chess.board[sq];
-      if (piece && Chess.colorOf(piece) === this.m.playerColor) {
+      if (piece && Chess.colorOf(piece) === this.controlColor) {
         // grab this piece (selects it AND starts a potential drag)
         this.selected = sq;
         this.legalFrom = this.allLegal.filter((mv) => mv.from === sq);
@@ -194,8 +200,8 @@ export class ChessState {
   // pixel coords -> board square index, or -1 if outside the board
   _squareAt(x, y) {
     if (x < OX || x >= OX + BOARD_PX || y < OY || y >= OY + BOARD_PX) return -1;
-    const c = Math.floor((x - OX) / SQ), r = Math.floor((y - OY) / SQ);
-    return r * 8 + c;
+    const vc = Math.floor((x - OX) / SQ), vr = Math.floor((y - OY) / SQ);
+    return this._idxFromVis(vr, vc);
   }
 
   // ---- promotion picker ------------------------------------------------
@@ -328,7 +334,10 @@ export class ChessState {
   }
 
   // ---- geometry helpers ------------------------------------------------
-  _sqXY(i) { const [r, c] = Chess.rc(i); return [OX + c * SQ, OY + r * SQ]; }
+  // board index <-> on-screen row/col, honoring the player's orientation (flip = black at bottom)
+  _visRC(i) { const [r, c] = Chess.rc(i); return this.flip ? [7 - r, 7 - c] : [r, c]; }
+  _idxFromVis(vr, vc) { const r = this.flip ? 7 - vr : vr, c = this.flip ? 7 - vc : vc; return r * 8 + c; }
+  _sqXY(i) { const [vr, vc] = this._visRC(i); return [OX + vc * SQ, OY + vr * SQ]; }
   _sqCenter(i) { const [x, y] = this._sqXY(i); return [x + SQ / 2, y + SQ / 2]; }
   // returns the CENTER of the animated piece at progress p
   _animPos(p) {

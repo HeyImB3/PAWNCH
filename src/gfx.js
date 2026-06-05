@@ -52,6 +52,17 @@ function drawPieceSprite(ctx, type, cx, cy, size, white, opts = {}) {
   return true;
 }
 
+// Blit ONLY the registered piece image (no aura/float/shadow), centered at
+// (cx,cy) at a given pixel height `h`. Returns false if no sprite is loaded —
+// callers can then fall back to the procedural glyph. Used for the coin engraving.
+export function pieceSprite(ctx, type, white, cx, cy, h) {
+  const img = SPRITES.pieces[(white ? 'w' : 'b') + type.toLowerCase()];
+  if (!img) return false;
+  const w = h * (img.width / img.height);
+  ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+  return true;
+}
+
 // Animated magic around a piece during the chess half. Dark pieces get a
 // swirling purple/magenta aura with orbiting motes + rising embers; white
 // pieces get a soft celestial glow with twinkling star-glints. Kept low-alpha
@@ -680,16 +691,100 @@ function mixA(hex, alpha) {
 function lerp(a, b, t) { return a + (b - a) * t; }
 
 // A little 8-bit chess table off in the corner (for the walk intro).
+// An ornate carved-wood chess table with a gold-trimmed board shown in light
+// perspective, a soft arcane glow, and a few standing pieces — polished flavor
+// for the walk-up. `x,y` = front-left of the tabletop; the board recedes away.
 export function chessTable(ctx, x, y, scale) {
-  // table
-  ctx.fillStyle = '#3a2a18'; ctx.fillRect(x - 2, y, 8 * scale + 4, 3 * scale);
-  ctx.fillStyle = '#241a0e'; ctx.fillRect(x, y + 3 * scale, 4, 6 * scale);
-  ctx.fillStyle = '#241a0e'; ctx.fillRect(x + 8 * scale - 4, y + 3 * scale, 4, 6 * scale);
-  // mini board
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) {
-    ctx.fillStyle = (r + c) % 2 ? PAL.boardDark : PAL.boardLight;
-    ctx.fillRect(x + c * scale, y - r * scale - scale, scale, scale);
+  const s = scale, w = 8 * s, cx = x + w / 2;
+  const lerp2 = (a, b, t) => a + (b - a) * t;
+  const wood = '#4a3018', woodHi = '#6f4d29', woodSh = '#2c1c0d', woodDk = '#160d06';
+  const gold = PAL.gold, goldHi = shade(gold, 45), brass = shade(gold, -95);
+
+  // floor shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  ctx.beginPath(); ctx.ellipse(cx, y + 9.2 * s, w * 0.62, 2.3 * s, 0, 0, Math.PI * 2); ctx.fill();
+
+  // turned/carved legs + stretcher bar
+  const legW = 1.7 * s, legTop = y + 2.0 * s, legH = 6.4 * s;
+  const drawLeg = (lx) => {
+    ctx.fillStyle = woodSh; ctx.fillRect(lx, legTop, legW, legH);
+    ctx.fillStyle = wood;   ctx.fillRect(lx, legTop, Math.max(1, legW * 0.45), legH);
+    ctx.fillStyle = woodHi; ctx.fillRect(lx - 1, legTop + 1.2 * s, legW + 2, 0.55 * s);   // bulge
+    ctx.fillStyle = woodHi; ctx.fillRect(lx - 1, legTop + 3.6 * s, legW + 2, 0.55 * s);   // bulge
+    ctx.fillStyle = woodDk; ctx.fillRect(lx, legTop + legH - 0.7 * s, legW, 0.7 * s);
+    ctx.fillStyle = brass;  ctx.fillRect(lx - 1, legTop + legH - 0.35 * s, legW + 2, 0.35 * s); // foot cap
+  };
+  const lx1 = cx - w * 0.34 - legW / 2, lx2 = cx + w * 0.34 - legW / 2;
+  drawLeg(lx1); drawLeg(lx2);
+  ctx.fillStyle = woodSh; ctx.fillRect(lx1 + legW, legTop + 4.0 * s, lx2 - lx1 - legW, 0.7 * s);
+  ctx.fillStyle = wood;   ctx.fillRect(lx1 + legW, legTop + 4.0 * s, lx2 - lx1 - legW, 0.25 * s);
+
+  // tabletop slab: front face + top highlight + gold trim
+  const topY = y, topH = 1.9 * s, topX = x - 0.7 * s, topW = w + 1.4 * s;
+  ctx.fillStyle = woodSh; ctx.fillRect(topX, topY, topW, topH);
+  ctx.fillStyle = wood;   ctx.fillRect(topX, topY, topW, topH * 0.5);
+  ctx.fillStyle = woodHi; ctx.fillRect(topX, topY, topW, Math.max(1, 0.4 * s));
+  ctx.fillStyle = brass;  ctx.fillRect(topX, topY + topH - 0.4 * s, topW, Math.max(1, 0.4 * s));
+
+  // arcane glow rising off the board
+  const glowC = (cx, cy0, col, rad) => {
+    const g = ctx.createRadialGradient(cx, cy0, 1, cx, cy0, rad);
+    g.addColorStop(0, withA(col, 0.18)); g.addColorStop(1, withA(col, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy0, rad, 0, Math.PI * 2); ctx.fill();
+  };
+  glowC(cx, topY - 2.4 * s, PAL.blueLite, w * 0.72);
+
+  // ---- board in light perspective (near = wide/low, far = narrow/high) ----
+  const nearW = w, farW = w * 0.66, depth = 4.4 * s, y0 = topY - 0.3 * s;
+  const edge = (t) => { const ww = lerp2(nearW, farW, t); return { ww, yy: y0 - depth * t, xl: cx - ww / 2 }; };
+  const a = edge(0), b = edge(1), fm = 0.8 * s;
+
+  // ornate frame (dark wood trapezoid + gold inline + corner studs)
+  ctx.beginPath();
+  ctx.moveTo(a.xl - fm, a.yy + fm); ctx.lineTo(a.xl + a.ww + fm, a.yy + fm);
+  ctx.lineTo(b.xl + b.ww + fm * 0.7, b.yy - fm); ctx.lineTo(b.xl - fm * 0.7, b.yy - fm);
+  ctx.closePath();
+  ctx.fillStyle = woodDk; ctx.fill();
+  ctx.strokeStyle = gold; ctx.lineWidth = Math.max(1, 0.18 * s); ctx.stroke();
+
+  // checker cells, slightly darkened with depth
+  for (let r = 0; r < 8; r++) {
+    const e0 = edge(r / 8), e1 = edge((r + 1) / 8);
+    const dep = Math.round(-26 * ((r + 0.5) / 8));
+    for (let c = 0; c < 8; c++) {
+      const base = (r + c) % 2 ? PAL.boardDark : PAL.boardLight;
+      ctx.fillStyle = shade(base, dep);
+      ctx.beginPath();
+      ctx.moveTo(e0.xl + e0.ww * (c / 8), e0.yy);
+      ctx.lineTo(e0.xl + e0.ww * ((c + 1) / 8), e0.yy);
+      ctx.lineTo(e1.xl + e1.ww * ((c + 1) / 8), e1.yy);
+      ctx.lineTo(e1.xl + e1.ww * (c / 8), e1.yy);
+      ctx.closePath(); ctx.fill();
+    }
   }
+  // brass corner studs
+  const stud = (sx, sy) => { ctx.fillStyle = gold; ctx.fillRect(sx - 1.2, sy - 1.2, 2.4, 2.4); ctx.fillStyle = goldHi; ctx.fillRect(sx - 1.2, sy - 1.2, 1.1, 1.1); };
+  stud(a.xl - fm, a.yy + fm); stud(a.xl + a.ww + fm, a.yy + fm);
+  stud(b.xl - fm * 0.7, b.yy - fm); stud(b.xl + b.ww + fm * 0.7, b.yy - fm);
+
+  // ---- a few standing pieces for life (near = bigger) ----
+  const drawPawn = (col, row, light) => {
+    const t = (row + 0.5) / 8, e = edge(t);
+    const px = e.xl + e.ww * ((col + 0.5) / 8);
+    const py = lerp2(e.yy, edge((row + 1) / 8).yy, 0.5);
+    const sz = lerp2(1.6, 1.0, t) * s * 0.5;
+    const body = light ? '#f0e3c8' : '#2a2340', hi = light ? '#ffffff' : '#6058a0';
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(px, py + sz * 0.95, sz * 0.7, sz * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(px - sz * 0.62, py + sz); ctx.lineTo(px + sz * 0.62, py + sz);
+    ctx.lineTo(px + sz * 0.26, py - sz * 0.15); ctx.lineTo(px - sz * 0.26, py - sz * 0.15);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py - sz * 0.46, sz * 0.42, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = hi; ctx.fillRect(px - sz * 0.32, py - sz * 0.62, Math.max(1, sz * 0.22), Math.max(1, sz * 0.22));
+  };
+  drawPawn(2, 1, true); drawPawn(5, 0, true); drawPawn(3, 6, false); drawPawn(6, 5, false);
 }
 
 // scanline overlay for CRT vibe

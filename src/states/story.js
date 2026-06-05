@@ -15,7 +15,7 @@ import { PAL } from '../config.js';
 import { text, textWidth, panel, portrait } from '../gfx.js';
 import * as audio from '../audio.js';
 import { OPPONENTS, HUE } from '../opponents.js';
-import { WHITE } from '../chess/board.js';
+import { tossColor } from '../chess/board.js';
 
 // 5x2 grid of portrait buttons + a virtual RESET focus target after the grid.
 const COLS = 5, CELL_W = 86, CELL_H = 92, GAP_X = 10, ROW_H = 132, TOP = 52;
@@ -76,7 +76,7 @@ export class StoryState {
   _select(game, idx) {
     if (this._status(idx).locked) { audio.sfx.select(); return; }   // can't fight a locked foe yet
     audio.sfx.confirm();
-    game.startMatch({ mode: 'story', opponent: OPPONENTS[idx], playerColor: WHITE });
+    game.startMatch({ mode: 'story', opponent: OPPONENTS[idx], playerColor: tossColor() });
     game.changeState('walk');
   }
 

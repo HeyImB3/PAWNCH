@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "pawnch",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "/usr/bin/python3",
       "runtimeArgs": ["tools/devserver.py", "5174"],
       "port": 5174
     }

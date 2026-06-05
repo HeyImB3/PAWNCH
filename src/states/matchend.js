@@ -5,6 +5,7 @@ import { PAL } from '../config.js';
 import { text, panel, boxer, logo } from '../gfx.js';
 import * as audio from '../audio.js';
 import { OPPONENTS, HUE } from '../opponents.js';
+import { tossColor } from '../chess/board.js';
 
 export class MatchEndState {
   enter(game) {
@@ -52,7 +53,7 @@ export class MatchEndState {
         return game.changeState('story', { reveal: this.m.opponent.index });
       if (choice === 'REMATCH') {
         const opp = this.m.opponent;
-        game.startMatch({ mode: this.m.mode, opponent: opp, playerColor: this.m.playerColor });
+        game.startMatch({ mode: this.m.mode, opponent: opp, playerColor: tossColor() });   // fresh coin toss each rematch
         return game.changeState('walk');
       }
     }

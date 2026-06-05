@@ -86,15 +86,17 @@ function enqueue(ws, token) {
 
 function pair(a, b) {
   const room = { id: randomUUID().slice(0, 8), seats: [] };
-  const seatA = { token: a.token, color: 'w', name: a.name, ws: a, online: true, roomId: room.id };
-  const seatB = { token: b.token, color: 'b', name: b.name, ws: b, online: true, roomId: room.id };
+  // coin toss: randomly decide which of the two gets the white pieces
+  const [aColor, bColor] = Math.random() < 0.5 ? ['w', 'b'] : ['b', 'w'];
+  const seatA = { token: a.token, color: aColor, name: a.name, ws: a, online: true, roomId: room.id };
+  const seatB = { token: b.token, color: bColor, name: b.name, ws: b, online: true, roomId: room.id };
   room.seats = [seatA, seatB];
   rooms.set(room.id, room);
   byToken.set(seatA.token, seatA); byToken.set(seatB.token, seatB);
-  a.roomId = b.roomId = room.id; a.color = 'w'; b.color = 'b';
-  send(a, { t: 'matched', color: 'w', oppName: b.name, token: a.token });
-  send(b, { t: 'matched', color: 'b', oppName: a.name, token: b.token });
-  console.log(`[=] room ${room.id}: ${a.id}(W) vs ${b.id}(B)`);
+  a.roomId = b.roomId = room.id; a.color = aColor; b.color = bColor;
+  send(a, { t: 'matched', color: aColor, oppName: b.name, token: a.token });
+  send(b, { t: 'matched', color: bColor, oppName: a.name, token: b.token });
+  console.log(`[=] room ${room.id}: ${a.id}(${aColor.toUpperCase()}) vs ${b.id}(${bColor.toUpperCase()})`);
 }
 
 function handleDrop(ws) {

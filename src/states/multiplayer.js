@@ -6,7 +6,7 @@ import { PAL } from '../config.js';
 import { text, panel } from '../gfx.js';
 import * as audio from '../audio.js';
 import { NetClient } from '../net.js';
-import { WHITE, BLACK } from '../chess/board.js';
+import { WHITE, BLACK, tossColor } from '../chess/board.js';
 
 export class MultiplayerState {
   enter(game) {
@@ -43,7 +43,7 @@ export class MultiplayerState {
     game.startMatch({
       mode: 'pvp',
       opponent: { name: 'PLAYER 2', boxing: null },
-      playerColor: WHITE,
+      playerColor: tossColor(),   // coin toss: P1 plays white or black
     });
     game.changeState('walk');
   }

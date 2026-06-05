@@ -24,12 +24,107 @@ function drawBoxerSprite(ctx, x, y, scale, hue, pose, facing, step) {
   ctx.drawImage(img, Math.round(x - w / 2), Math.round(y - 5 * scale), Math.round(w), Math.round(h));
   return true;
 }
-function drawPieceSprite(ctx, type, cx, cy, size, white) {
-  const img = SPRITES.pieces[(white ? 'w' : 'b') + type.toLowerCase()];
+// Per-type on-board height as a fraction of a king's; the cleaned sprites are
+// tight-cropped so the source's (inconsistent) heights don't matter — we scale
+// every sprite to a target height here, so a white king == a black king.
+const PIECE_TYPE_H = { k: 1.00, q: 0.95, b: 0.87, n: 0.90, r: 0.80, p: 0.72 };
+const PIECE_BASE = 1.34;   // king height = size * PIECE_BASE (fills the square + a touch)
+
+function drawPieceSprite(ctx, type, cx, cy, size, white, opts = {}) {
+  const ty = type.toLowerCase();
+  const img = SPRITES.pieces[(white ? 'w' : 'b') + ty];
   if (!img) return false;
-  const h = size * 1.1, w = h * (img.width / img.height);
-  ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+  const h = size * PIECE_BASE * (PIECE_TYPE_H[ty] || 0.9);
+  const w = h * (img.width / img.height);
+  const { t: time = 0, phase = 0, glow = 1 } = opts;
+  const bob = Math.sin(time * 2 + phase) * size * 0.018;     // gentle idle float
+  const cyy = cy + size * 0.03 - bob;                        // rest the base on the square
+  // faint contact shadow so the piece sits on the square
+  ctx.fillStyle = 'rgba(7,10,22,0.28)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cyy + h * 0.46, w * 0.30, size * 0.07, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // magical aura + the back half of the swirl (drawn behind the piece)
+  pieceAura(ctx, cx, cyy, size, white, time, phase, glow, 'back');
+  ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cyy - h / 2), Math.round(w), Math.round(h));
+  // sparkles / front half of the swirl (drawn over the piece)
+  pieceAura(ctx, cx, cyy, size, white, time, phase, glow, 'front');
   return true;
+}
+
+// Animated magic around a piece during the chess half. Dark pieces get a
+// swirling purple/magenta aura with orbiting motes + rising embers; white
+// pieces get a soft celestial glow with twinkling star-glints. Kept low-alpha
+// and small so it reads as atmosphere without muddling the board. `layer` is
+// 'back' (behind the sprite) or 'front' (over it) so motes orbit in 3D.
+function pieceAura(ctx, cx, cy, size, white, t, phase, glow, layer) {
+  if (glow <= 0) return;
+  const cyA = cy - size * 0.05;                 // center the aura on the piece body
+  if (layer === 'back') {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2 + phase);
+    const rad = size * (0.6 + 0.06 * pulse);
+    const a = (white ? 0.12 : 0.16) * glow;
+    const col = white ? PAL.auraLite : PAL.auraDark;
+    const gr = ctx.createRadialGradient(cx, cyA, 1, cx, cyA, rad);
+    gr.addColorStop(0, withA(col, a));
+    gr.addColorStop(0.55, withA(col, a * 0.45));
+    gr.addColorStop(1, withA(col, 0));
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(cx, cyA, rad, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';     // additive glow
+  if (!white) {
+    // orbiting purple/magenta motes — split front/back for a 3D swirl
+    const N = 4;
+    for (let i = 0; i < N; i++) {
+      const ang = t * 1.6 + phase + i * (Math.PI * 2 / N);
+      const depth = (Math.sin(ang) + 1) / 2;     // 1 = near (front), 0 = far (back)
+      if ((depth >= 0.5) !== (layer === 'front')) continue;
+      const px = cx + Math.cos(ang) * size * 0.46;
+      const py = cyA + Math.sin(ang) * size * 0.30;
+      const r = (0.6 + 0.7 * depth) * size * 0.06;
+      glowDot(ctx, px, py, r, i % 2 ? PAL.moteMagenta : PAL.moteViolet, (0.18 + 0.28 * depth) * glow);
+    }
+    // rising dark-magic embers (over the piece)
+    if (layer === 'front') for (let j = 0; j < 2; j++) {
+      const u = (t * 0.5 + phase * 0.3 + j * 0.5) % 1;
+      const px = cx + Math.sin(u * 6.283 + j * 2) * size * 0.16;
+      const py = cyA + size * 0.32 - u * size * 0.8;
+      glowDot(ctx, px, py, size * 0.035, PAL.ember, Math.sin(u * Math.PI) * 0.22 * glow);
+    }
+  } else if (layer === 'front') {
+    // twinkling celestial star-glints orbiting slowly
+    const N = 5;
+    for (let i = 0; i < N; i++) {
+      const ang = t * 0.5 + phase + i * (Math.PI * 2 / N);
+      const px = cx + Math.cos(ang) * size * 0.5;
+      const py = cyA + Math.sin(ang) * size * 0.44;
+      let tw = Math.sin(t * 2.3 + phase * 1.3 + i * 1.9);
+      tw = tw > 0 ? tw * tw * tw : 0;            // sharp blink
+      if (tw > 0.03) starGlint(ctx, px, py, size * 0.085 * (0.5 + tw), tw * 0.85 * glow);
+    }
+  }
+  ctx.restore();
+}
+
+function glowDot(ctx, x, y, r, hex, a) {
+  if (a <= 0) return;
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, withA(hex, a));
+  gr.addColorStop(1, withA(hex, 0));
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+}
+
+function starGlint(ctx, x, y, s, a) {
+  glowDot(ctx, x, y, s * 0.9, PAL.glintCore, a * 0.9);   // soft core
+  ctx.strokeStyle = withA(PAL.glint, a);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y - s * 1.6); ctx.lineTo(x, y + s * 1.6);
+  ctx.moveTo(x - s * 1.6, y); ctx.lineTo(x + s * 1.6, y);
+  ctx.stroke();
 }
 
 // ---- 5x7 bitmap font ---------------------------------------------------
@@ -224,7 +319,7 @@ const PIECE = {
 // glow, gentle float, and a shimmer. `t`+`phase` desync the animation per
 // square; `lift` raises it (selection/drag); `glow` controls the aura.
 export function piece(ctx, type, cx, cy, size, white, { t = 0, phase = 0, lift = 0, glow = 1, shadow = true, clean = false } = {}) {
-  if (!clean && drawPieceSprite(ctx, type, cx, cy - lift, size, white)) return; // asset override (skip when exporting)
+  if (!clean && drawPieceSprite(ctx, type, cx, cy - lift, size, white, { t, phase, glow })) return; // asset override (skip when exporting)
   const g = PIECE[type.toLowerCase()];
   const ROWS = g.length, COLS = 8;
   const s = Math.max(1, Math.round(size / ROWS));

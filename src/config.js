@@ -44,6 +44,15 @@ export const PAL = {
   boardLight: '#ffd9a8',
   boardDark:  '#b85c1f',
   boardEdge:  '#5a2a08',
+  // chess-half piece auras (animated magic): dark pieces swirl purple/magenta,
+  // white pieces twinkle with celestial blue/white glints.
+  auraDark:    '#9646d2',   // dark-piece purple aura
+  moteViolet:  '#b061ff',
+  moteMagenta: '#ff4d9d',
+  ember:       '#d078ff',
+  auraLite:    '#6fa8ff',   // white-piece celestial aura
+  glintCore:   '#d2e8ff',
+  glint:       '#e8f2ff',
   // ring
   ringFloor:  '#2a3566',
   ringFloor2: '#222c57',

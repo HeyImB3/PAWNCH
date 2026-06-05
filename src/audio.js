@@ -102,6 +102,8 @@ export const sfx = {
   dodge()   { _sfx(() => blip(sfxGain, { type: 'triangle', freq: f('G5'), t: ctx.currentTime, dur: 0.08, vol: 0.16, detune: -400 })); },
   block()   { _sfx(() => noise(sfxGain, { t: ctx.currentTime, dur: 0.05, vol: 0.2, hp: 2000 })); },
   bell()    { _sfx(() => { const t = ctx.currentTime; for (let i = 0; i < 3; i++) blip(sfxGain, { type: 'triangle', freq: f('A5'), t: t + i * 0.18, dur: 0.16, vol: 0.3 }); }); },
+  // a short, punchy upward blip for each get-up mash — pitch climbs with the bar.
+  getup(charge = 0) { _sfx(() => { const t = ctx.currentTime; const base = 320 + charge * 520; blip(sfxGain, { type: 'square', freq: base, t, dur: 0.05, vol: 0.2 }); noise(sfxGain, { t, dur: 0.04, vol: 0.12, hp: 1400 }); }); },
   ko()      { _sfx(() => { const t = ctx.currentTime; [f('C5'), f('G4'), f('E4'), f('C4')].forEach((fr, i) => blip(sfxGain, { type: 'square', freq: fr, t: t + i * 0.12, dur: 0.18, vol: 0.28 })); }); },
   win()     { _sfx(() => { const t = ctx.currentTime; [f('C5'), f('E5'), f('G5'), f('C6')].forEach((fr, i) => blip(sfxGain, { type: 'square', freq: fr, t: t + i * 0.1, dur: 0.16, vol: 0.26 })); }); },
 };

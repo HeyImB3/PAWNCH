@@ -79,6 +79,15 @@ export const BOX = {
   GET_UP_COUNT: 10,        // seconds the ref counts on a knockdown (was 3)
   KNOCKDOWNS_TO_KO: 3,     // 3rd knockdown ends it (best of 3)
   GET_UP_HP: 45,           // HP a fighter rises with after beating the count
+  // GET-UP minigame (Tyson's Punch-Out style). While DOWN you mash to charge a
+  // power bar to 1.0 before the ref reaches GET_UP_COUNT, or you're counted out.
+  // Index 0 = your 1ST fall (easy), index 1 = your 2ND fall (hard). The FINAL
+  // (3rd) fall is an automatic TKO — no bar, no chance to rise.
+  GET_UP: {
+    CHARGE_PER_TAP: [0.075, 0.068], // fill added per mash on fall 1 / fall 2
+    DECAY_PER_SEC:  [0.17, 0.36],   // fill bleeds away each second (mash to outrun it)
+    AI_CHARGE_PER_SEC: [0.62, 0.58],// the CPU claws its way up on its own (story)
+  },
 };
 
 // Chess AI think-time bounds (humanizes clock usage)

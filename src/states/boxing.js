@@ -12,6 +12,16 @@ import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
 import { OPPONENTS, HUE } from '../opponents.js';
 import { material, WHITE } from '../chess/board.js';
 
+// Get-up bar gradient: a chunky 16-bit ramp from electric blue (empty/left) into
+// a saturated brand orange that dominates the upper half (full/right). Only a
+// brief light seam bridges the two — no washed-out white core. rampColor(t) snaps
+// t (0..1) to a discrete band for that stepped, retro look.
+const GETUP_GRAD = ['#2b6cff', '#3f7bff', '#6fa0ff', '#ffb05a', '#ff9a3a', '#ff8a2e', '#ff7a18', '#ff7a18', '#f4600f', '#ff7a18'];
+function rampColor(t) {
+  const r = GETUP_GRAD;
+  return r[Math.max(0, Math.min(r.length - 1, Math.floor(t * r.length)))];
+}
+
 export class BoxingState {
   enter(game) {
     const m = game.match;
@@ -55,6 +65,7 @@ export class BoxingState {
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
         onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; },
+        onGetUpTap: (side, charge) => { if (side === 'player') { audio.sfx.getup(charge); this.crowd = Math.min(1, this.crowd + 0.05); } },
         onGetUp: () => { audio.sfx.bell(); this.crowd = 1; },
       },
       onKO: (winner) => this._finish(game, { decisive: true, winner }),
@@ -190,17 +201,9 @@ export class BoxingState {
     this._kdPips(ctx, W - 14, 10, e.knockdowns, PAL.orange);
     this._kdPips(ctx, W - 14, 44, p.knockdowns, PAL.blue);
 
-    // the ref's 10-count on a downed fighter
+    // the ref's count + the mash-to-rise power bar on a downed fighter
     for (const fr of [p, e]) {
-      if (fr.pose === 'down') {
-        const n = Math.min(BOX.GET_UP_COUNT, Math.ceil(fr.downCount));
-        const last = fr.knockdowns >= BOX.KNOCKDOWNS_TO_KO;
-        text(ctx, n + '', W / 2, game.H / 2 - 20, { scale: 8, color: PAL.red, align: 'center', shadow: PAL.ink });
-        const lbl = fr.side === 'player' ? 'GET UP!' : 'DOWN!';
-        text(ctx, lbl, W / 2, game.H / 2 + 40, { scale: 2, color: PAL.white, align: 'center', shadow: PAL.ink });
-        text(ctx, 'KNOCKDOWN ' + fr.knockdowns + ' / ' + BOX.KNOCKDOWNS_TO_KO + (last ? '  — FINAL!' : ''),
-          W / 2, game.H / 2 + 64, { scale: 1, color: last ? PAL.red : PAL.gold, align: 'center', shadow: PAL.ink });
-      }
+      if (fr.pose === 'down') this._getUpMeter(game, ctx, fr);
     }
 
     this._controls(game, ctx);
@@ -215,6 +218,156 @@ export class BoxingState {
       ctx.fillStyle = PAL.ink; ctx.fillRect(x - 1, y - 1, s + 2, s + 2);
       ctx.fillStyle = i < count ? (i === n - 1 ? PAL.red : col) : '#26304f';
       ctx.fillRect(x, y, s, s);
+    }
+  }
+
+  // ---- GET-UP minigame: the mash-to-rise power bar on a downed fighter ----
+  // 16-bit arcade gauge: a dim plate, the ref's flashing count, the fall label,
+  // and a segmented charge bar that lights orange->gold->green as you fill it,
+  // with a leading-segment flicker, a per-tap white flash + scale pop, and a
+  // shake/glow as it nears full. The CPU fills its own bar automatically.
+  _getUpMeter(game, ctx, fr) {
+    const W = game.W, H = game.H, cx = W / 2, cy = H / 2;
+    const you = fr.side === 'player';
+    const charge = fr.getUpCharge;
+    const remaining = Math.max(0, BOX.GET_UP_COUNT - fr.downCount);
+    const urgent = remaining <= 4;
+    const tap = Math.max(0, fr.getUpTapFx) / 140;          // 1 -> 0 fade after a mash
+    const full = charge >= 0.86;
+
+    // dim plate behind the gauge so it reads over the busy ring
+    ctx.fillStyle = 'rgba(7,10,22,0.55)';
+    ctx.fillRect(cx - 178, cy - 104, 356, 196);
+
+    // the ref's count — flashes red, strobes white when the count runs short
+    const n = Math.ceil(remaining);
+    const countCol = urgent && Math.floor(this.t * 8) % 2 ? PAL.white : PAL.red;
+    text(ctx, n + '', cx, cy - 92, { scale: 7, color: countCol, align: 'center', shadow: PAL.ink });
+
+    // which fall this is (1st easy, 2nd hard + final warning)
+    const fallLbl = fr.knockdowns >= 2 ? '2ND DOWN  -  LAST CHANCE!' : '1ST DOWN';
+    text(ctx, fallLbl, cx, cy - 14, { scale: 1, color: fr.knockdowns >= 2 ? PAL.red : PAL.gold, align: 'center', shadow: PAL.ink });
+
+    // prompt: a human fighter mashes (you, or a downed P2 in hotseat); the CPU
+    // just struggles up on its own.
+    const human = you || this.m.mode === 'pvp';
+    if (human) {
+      const blink = Math.sin(this.t * 16) > 0;
+      const lbl = full ? 'RISE!!' : (you ? 'MASH  SPACE!' : 'P2  MASH!');
+      text(ctx, lbl, cx, cy + 2, { scale: 2, color: full ? PAL.green : (blink ? PAL.gold : PAL.white), align: 'center', shadow: PAL.ink });
+    } else {
+      const name = (this.m.mode === 'story' ? this.m.opponent.name : 'RIVAL').split(' ')[0];
+      text(ctx, name + ' STRUGGLES UP...', cx, cy + 2, { scale: 1, color: PAL.orangeLite, align: 'center', shadow: PAL.ink });
+    }
+
+    // --- the charge bar: a glitchy 16-bit blue->orange gradient that crackles
+    // with more electric sparks + static the fuller it gets ---
+    const segs = 24, gap = 2, bw = 288, bh = 22;
+    const barY = cy + 32, bx = cx - bw / 2;
+    const glitch = charge;                                    // 0..1 chaos level rises with fill
+    // a per-tap scale pop + a tremble that grows toward full
+    const pop = 1 + tap * 0.06;
+    const shake = Math.round(Math.sin(this.t * 40) * (0.4 + glitch * 2));
+    ctx.save();
+    ctx.translate(cx + shake, barY + bh / 2);
+    ctx.scale(pop, pop);
+    ctx.translate(-cx, -(barY + bh / 2));
+
+    panel(ctx, bx - 5, barY - 5, bw + 10, bh + 10,
+      { fill: PAL.ink2, border: rampColor(charge), border2: PAL.ink, glow: charge > 0.4 });
+    const sw = (bw - (segs - 1) * gap) / segs;
+    const litCount = charge * segs;
+    for (let i = 0; i < segs; i++) {
+      const sx = bx + i * (sw + gap);
+      const pos = i / (segs - 1);                             // FIXED gradient: 0 = blue (left) .. 1 = orange (right)
+      const lit = i < litCount;
+      const lead = i === Math.floor(litCount);
+      // glitch jitter: lit cells shiver a pixel up/down, more often near full
+      const jit = lit && Math.random() < glitch * 0.5 ? (Math.random() < 0.5 ? -2 : 2) : 0;
+      let col;
+      if (lit) {
+        col = rampColor(pos);                                 // reveal the blue->orange gradient
+        if (Math.random() < glitch * 0.12) col = PAL.white;            // occasional electric static pop
+        else if (Math.random() < glitch * 0.12) col = rampColor(Math.random()); // gradient glitch
+        else if (tap > 0 && Math.random() < tap) col = PAL.white;      // tap-flash ripple
+      } else if (lead && Math.floor(this.t * 24) % 2) {
+        col = rampColor(pos);                                 // leading cell flickers in its hue
+      } else {
+        col = '#1a2238';                                      // empty cell
+      }
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round(sx), barY + jit, Math.ceil(sw), bh);
+    }
+    // glitchy horizontal tear — a bright displaced scanline that skips around
+    if (glitch > 0.25 && Math.random() < glitch * 0.5) {
+      const ty = barY + (Math.random() * bh | 0);
+      ctx.fillStyle = Math.random() < 0.5 ? PAL.white : rampColor(Math.random());
+      ctx.fillRect(bx, ty, Math.round(bw * charge), 1);
+    }
+    // glassy top sheen over the filled run
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.fillRect(bx, barY, Math.round(bw * charge), 4);
+    ctx.restore();
+
+    // electric sparks + crackling static around the frame — denser as it fills
+    this._sparks(ctx, bx - 5, barY - 5, bw + 10, bh + 10, charge);
+
+    // bouncing pixel mash-chevrons under the bar (human masher only; '^' isn't
+    // in the bitmap font, so they're hand-drawn)
+    if (human && !full) {
+      const bob = Math.round(Math.abs(Math.sin(this.t * 10)) * 4);
+      const chy = barY + bh + 10 - bob;
+      for (const dx of [-30, 0, 30]) {
+        this._chevron(ctx, cx + dx, chy + 2, PAL.ink);   // shadow
+        this._chevron(ctx, cx + dx, chy, PAL.gold);
+      }
+    }
+  }
+
+  // a chunky pixel "^" (up chevron), apex centered on cx
+  _chevron(ctx, cx, y, col) {
+    const u = 2;
+    ctx.fillStyle = col;
+    for (let r = 0; r < 5; r++) {
+      ctx.fillRect(cx - (r + 1) * u, y + r * u, u, u);   // left arm
+      ctx.fillRect(cx + r * u, y + r * u, u, u);         // right arm
+    }
+  }
+
+  // crackling electric sparks + static hugging the charge-bar frame. `q` (0..1)
+  // is the fill level: more static specks and longer/more frequent bolts as it
+  // climbs. Sparks take their hue from the gradient at their x (blue L -> orange R).
+  _sparks(ctx, x, y, w, h, q) {
+    if (q < 0.06) return;
+    // static specks scattered just outside the frame edges
+    const dots = Math.floor(q * 22);
+    for (let i = 0; i < dots; i++) {
+      let px, py;
+      if (Math.random() < 0.5) {                              // top/bottom bands
+        px = x + Math.random() * w;
+        py = Math.random() < 0.5 ? y - 2 - Math.random() * 9 : y + h + 1 + Math.random() * 9;
+      } else {                                                // left/right bands
+        px = Math.random() < 0.5 ? x - 2 - Math.random() * 9 : x + w + 1 + Math.random() * 9;
+        py = y + Math.random() * h;
+      }
+      ctx.fillStyle = Math.random() < 0.4 ? PAL.white : rampColor((px - x) / w);
+      const s = 1 + (Math.random() * 2 | 0);
+      ctx.fillRect(px | 0, py | 0, s, s);
+    }
+    // jagged bolts arcing off the top/bottom edges
+    const bolts = Math.floor(q * 5);
+    for (let i = 0; i < bolts; i++) {
+      const top = Math.random() < 0.5;
+      let px = x + Math.random() * w, py = top ? y : y + h;
+      const dir = top ? -1 : 1;
+      const steps = 5 + (Math.random() * 5 | 0);
+      for (let s = 0; s < steps; s++) {
+        ctx.fillStyle = Math.random() < 0.45 ? PAL.white : rampColor((px - x) / w);
+        const sz = 1 + (Math.random() * 1.7 | 0);
+        ctx.fillRect(px | 0, py | 0, sz, sz);
+        px += Math.random() * 6 - 3;
+        py += dir * (1.5 + Math.random() * 3);
+      }
     }
   }
 

@@ -46,6 +46,8 @@ function makeFighter(side) {
     duckY: 0,
     downCount: 0,         // seconds elapsed in the current count (resets each knockdown)
     knockdowns: 0,        // how many times this fighter has hit the canvas (best-of-3)
+    getUpCharge: 0,       // 0..1 get-up power bar (mash to fill before the count ends)
+    getUpTapFx: 0,        // brief pop animation timer on each mash (ms)
     combo: 0, comboTimer: 0,
     landedThisWindup: false,
   };
@@ -80,6 +82,9 @@ export class BoxingMatch {
   // ---- public update ---------------------------------------------------
   update(dt, controls) {
     if (this.over) return;
+    // get-up minigame: a downed human mashes BEFORE the tick advances the count,
+    // so this frame's taps count toward beating it.
+    this._handleGetUpInput(controls);
     this._tickFighter(this.player, dt);
     this._tickFighter(this.enemy, dt);
 
@@ -122,13 +127,44 @@ export class BoxingMatch {
 
     if (fr.pose === 'down') {
       fr.downCount += dt / 1000;
-      if (fr.downCount >= BOX.GET_UP_COUNT) {
-        // online relay is first-to-zero (beta); offline uses best-of-3.
-        const koThreshold = this.isNet ? 1 : BOX.KNOCKDOWNS_TO_KO;
-        if (fr.knockdowns >= koThreshold) this._finishKO(fr); // counted out
-        else this._getUp(fr);                                 // beat the count, rise
-      }
+      if (fr.getUpTapFx > 0) fr.getUpTapFx -= dt;
+      const idx = this._fallIdx(fr);
+      // the CPU opponent claws its own way up (offline story).
+      if (this._autoGetUp(fr)) fr.getUpCharge = Math.min(1, fr.getUpCharge + (BOX.GET_UP.AI_CHARGE_PER_SEC[idx] ?? 0.6) * dt / 1000);
+      // rise the instant the bar is full — checked BEFORE decay so a tap that
+      // tops it off this frame isn't immediately bled back under the line.
+      if (fr.getUpCharge >= 1) { this._getUp(fr); return; }
+      // otherwise the bar always bleeds — you must out-mash the decay to fill it.
+      fr.getUpCharge = Math.max(0, fr.getUpCharge - (BOX.GET_UP.DECAY_PER_SEC[idx] ?? 0.3) * dt / 1000);
+      if (fr.downCount >= BOX.GET_UP_COUNT) this._finishKO(fr); // counted out
     }
+  }
+
+  // online relay is first-to-zero (beta); offline uses best-of-3.
+  _koThreshold() { return this.isNet ? 1 : BOX.KNOCKDOWNS_TO_KO; }
+  // which difficulty step the current fall is on: 0 = 1st fall, 1 = 2nd fall.
+  _fallIdx(fr) { return Math.min(Math.max(fr.knockdowns, 1), 2) - 1; }
+  // true for a downed fighter the CPU controls (and so auto-charges its bar).
+  _autoGetUp(fr) {
+    if (this.isNet || this.opts.mode === 'pvp') return false; // remote/P2 down ends instantly or is human-mashed
+    return fr.side === 'enemy';
+  }
+
+  // a downed human charges their own get-up bar by mashing: you (Space/confirm)
+  // or, in hotseat, the downed P2 (their guard key). Each tap is one push.
+  _handleGetUpInput(c) {
+    const p = this.player;
+    if (p.pose === 'down' && c.pressed('confirm')) this._chargeGetUp(p);
+    if (this.opts.mode === 'pvp') {
+      const e = this.enemy;
+      if (e.pose === 'down' && (c.pressed('p2_block') || c.pressed('p2_jabL') || c.pressed('p2_jabR'))) this._chargeGetUp(e);
+    }
+  }
+  _chargeGetUp(fr) {
+    const add = BOX.GET_UP.CHARGE_PER_TAP[this._fallIdx(fr)] ?? 0.08;
+    fr.getUpCharge = Math.min(1, fr.getUpCharge + add);
+    fr.getUpTapFx = 140;
+    this.hitHooks.onGetUpTap?.(fr.side, fr.getUpCharge);
   }
 
   // a fighter survives the count on a non-final knockdown: back to their feet
@@ -138,6 +174,7 @@ export class BoxingMatch {
     fr.stamina = Math.max(fr.stamina, 60);
     fr.pose = 'idle'; fr.poseT = 0; fr.arm = null; fr.kind = null;
     fr.downCount = 0; fr.combo = 0; fr.comboTimer = 0;
+    fr.getUpCharge = 0; fr.getUpTapFx = 0;
     this.hitHooks.onGetUp?.(fr.side, fr.knockdowns);
   }
 
@@ -394,7 +431,10 @@ export class BoxingMatch {
     for (const fr of [this.player, this.enemy]) {
       if (fr.hp <= 0 && fr.pose !== 'down' && fr.pose !== 'ko') {
         fr.knockdowns++;
-        fr.pose = 'down'; fr.poseT = 0; fr.downCount = 0;
+        // the FINAL fall is an automatic TKO — straight to the canvas, no get-up
+        // bar, no count. Earlier falls start the mash-to-rise minigame.
+        if (fr.knockdowns >= this._koThreshold()) { this._finishKO(fr); continue; }
+        fr.pose = 'down'; fr.poseT = 0; fr.downCount = 0; fr.getUpCharge = 0; fr.getUpTapFx = 0;
         this.hitHooks.onKnockdown?.(fr.side, fr.knockdowns);
       }
     }

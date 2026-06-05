@@ -8,7 +8,7 @@
 import { MATCH, PAL, BOX } from '../config.js';
 import { text, panel, ring, boxer, barH } from '../gfx.js';
 import * as audio from '../audio.js';
-import { BoxingMatch } from '../boxing.js';
+import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
 import { OPPONENTS, HUE } from '../opponents.js';
 import { material, WHITE } from '../chess/board.js';
 
@@ -26,7 +26,10 @@ export class BoxingState {
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.red) : HUE.red;
     this.accent = this.oppHue.body;
 
-    const params = m.mode === 'story' ? m.opponent.boxing : DEFAULT_PVP_PARAMS;
+    // STORY uses the opponent's tuned boxing kit; PVP/online use the default.
+    // Guard the story path: a malformed or older saved opponent can lack `boxing`
+    // (the sim also defaults internally, but this keeps the nameplate sane too).
+    const params = (m.mode === 'story' && m.opponent?.boxing) ? m.opponent.boxing : DEFAULT_PARAMS;
     this.match = new BoxingMatch({
       mode: m.mode === 'pvp' ? 'pvp' : 'story',
       enemyParams: params,
@@ -252,7 +255,8 @@ export class BoxingState {
     const name = this.m.mode === 'story' ? this.m.opponent.name : 'PLAYER 2';
     text(ctx, name, x + 12, y + 8, { scale: 2, color: PAL.white, shadow: PAL.ink });
     if (this.m.mode === 'story') {
-      text(ctx, 'CHESS ' + this.m.opponent.elo + '   SPECIAL: ' + this.m.opponent.boxing.special.name, x + 12, y + 32, { scale: 1, color: PAL.orangeLite });
+      const special = this.m.opponent.boxing?.special?.name || DEFAULT_PARAMS.signature.name;
+      text(ctx, 'CHESS ' + this.m.opponent.elo + '   SPECIAL: ' + special, x + 12, y + 32, { scale: 1, color: PAL.orangeLite });
     }
     if (this.edgeText) text(ctx, this.edgeText, x + 12, y + 44, { scale: 1, color: this.lead > 0 ? PAL.green : PAL.red });
     ctx.globalAlpha = 1;
@@ -273,9 +277,3 @@ function leadFor(m) {
   const mat = material(m.chess.board);
   return m.playerColor === WHITE ? mat.diff : -mat.diff;
 }
-
-const DEFAULT_PVP_PARAMS = {
-  telegraphMs: 600, recoverMs: 400, aggression: 0.4, comboChance: 0.3,
-  dodgeSkill: 0.3, guardChance: 0.3, punchDmg: 12, feintChance: 0.2,
-  highChance: 0.5, signature: { name: 'HAYMAKER', dmg: 24, telegraphMs: 750, chance: 0.08 },
-};

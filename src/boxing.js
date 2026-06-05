@@ -14,6 +14,17 @@
 
 import { BOX } from './config.js';
 
+// Fallback enemy AI params. Used for PVP / online enemies (which have no story
+// difficulty curve) and as a safety net whenever a match is built without valid
+// `enemyParams` — e.g. a malformed or older saved STORY opponent missing its
+// `boxing` block. Without this the AI would read `undefined.aggression` in
+// `_enemyAI` and throw every single frame.
+export const DEFAULT_PARAMS = {
+  telegraphMs: 600, recoverMs: 400, aggression: 0.4, comboChance: 0.3,
+  dodgeSkill: 0.3, guardChance: 0.3, punchDmg: 12, feintChance: 0.2,
+  highChance: 0.5, signature: { name: 'HAYMAKER', dmg: 24, telegraphMs: 750, chance: 0.08 },
+};
+
 function makeFighter(side) {
   return {
     side,                 // 'player' | 'enemy'
@@ -50,7 +61,7 @@ export class BoxingMatch {
       this.player.hp = opts.startHP.player;
       this.enemy.hp = opts.startHP.enemy;
     }
-    this.params = opts.enemyParams;
+    this.params = opts.enemyParams || DEFAULT_PARAMS;  // never let the AI read undefined params
     this.timeLeft = (opts.seconds ?? 60) * 1000;
     this.over = false;
     this.result = null;

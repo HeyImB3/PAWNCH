@@ -24,12 +24,17 @@ function makeFighter(side) {
     arm: null,            // 'L' | 'R'
     kind: null,           // 'jab' | 'hook' | 'star' | 'signature'
     target: 'high',       // 'high' | 'low' (where an attack is aimed)
+    special: null,        // name of the boss SPECIAL currently winding up (for tell/render)
+    unblockable: false,   // current attack ignores guard (must be slipped/ducked)
+    dmgOverride: null,    // per-attack damage (specials), else null = use kind defaults
+    recoverOverride: null,// per-attack recover window (specials), else null = default
     stars: 0,
     flash: 0,             // hit flash timer
     starFx: 0,            // star-punch glow timer
     offset: 0,            // lateral lean (dodge) for render
     duckY: 0,
-    downCount: 0,
+    downCount: 0,         // seconds elapsed in the current count (resets each knockdown)
+    knockdowns: 0,        // how many times this fighter has hit the canvas (best-of-3)
     combo: 0, comboTimer: 0,
     landedThisWindup: false,
   };
@@ -50,7 +55,9 @@ export class BoxingMatch {
     this.over = false;
     this.result = null;
     this.maxCombo = 0;
-    this.ai = { state: 'wait', t: rand(600, 1400), feint: false };
+    // seq = a queued boss SPECIAL (multi-step). specialCd gates how often the
+    // boss move can fire, so it reads as a deliberate, learnable pattern.
+    this.ai = { state: 'wait', t: rand(600, 1400), feint: false, seq: [], specialCd: 2600 };
     this.hitHooks = opts.hooks || {};
 
     // online relay (beta): each client owns its OWN fighter's HP.
@@ -62,9 +69,13 @@ export class BoxingMatch {
   // ---- public update ---------------------------------------------------
   update(dt, controls) {
     if (this.over) return;
-    this.timeLeft -= dt;
     this._tickFighter(this.player, dt);
     this._tickFighter(this.enemy, dt);
+
+    // the round clock STOPS while anyone is on the canvas (the ref's count is
+    // its own clock) — faithful to boxing and keeps 10s counts from eating the half.
+    const counting = this.player.pose === 'down' || this.enemy.pose === 'down';
+    if (!counting) this.timeLeft -= dt;
 
     if (this.isNet && this.inbox) this._processRemoteBox();
 
@@ -100,8 +111,23 @@ export class BoxingMatch {
 
     if (fr.pose === 'down') {
       fr.downCount += dt / 1000;
-      if (fr.downCount >= BOX.GET_UP_COUNT) this._finishKO(fr);
+      if (fr.downCount >= BOX.GET_UP_COUNT) {
+        // online relay is first-to-zero (beta); offline uses best-of-3.
+        const koThreshold = this.isNet ? 1 : BOX.KNOCKDOWNS_TO_KO;
+        if (fr.knockdowns >= koThreshold) this._finishKO(fr); // counted out
+        else this._getUp(fr);                                 // beat the count, rise
+      }
     }
+  }
+
+  // a fighter survives the count on a non-final knockdown: back to their feet
+  // with a chunk of HP restored, ready to keep swinging.
+  _getUp(fr) {
+    fr.hp = Math.max(fr.hp, BOX.GET_UP_HP);
+    fr.stamina = Math.max(fr.stamina, 60);
+    fr.pose = 'idle'; fr.poseT = 0; fr.arm = null; fr.kind = null;
+    fr.downCount = 0; fr.combo = 0; fr.comboTimer = 0;
+    this.hitHooks.onGetUp?.(fr.side, fr.knockdowns);
   }
 
   _resolvePose(fr) {
@@ -110,14 +136,20 @@ export class BoxingMatch {
       this._strike(fr);
       fr.pose = 'recover';
       fr.poseT = this._recoverMs(fr);
+      fr.recoverOverride = null;         // consumed
     } else if (prev === 'punch') {
       fr.pose = 'recover';
       fr.poseT = this._recoverMs(fr);
+      fr.recoverOverride = null;
+    } else if (prev === 'stance') {
+      fr.pose = 'idle';                  // held the stance; the follow-up is queued in seq
     } else {
       fr.pose = 'idle'; fr.arm = null; fr.kind = null;
+      fr.special = null; fr.unblockable = false; fr.dmgOverride = null;
     }
   }
   _recoverMs(fr) {
+    if (fr.recoverOverride != null) return fr.recoverOverride; // specials set their own opening
     const base = fr.side === 'enemy' ? this.params.recoverMs : BOX.PLAYER_RECOVER;
     return base * (fr.stamina < 30 ? 1.5 : 1); // tired = slower to recover
   }
@@ -177,6 +209,8 @@ export class BoxingMatch {
   _playerContact(att, def, kind) {
     if (att.landedThisWindup) return;
     att.landedThisWindup = true;
+    // a counter-stance boss reads the punch and PUNISHES it — patience beats it.
+    if (def.pose === 'stance') { this.hitHooks.onMiss?.(att.side); this._stancePunish(def, att); return; }
     const avoided = this._defended(att, def);
     if (avoided === 'dodge') { this.hitHooks.onMiss?.(att.side); return; }
     const counter = def.pose === 'recover';
@@ -187,22 +221,48 @@ export class BoxingMatch {
     this._applyDamage(def, dmg, att);
   }
 
+  // the enemy was baited into a counter stance: parry the player's punch and
+  // crack them for the special's damage. Spends the special (cancels the seq).
+  _stancePunish(src, victim) {
+    const dmg = this.params.special?.dmg ?? 18;
+    this.ai.seq = [];
+    src.pose = 'punch'; src.arm = src.arm || 'R'; src.kind = 'special'; src.poseT = 200;
+    this._applyDamage(victim, dmg, { side: src.side, kind: 'special' });
+    this.hitHooks.onCounter?.(src.side);
+    this.ai.specialCd = this.params.special?.cooldownMs ?? 5000;
+  }
+
   // ---- enemy AI --------------------------------------------------------
   _enemyAI(dt) {
     const e = this.enemy, P = this.params;
     if (this._busy(e)) return;
     this.ai.t -= dt;
+    if (this.ai.specialCd > 0) this.ai.specialCd -= dt;
+
+    // mid-special: fire the next queued step the instant the previous one's
+    // recovery ends (the recover window IS the gap between hits).
+    if (this.ai.seq.length) { this._enemyStep(this.ai.seq.shift()); return; }
+
     if (this.ai.t > 0) return;
 
     // reactive slip when the player commits to a punch
     if (this.player.pose === 'punch' && Math.random() < P.dodgeSkill) {
       this._dodge(e, Math.random() < 0.5 ? 'L' : 'R');
-      this.ai.t = rand(300, 600);
+      this.ai.t = rand(280, 560);
       return;
     }
     if (Math.random() < P.aggression) {
+      // boss SPECIAL — themed, off-cooldown, occasional: the move to learn.
+      const sp = P.special;
+      if (sp && this.ai.specialCd <= 0 && Math.random() < (sp.chance ?? 0.6)) {
+        this.ai.seq = buildSpecial(sp);
+        this.ai.specialCd = sp.cooldownMs ?? 5000;
+        if (this.ai.seq.length) { this._enemyStep(this.ai.seq.shift()); return; }
+      }
+      // baseline attack
       const arm = Math.random() < 0.5 ? 'L' : 'R';
       const high = Math.random() < P.highChance;
+      this._clearAtk(e);
       e.arm = arm; e.target = high ? 'high' : 'low'; e.pose = 'windup';
       this._drain(e, 8);
       if (Math.random() < P.signature.chance) {
@@ -212,25 +272,52 @@ export class BoxingMatch {
         e.poseT = P.telegraphMs * (e.kind === 'hook' ? 1.25 : 1);
         this.ai.feint = Math.random() < P.feintChance;
       }
-      this.hitHooks.onWindup?.(arm, e.kind, e.target);
-      this.ai.t = rand(400, 900);
+      this.hitHooks.onWindup?.(arm, e.kind, e.target, null);
+      this.ai.t = rand(380, 860);
     } else {
       e.pose = Math.random() < P.guardChance ? 'guard' : 'idle';
-      this.ai.t = rand(500, 1200);
+      this.ai.t = rand(480, 1150);
     }
   }
 
+  // execute one step of a queued special (an attack, or a counter stance).
+  _enemyStep(step) {
+    const e = this.enemy;
+    this._clearAtk(e);
+    if (step.stance) {
+      e.pose = 'stance'; e.poseT = step.durationMs; e.special = step.special;
+      this.ai.feint = false;
+      this.hitHooks.onWindup?.(null, 'stance', 'high', step.special);
+    } else {
+      e.pose = 'windup'; e.arm = step.arm; e.kind = step.kind; e.target = step.target;
+      e.poseT = step.telegraphMs;
+      e.special = step.special || null;
+      e.unblockable = !!step.unblockable;
+      e.dmgOverride = step.dmg != null ? step.dmg : null;
+      e.recoverOverride = step.recover != null ? step.recover : null;
+      this._drain(e, step.stamina ?? 7);
+      this.ai.feint = !!step.feint;
+      this.hitHooks.onWindup?.(step.arm, e.kind, e.target, e.special);
+    }
+    // pause AFTER the special resolves (ignored mid-seq, where the seq check runs first)
+    this.ai.t = rand(560, 980);
+  }
+
+  _clearAtk(e) { e.special = null; e.unblockable = false; e.dmgOverride = null; e.recoverOverride = null; }
+
   _strike(att) {
     const def = att.side === 'enemy' ? this.player : this.enemy;
-    if (att.side === 'enemy' && this.ai.feint) { this.ai.feint = false; return; }
+    if (att.side === 'enemy' && this.ai.feint) { this.ai.feint = false; this._clearAtk(att); return; }
     const avoided = this._defended(att, def);
-    if (avoided === 'dodge') { this.hitHooks.onDodge?.(def.side); return; }
-    let dmg = att.kind === 'signature' ? this.params.signature.dmg
+    if (avoided === 'dodge') { this.hitHooks.onDodge?.(def.side); this._clearAtk(att); return; }
+    let dmg = att.dmgOverride != null ? att.dmgOverride
+            : att.kind === 'signature' ? this.params.signature.dmg
             : att.kind === 'hook' ? this.params.punchDmg * 1.4
             : this.params.punchDmg;
     dmg *= staminaMult(att);
     if (avoided === 'block') dmg *= (1 - BOX.BLOCK_REDUCTION);
     this._applyDamage(def, dmg, att);
+    if (att.side === 'enemy') this._clearAtk(att);
   }
 
   // returns 'dodge' (fully avoided), 'block' (reduced), or null (clean hit)
@@ -240,7 +327,7 @@ export class BoxingMatch {
     const jabLeniency = att.kind === 'jab' && (def.pose === 'dodgeL' || def.pose === 'dodgeR');
     const duckBeatsHigh = def.pose === 'duck' && att.target === 'high';
     if (correctDodge || jabLeniency || duckBeatsHigh) return 'dodge';
-    if (def.pose === 'guard') return 'block';
+    if (def.pose === 'guard' && !att.unblockable) return 'block'; // unblockables must be slipped
     return null;
   }
 
@@ -289,14 +376,15 @@ export class BoxingMatch {
   }
 
   _busy(fr) {
-    return ['windup', 'punch', 'recover', 'dodgeL', 'dodgeR', 'duck', 'hurt', 'down', 'ko'].includes(fr.pose) && fr.poseT > 0;
+    return ['windup', 'punch', 'recover', 'dodgeL', 'dodgeR', 'duck', 'hurt', 'down', 'ko', 'stance'].includes(fr.pose) && fr.poseT > 0;
   }
 
   _checkKO() {
     for (const fr of [this.player, this.enemy]) {
       if (fr.hp <= 0 && fr.pose !== 'down' && fr.pose !== 'ko') {
+        fr.knockdowns++;
         fr.pose = 'down'; fr.poseT = 0; fr.downCount = 0;
-        this.hitHooks.onKnockdown?.(fr.side);
+        this.hitHooks.onKnockdown?.(fr.side, fr.knockdowns);
       }
     }
   }
@@ -309,6 +397,65 @@ export class BoxingMatch {
     this.hitHooks.onKO?.(this.result);
     this.opts.onKO?.(this.result);
   }
+}
+
+// Translate an opponent's themed `special` definition into a sequence of attack
+// steps. Each step is one telegraphed move; the player learns the pattern + its
+// counter (the comments below). The final step carries a long `recover` = the
+// punish window you earn for surviving it.
+function buildSpecial(sp) {
+  const A = () => (Math.random() < 0.5 ? 'L' : 'R');
+  const t = sp.type;
+  if (t === 'flurry') {
+    // a rapid string of jabs — dodge/duck each hit in rhythm.
+    const n = sp.hits || 3, steps = []; let arm = A();
+    for (let i = 0; i < n; i++) {
+      steps.push({ arm, target: Math.random() < 0.5 ? 'high' : 'low', kind: 'jab',
+        telegraphMs: sp.telegraphMs, dmg: sp.dmg, special: sp.name, recover: i === n - 1 ? 520 : (sp.gapMs || 150) });
+      arm = arm === 'L' ? 'R' : 'L';
+    }
+    return steps;
+  }
+  if (t === 'feint') {
+    // fakes one side, then the real shot lands from the OTHER side, faster.
+    const arm = A();
+    return [
+      { arm, target: 'high', kind: 'jab', telegraphMs: sp.telegraphMs, feint: true, special: sp.name, recover: 130 },
+      { arm: arm === 'L' ? 'R' : 'L', target: 'high', kind: 'hook', telegraphMs: Math.round(sp.telegraphMs * 0.55), dmg: sp.dmg, special: sp.name, recover: 600 },
+    ];
+  }
+  if (t === 'lowhigh') {
+    // a two-target combo: defend the body shot, then the head shot (or reverse).
+    const arm = A(), lowFirst = sp.lowFirst !== false;
+    return [
+      { arm, target: lowFirst ? 'low' : 'high', kind: 'jab', telegraphMs: sp.telegraphMs, dmg: Math.round(sp.dmg * 0.55), special: sp.name, recover: sp.gapMs || 160 },
+      { arm, target: lowFirst ? 'high' : 'low', kind: 'hook', telegraphMs: Math.round(sp.telegraphMs * 0.7), dmg: sp.dmg, special: sp.name, recover: 560 },
+    ];
+  }
+  if (t === 'charge') {
+    // a long, ground-shaking wind-up — slip it for a huge free punish.
+    return [{ arm: A(), target: 'high', kind: 'signature', telegraphMs: sp.telegraphMs, dmg: sp.dmg, special: sp.name, recover: 720 }];
+  }
+  if (t === 'unblockable') {
+    // guard won't save you — you MUST slip or duck it.
+    return [{ arm: A(), target: sp.target || 'high', kind: 'signature', telegraphMs: sp.telegraphMs, dmg: sp.dmg, unblockable: true, special: sp.name, recover: 640 }];
+  }
+  if (t === 'counterstance') {
+    // reads you: punch during the stance and you eat a counter. Wait it out, then slip the crush.
+    return [
+      { stance: true, durationMs: sp.telegraphMs, special: sp.name },
+      { arm: A(), target: 'high', kind: 'hook', telegraphMs: Math.round(sp.telegraphMs * 0.45), dmg: sp.dmg, special: sp.name, recover: 600 },
+    ];
+  }
+  if (t === 'checkmate') {
+    // the champion's finisher: a feint into an unblockable slam.
+    const arm = A();
+    return [
+      { arm, target: 'high', kind: 'jab', telegraphMs: Math.round(sp.telegraphMs * 0.7), feint: true, special: sp.name, recover: 120 },
+      { arm: arm === 'L' ? 'R' : 'L', target: 'high', kind: 'signature', telegraphMs: sp.telegraphMs, dmg: sp.dmg, unblockable: true, special: sp.name, recover: 680 },
+    ];
+  }
+  return [];
 }
 
 function rand(a, b) { return a + Math.random() * (b - a); }

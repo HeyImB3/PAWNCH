@@ -36,7 +36,7 @@ export class BoxingState {
       inbox: m.net ? (m.netInboxBox ||= []) : null,
       hooks: {
         onPunch: (side, kind) => { if (side === 'player') (kind === 'jab' ? audio.sfx.jab() : audio.sfx.hook()); },
-        onWindup: (arm, kind) => { if (kind === 'signature') { audio.sfx.check(); this.sigWarnT = 0.6; } },
+        onWindup: (arm, kind, target, special) => { if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
         onHit: (side, dmg, kind) => {
           audio.sfx.hit();
           const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 200];
@@ -52,6 +52,7 @@ export class BoxingState {
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
         onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; },
+        onGetUp: () => { audio.sfx.bell(); this.crowd = 1; },
       },
       onKO: (winner) => this._finish(game, { decisive: true, winner }),
       onTime: () => this._finish(game, { decisive: false, winner: null }),
@@ -101,14 +102,15 @@ export class BoxingState {
     const p = this.match.player, e = this.match.enemy;
 
     // opponent (center, facing camera)
-    const eMap = { idle: 'idle', guard: 'guard', windup: e.arm === 'L' ? 'windupL' : 'windupR', punch: e.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
+    const eMap = { idle: 'idle', guard: 'guard', stance: 'guard', windup: e.arm === 'L' ? 'windupL' : 'windupR', punch: e.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
     const ex = W / 2 + e.offset, ey = 150 + e.duckY;
     if (e.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
     boxer(ctx, ex, ey, 5.2, this.oppHue, eMap[e.pose] || 'idle', 1, this.t * 4);
     ctx.globalAlpha = 1;
 
-    // attack TELL during enemy windup
+    // attack TELL during enemy windup, or a "don't punch!" warning during a counter stance
     if (e.pose === 'windup') this._tell(ctx, ex, e);
+    else if (e.pose === 'stance') this._stanceWarn(ctx, ex, e);
 
     // player (foreground, from behind)
     const pMap = { idle: 'idle', guard: 'guard', windup: 'guard', punch: p.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
@@ -128,17 +130,27 @@ export class BoxingState {
   }
 
   _tell(ctx, ex, e) {
-    const sig = e.kind === 'signature';
-    const col = sig ? PAL.red : e.kind === 'hook' ? PAL.orange : PAL.blueLite;
-    const blink = sig ? (Math.sin(this.t * 24) > 0) : true;
+    const special = !!e.special;
+    const big = e.kind === 'signature' || special;  // big = blinking red warning
+    const col = big ? PAL.red : e.kind === 'hook' ? PAL.orange : PAL.blueLite;
+    const blink = big ? (Math.sin(this.t * 24) > 0) : true;
     if (!blink) return;
     const y = 126;  // below the center HUD (round/timer), above the fighter's head
     // side arrow (it's coming from the attacker's arm side)
     const arrow = e.arm === 'L' ? '>' : '<';
-    const lbl = (e.target === 'high' ? 'HIGH ' : 'LOW ') + (sig ? '!!' : '');
+    const lbl = (e.target === 'high' ? 'HIGH ' : 'LOW ') + (big ? '!!' : '');
     text(ctx, arrow, ex + (e.arm === 'L' ? -34 : 26), y, { scale: 2, color: col });
     text(ctx, lbl, ex, y, { scale: 1, color: col, align: 'center', shadow: PAL.ink });
-    if (sig) text(ctx, this.m.opponent ? this.m.opponent.boxing.signature.name : 'SIGNATURE', ex, y - 14, { scale: 1, color: PAL.red, align: 'center', shadow: PAL.ink });
+    // name the incoming boss move (or the generic haymaker), + a SLIP! cue if unblockable
+    const name = e.special || (e.kind === 'signature' ? 'HAYMAKER' : null);
+    if (name) text(ctx, name + (e.unblockable ? ' - SLIP!' : ''), ex, y - 14, { scale: 1, color: PAL.red, align: 'center', shadow: PAL.ink });
+  }
+
+  // a counter-stance boss is reading you — warn the player NOT to throw a punch.
+  _stanceWarn(ctx, ex, e) {
+    if (Math.sin(this.t * 18) <= 0) return;
+    text(ctx, e.special || 'COUNTER', ex, 112, { scale: 1, color: PAL.gold, align: 'center', shadow: PAL.ink });
+    text(ctx, "DON'T PUNCH!", ex, 126, { scale: 1, color: PAL.red, align: 'center', shadow: PAL.ink });
   }
 
   _hud(game, ctx) {
@@ -171,20 +183,60 @@ export class BoxingState {
       ctx.restore();
     }
 
-    // knockdown count
+    // knockdown tally pips (best-of-3) next to each fighter's name
+    this._kdPips(ctx, W - 14, 10, e.knockdowns, PAL.orange);
+    this._kdPips(ctx, W - 14, 44, p.knockdowns, PAL.blue);
+
+    // the ref's 10-count on a downed fighter
     for (const fr of [p, e]) {
       if (fr.pose === 'down') {
         const n = Math.min(BOX.GET_UP_COUNT, Math.ceil(fr.downCount));
-        text(ctx, n + '', W / 2, game.H / 2, { scale: 8, color: PAL.red, align: 'center', shadow: PAL.ink });
-        text(ctx, fr.side === 'player' ? 'GET UP!' : 'DOWN!', W / 2, game.H / 2 + 60, { scale: 2, color: PAL.white, align: 'center', shadow: PAL.ink });
+        const last = fr.knockdowns >= BOX.KNOCKDOWNS_TO_KO;
+        text(ctx, n + '', W / 2, game.H / 2 - 20, { scale: 8, color: PAL.red, align: 'center', shadow: PAL.ink });
+        const lbl = fr.side === 'player' ? 'GET UP!' : 'DOWN!';
+        text(ctx, lbl, W / 2, game.H / 2 + 40, { scale: 2, color: PAL.white, align: 'center', shadow: PAL.ink });
+        text(ctx, 'KNOCKDOWN ' + fr.knockdowns + ' / ' + BOX.KNOCKDOWNS_TO_KO + (last ? '  — FINAL!' : ''),
+          W / 2, game.H / 2 + 64, { scale: 1, color: last ? PAL.red : PAL.gold, align: 'center', shadow: PAL.ink });
       }
     }
 
-    if (this.t < 7) {
-      ctx.globalAlpha = Math.max(0, 1 - this.t / 7);
-      text(ctx, 'A/D JAB  Q/E HOOK  ARROWS DODGE  DOWN DUCK  S GUARD', game.W / 2, game.H - 12, { scale: 1, color: PAL.textDim, align: 'center' });
-      ctx.globalAlpha = 1;
+    this._controls(game, ctx);
+  }
+
+  // best-of-3 knockdown pips: filled = falls taken, the last one is the KO.
+  _kdPips(ctx, rightX, y, count, col) {
+    const n = BOX.KNOCKDOWNS_TO_KO, s = 7, gap = 3;
+    const x0 = rightX - (n * s + (n - 1) * gap);
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * (s + gap);
+      ctx.fillStyle = PAL.ink; ctx.fillRect(x - 1, y - 1, s + 2, s + 2);
+      ctx.fillStyle = i < count ? (i === n - 1 ? PAL.red : col) : '#26304f';
+      ctx.fillRect(x, y, s, s);
     }
+  }
+
+  // small, always-on controls diagram tucked into the bottom corner(s).
+  _controls(game, ctx) {
+    // foreground player (you / P1)
+    this._ctrlBox(game, ctx, 6, this.m.mode === 'pvp' ? 'P1' : 'CONTROLS',
+      ['A/D JAB', 'Q/E HOOK', '< / > DODGE', 'v DUCK', 'S GUARD'], 'left');
+    // hotseat opponent (P2) gets their own cluster on the right
+    if (this.m.mode === 'pvp') {
+      this._ctrlBox(game, ctx, game.W - 84, 'P2',
+        ['F/H JAB', 'T/U HOOK', 'G/J DODGE', 'B DUCK', 'V GUARD'], 'right');
+    }
+  }
+
+  _ctrlBox(game, ctx, x, title, rows, align) {
+    const lh = 9, w = 78;
+    const h = (rows.length + 1) * lh + 8;
+    const y = game.H - h - 4;
+    ctx.fillStyle = 'rgba(7,10,22,0.5)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(58,74,120,0.6)'; ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    text(ctx, title, x + 5, y + 5, { scale: 1, color: PAL.textDim });
+    rows.forEach((r, i) => text(ctx, r, x + 5, y + 5 + (i + 1) * lh, { scale: 1, color: PAL.textDim }));
   }
 
   // sliding lower-third "tale of the tape" nameplate at the intro
@@ -200,7 +252,7 @@ export class BoxingState {
     const name = this.m.mode === 'story' ? this.m.opponent.name : 'PLAYER 2';
     text(ctx, name, x + 12, y + 8, { scale: 2, color: PAL.white, shadow: PAL.ink });
     if (this.m.mode === 'story') {
-      text(ctx, 'CHESS ' + this.m.opponent.elo + '   SIG: ' + this.m.opponent.boxing.signature.name, x + 12, y + 32, { scale: 1, color: PAL.orangeLite });
+      text(ctx, 'CHESS ' + this.m.opponent.elo + '   SPECIAL: ' + this.m.opponent.boxing.special.name, x + 12, y + 32, { scale: 1, color: PAL.orangeLite });
     }
     if (this.edgeText) text(ctx, this.edgeText, x + 12, y + 44, { scale: 1, color: this.lead > 0 ? PAL.green : PAL.red });
     ctx.globalAlpha = 1;

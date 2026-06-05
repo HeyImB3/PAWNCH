@@ -420,8 +420,23 @@ export class ChessState {
     }
 
     this._sidePanel(game, ctx);
+    this._controls(game, ctx);
     if (this.phase === 'promote') this._promoPicker(game, ctx);
     this._banner(game, ctx);
+  }
+
+  // small, always-on controls reminder under the board (non-distracting).
+  _controls(game, ctx) {
+    const rows = ['ARROWS MOVE', 'ENTER SELECT', 'ESC BACK', 'MOUSE DRAG/CLICK'];
+    const lh = 9, w = 112;
+    const h = (rows.length + 1) * lh + 8;
+    const x = OX - 8, y = game.H - h - 4;
+    ctx.fillStyle = 'rgba(7,10,22,0.5)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(58,74,120,0.6)'; ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    text(ctx, 'CONTROLS', x + 5, y + 5, { scale: 1, color: PAL.textDim });
+    rows.forEach((r, i) => text(ctx, r, x + 5, y + 5 + (i + 1) * lh, { scale: 1, color: PAL.textDim }));
   }
 
   _promoPicker(game, ctx) {

@@ -63,7 +63,13 @@ export const BOX = {
   DUCK_TIME: 420,
   BLOCK_REDUCTION: 0.75,   // damage multiplier reduction while guarding
   STAR_DMG: 26,            // counter / star punch
-  GET_UP_COUNT: 3,         // seconds a downed (0-HP) fighter stays before KO is called
+  // Best-of-3 knockdowns (Tyson's Punch-Out style). A fighter who hits 0 HP is
+  // knocked DOWN; the ref counts to GET_UP_COUNT seconds. Survive the count on
+  // your 1st/2nd fall and you RISE (restored to GET_UP_HP). Your KNOCKDOWNS_TO_KO-th
+  // fall = counted out = the match is lost. The round clock PAUSES during a count.
+  GET_UP_COUNT: 10,        // seconds the ref counts on a knockdown (was 3)
+  KNOCKDOWNS_TO_KO: 3,     // 3rd knockdown ends it (best of 3)
+  GET_UP_HP: 45,           // HP a fighter rises with after beating the count
 };
 
 // Chess AI think-time bounds (humanizes clock usage)

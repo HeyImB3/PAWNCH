@@ -465,6 +465,89 @@ export function boxer(ctx, x, y, scale, hue, pose = 'idle', facing = 1, step = 0
   drawGlove(rx, ry, rz);
 }
 
+// ---- fighter portrait (head-&-shoulders bust) -------------------------
+// A framed roster "mugshot" for the Story-mode fight select, drawn to fill the
+// box (x,y,w,h). `silhouette:true` renders an anonymous all-dark bust (a
+// fighter you haven't beaten yet); otherwise it's the fighter in full color,
+// tinted by `hue` {body,trim,skin}. `t` drives a faint idle bob. Fully
+// procedural — there are no portrait sprites, so this always runs.
+export function portrait(ctx, x, y, w, h, hue, { silhouette = false, t = 0 } = {}) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  const cx = x + w / 2;
+
+  // studio backdrop: a soft spotlight, hue-tinted when revealed, cold when hidden
+  const bg = ctx.createLinearGradient(x, y, x, y + h);
+  bg.addColorStop(0, silhouette ? '#1b2344' : mix(hue.body, '#0a1024', 0.55));
+  bg.addColorStop(1, '#070a16');
+  ctx.fillStyle = bg; ctx.fillRect(x, y, w, h);
+  const sp = ctx.createRadialGradient(cx, y + h * 0.34, 2, cx, y + h * 0.34, w * 0.62);
+  sp.addColorStop(0, silhouette ? 'rgba(130,150,210,0.10)' : mixA(hue.body, 0.20));
+  sp.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sp; ctx.fillRect(x, y, w, h);
+
+  // palette — a single near-black ink when silhouetted
+  const skin   = silhouette ? '#0a1022' : hue.skin;
+  const skinSh = silhouette ? '#070b18' : shade(hue.skin, -30);
+  const body   = silhouette ? '#0a1022' : hue.body;
+  const bodySh = silhouette ? '#070b18' : shade(hue.body, -40);
+  const bodyHi = silhouette ? '#0d1530' : shade(hue.body, 40);
+  const trim   = silhouette ? '#0a1022' : hue.trim;
+  const hair   = silhouette ? '#070b18' : '#241813';
+
+  // 1px-chamfered filled rect (soft retro corners)
+  const rr = (rx, ry, rw, rh, col) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(Math.round(rx + 1), Math.round(ry), Math.round(rw - 2), Math.round(rh));
+    ctx.fillRect(Math.round(rx), Math.round(ry + 1), Math.round(rw), Math.round(rh - 2));
+  };
+
+  const bob = Math.sin(t * 1.6) * h * 0.012;
+  // geometry (proportional so the bust fills any box size)
+  const headW = w * 0.46, headH = h * 0.42;
+  const headX = cx - headW / 2, headY = y + h * 0.14 + bob;
+  const shW = w * 0.84, shH = h * 0.32;
+  const shX = cx - shW / 2, shY = y + h - shH + bob * 0.5;
+  const neckW = w * 0.20, neckH = h * 0.13;
+
+  // shoulders: base + light/shadow halves + collar trim
+  rr(shX, shY, shW, shH, body);
+  ctx.fillStyle = bodySh; ctx.fillRect(Math.round(cx), Math.round(shY + 1), Math.round(shW / 2 - 1), Math.round(shH - 1));
+  ctx.fillStyle = bodyHi; ctx.fillRect(Math.round(shX + 1), Math.round(shY + 1), Math.max(1, Math.round(w * 0.05)), Math.round(shH - 2));
+  ctx.fillStyle = trim;   ctx.fillRect(Math.round(shX + shW * 0.22), Math.round(shY), Math.round(shW * 0.56), Math.max(1, Math.round(h * 0.05)));
+  // neck
+  rr(cx - neckW / 2, headY + headH - h * 0.05, neckW, neckH, skinSh);
+  // head + right-side shading
+  rr(headX, headY, headW, headH, skin);
+  ctx.fillStyle = skinSh; ctx.fillRect(Math.round(headX + headW * 0.62), Math.round(headY + headH * 0.14), Math.round(headW * 0.34), Math.round(headH * 0.72));
+  // hair cap + sideburns
+  ctx.fillStyle = hair;
+  ctx.fillRect(Math.round(headX + 1), Math.round(headY), Math.round(headW - 2), Math.round(headH * 0.30));
+  ctx.fillRect(Math.round(headX), Math.round(headY + headH * 0.10), Math.max(1, Math.round(headW * 0.14)), Math.round(headH * 0.40));
+  ctx.fillRect(Math.round(headX + headW * 0.86), Math.round(headY + headH * 0.10), Math.max(1, Math.round(headW * 0.14)), Math.round(headH * 0.40));
+
+  if (!silhouette) {
+    // simple face — only on a revealed fighter
+    const eyeY = headY + headH * 0.46, eW = headW * 0.16, eH = headH * 0.12;
+    ctx.fillStyle = hair;                  // brows
+    ctx.fillRect(Math.round(headX + headW * 0.22), Math.round(eyeY - headH * 0.07), Math.round(eW * 1.3), Math.max(1, Math.round(eH * 0.6)));
+    ctx.fillRect(Math.round(headX + headW * 0.56), Math.round(eyeY - headH * 0.07), Math.round(eW * 1.3), Math.max(1, Math.round(eH * 0.6)));
+    ctx.fillStyle = '#1a1a1a';             // eyes
+    ctx.fillRect(Math.round(headX + headW * 0.26), Math.round(eyeY), Math.round(eW), Math.round(eH));
+    ctx.fillRect(Math.round(headX + headW * 0.58), Math.round(eyeY), Math.round(eW), Math.round(eH));
+    ctx.fillStyle = skinSh;                // nose
+    ctx.fillRect(Math.round(cx - headW * 0.04), Math.round(eyeY + eH), Math.round(headW * 0.08), Math.round(headH * 0.16));
+    ctx.fillStyle = shade(hue.skin, -45);  // mouth
+    ctx.fillRect(Math.round(cx - headW * 0.18), Math.round(eyeY + headH * 0.30), Math.round(headW * 0.36), Math.max(1, Math.round(headH * 0.07)));
+  } else {
+    // faint cold rim-light so the anonymous shape still reads
+    ctx.fillStyle = 'rgba(140,165,225,0.12)';
+    ctx.fillRect(Math.round(headX), Math.round(headY), Math.round(headW), 1);
+    ctx.fillRect(Math.round(shX), Math.round(shY), Math.round(shW), 1);
+  }
+  ctx.restore();
+}
+
 // ---- particle / fx system ---------------------------------------------
 export class FX {
   constructor() { this.parts = []; this.shake = 0; this.flash = 0; this.flashColor = '#fff'; }

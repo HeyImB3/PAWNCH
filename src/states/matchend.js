@@ -16,9 +16,12 @@ export class MatchEndState {
     this.sel = 0;
 
     if (this.story && this.win) {
-      // advance progress (don't exceed roster length)
+      // advance progress (don't exceed roster length). `advanced` is false when
+      // this was a REPLAY of an already-beaten opponent (progress unchanged).
+      const prev = game.save.storyProgress;
       game.save.storyProgress = Math.min(OPPONENTS.length, Math.max(game.save.storyProgress, this.m.opponent.index + 1));
       game.persist();
+      this.advanced = game.save.storyProgress > prev;
       this.lastOpponent = this.m.opponent.index >= OPPONENTS.length - 1;
     }
     this.options = this._buildOptions();
@@ -28,7 +31,9 @@ export class MatchEndState {
   _buildOptions() {
     if (!this.story) return ['REMATCH', 'MAIN MENU'];
     if (this.win) {
-      return this.lastOpponent ? ['SEE ENDING', 'MAIN MENU'] : ['NEXT OPPONENT', 'MAIN MENU'];
+      if (this.lastOpponent) return ['SEE ENDING', 'MAIN MENU'];
+      // a genuine ladder advance vs replaying an already-beaten fighter
+      return [this.advanced ? 'NEXT OPPONENT' : 'FIGHT SELECT', 'MAIN MENU'];
     }
     return ['REMATCH', 'MAIN MENU'];
   }
@@ -42,8 +47,9 @@ export class MatchEndState {
       audio.sfx.confirm();
       const choice = this.options[this.sel];
       if (choice === 'MAIN MENU') return game.changeState('title');
-      if (choice === 'SEE ENDING') return game.changeState('story');
-      if (choice === 'NEXT OPPONENT') return game.changeState('story');
+      // back to the fight-select gallery; flash the portrait we just unlocked
+      if (choice === 'SEE ENDING' || choice === 'NEXT OPPONENT' || choice === 'FIGHT SELECT')
+        return game.changeState('story', { reveal: this.m.opponent.index });
       if (choice === 'REMATCH') {
         const opp = this.m.opponent;
         game.startMatch({ mode: this.m.mode, opponent: opp, playerColor: this.m.playerColor });
@@ -92,7 +98,7 @@ export class MatchEndState {
     // menu
     if (this.t > 1.2) {
       if (this.story && this.win && !this.lastOpponent)
-        text(ctx, 'READY FOR THE NEXT OPPONENT?', W / 2, 318, { scale: 1, color: PAL.orangeLite, align: 'center' });
+        text(ctx, this.advanced ? 'READY FOR THE NEXT OPPONENT?' : 'BACK TO THE FIGHT SELECT', W / 2, 318, { scale: 1, color: PAL.orangeLite, align: 'center' });
       this.options.forEach((opt, idx) => {
         const y = 340 + idx * 28;
         const on = idx === this.sel;

@@ -19,7 +19,12 @@ export function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return structuredClone(DEFAULT);
     const data = JSON.parse(raw);
-    return deepMerge(structuredClone(DEFAULT), data);
+    const state = deepMerge(structuredClone(DEFAULT), data);
+    // Schema hygiene: storyProgress MUST be a non-negative integer. Older or
+    // hand-edited saves could carry null/NaN/string here, which made every
+    // ladder slot (including the first) read as "locked" and unstartable.
+    state.storyProgress = Math.max(0, Math.floor(Number(state.storyProgress)) || 0);
+    return state;
   } catch {
     return structuredClone(DEFAULT);
   }

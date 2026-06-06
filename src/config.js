@@ -8,7 +8,7 @@ export const MATCH = {
   // ONE continuous chess game per match. Each player's clock is set once at the
   // start and persists round-to-round (it only ticks during chess halves), so
   // every chess half resumes exactly where you left off.
-  CHESS_SECONDS: 60,          // per-player clock for the WHOLE match (continuous)
+  CHESS_SECONDS: 300,         // per-player clock for the WHOLE match (continuous) — 5 min each
   CHESS_INCREMENT_MS: 3000,   // Fischer increment added per move (keeps it spanning rounds)
   CHESS_HALF_SECONDS: 60,     // wall-time window for each round's chess half
   BOXING_SECONDS: 60,  // boxing time limit per round
@@ -114,8 +114,21 @@ export const BOX = {
 
 // Chess AI think-time bounds (humanizes clock usage)
 export const CHESS = {
-  MIN_MOVE_MS: 1000,
-  MAX_MOVE_MS: 7000,
+  // --- Humanized "reveal delay" -----------------------------------------
+  // The delay before the bot plays is DECOUPLED from how long Stockfish
+  // actually searches: it searches briefly (SEARCH_MS) but waits out a longer,
+  // human-feeling pause before moving. The whole pause burns the bot's clock
+  // like a real player's time (both sides have a generous 5-min continuous clock).
+  SEARCH_MS: 700,                 // Stockfish's real search budget per move
+  OPENING_MOVES: 10,              // the bot's first N moves use the quick band
+  OPENING_DELAY_MS: [600, 2200],  // moves 1–10: snappy book-like play
+  MID_DELAY_MS: [1000, 4000],     // after move 10: normal pace
+  PRECISE_DELAY_MS: [5000, 10000],// after move 10, on a "tough/precise" move
+
+  // What makes a move "precise" (engine-inferred — Stockfish never says so):
+  PRECISE_SWING_CP: 120,          // eval swung >= this many centipawns vs the
+                                  // bot's previous move (a critical moment)
+  // A forced mate (score mate N) always counts as precise.
 };
 
 export const SAVE_KEY = 'pawnch.save.v1';

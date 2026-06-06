@@ -1,7 +1,8 @@
 // Unified chess "opponent brain". Prefers Stockfish (WASM) for strong,
 // ELO-accurate play when it can be loaded; otherwise falls back to the
-// built-in JS engine. Either way it returns a move + a humanized think
-// time (1-7s) so the bot burns some of its own chess clock like a person.
+// built-in JS engine. It returns the move plus engine signals (real search
+// time + whether the move is "tough/precise"); the chess state turns those
+// into a humanized reveal delay (see states/chess.js _aiTurn).
 
 import { legalMoves, idxToAlg, applyMove } from './board.js';
 import { chooseMove } from './ai.js';
@@ -61,17 +62,10 @@ function loadStockfish(src) {
   });
 }
 
-// Humanized think time, weighted toward the quicker end but with occasional
-// long thinks. Strong players think a touch longer on average.
-export function humanThinkMs(elo = 1000) {
-  const { MIN_MOVE_MS, MAX_MOVE_MS } = CHESS;
-  const r = Math.random();
-  const skew = Math.pow(r, 1.7);                 // bias toward shorter
-  let ms = MIN_MOVE_MS + skew * (MAX_MOVE_MS - MIN_MOVE_MS);
-  if (Math.random() < 0.12) ms = MAX_MOVE_MS * (0.8 + Math.random() * 0.2); // deep think
-  ms *= 0.8 + Math.min(0.5, elo / 4000);          // stronger = slightly slower
-  return Math.max(MIN_MOVE_MS, Math.min(MAX_MOVE_MS, Math.round(ms)));
-}
+// Eval (centipawns, from the bot's point of view) reported on the bot's
+// previous move — used to detect a "swing" into a critical position. Null until
+// the engine has scored at least one position.
+let prevEvalCp = null;
 
 // Resolve a UCI string (e.g. "g1f3", "e7e8q") to one of our legal moves.
 function uciToMove(state, uci) {
@@ -86,14 +80,33 @@ function uciToMove(state, uci) {
   return null;
 }
 
+// Run Stockfish for a bounded search, scraping its `info` stream for the running
+// score along the way. Returns { move, searchMs, precise, scoreCp, mate }.
+// "precise" = the engine found a forced mate OR the eval swung sharply versus the
+// bot's previous move (a critical/tactical moment worth a longer human pause).
 function sfBestMove(state, elo, movetimeMs, fen) {
   return new Promise((resolve) => {
+    const start = (performance || Date).now();
+    let scoreCp = null, mateIn = null;     // latest score seen this search
     const onMsg = (e) => {
       const line = typeof e.data === 'string' ? e.data : e.data?.data || '';
+      if (line.startsWith('info')) {
+        // score is from the side-to-move's view — always the bot here, so it's
+        // directly comparable across the bot's own consecutive moves.
+        const m = /score (cp|mate) (-?\d+)/.exec(line);
+        if (m) { if (m[1] === 'mate') { mateIn = +m[2]; scoreCp = null; } else { scoreCp = +m[2]; mateIn = null; } }
+        return;
+      }
       if (line.startsWith('bestmove')) {
         sf.removeEventListener('message', onMsg);
-        const uci = line.split(/\s+/)[1];
-        resolve(uciToMove(state, uci));
+        const move = uciToMove(state, line.split(/\s+/)[1]);
+        const searchMs = Math.round((performance || Date).now() - start);
+        const mate = mateIn != null;
+        const swing = !mate && scoreCp != null && prevEvalCp != null
+          && Math.abs(scoreCp - prevEvalCp) >= CHESS.PRECISE_SWING_CP;
+        // remember this eval for next move's swing test (mate => clamp to a big number)
+        prevEvalCp = mate ? (mateIn >= 0 ? 10000 : -10000) : (scoreCp != null ? scoreCp : prevEvalCp);
+        resolve({ move, searchMs, precise: mate || swing, scoreCp, mate });
       }
     };
     sf.addEventListener('message', onMsg);
@@ -108,17 +121,18 @@ function sfBestMove(state, elo, movetimeMs, fen) {
   });
 }
 
-// Main entry. Returns { move, thinkMs }.
+// Main entry. Returns { move, searchMs, precise } — searchMs is the engine's real
+// search time and `precise` flags a tough/tactical move; the chess state turns
+// those into the humanized reveal delay. The built-in fallback has no eval stream,
+// so it never reports `precise` and uses the timing bands only.
 export async function bestMove(state, { elo = 1000, fen = null } = {}) {
-  const thinkMs = humanThinkMs(elo);
-  // Stockfish handles strong play AND eats clock via movetime.
   if (sfReady && elo >= 800) {
-    const move = await sfBestMove(state, elo, thinkMs, fen);
-    if (move) return { move, thinkMs };
+    const res = await sfBestMove(state, elo, CHESS.SEARCH_MS, fen);
+    if (res && res.move) return res;
   }
   // Built-in path (also covers very low ELO where we want clumsy play).
   // chooseMove is synchronous & fast; the phase controller applies the
-  // think delay so the clock ticks down realistically.
+  // reveal delay so the move doesn't pop out instantly.
   const move = chooseMove(state, elo);
-  return { move, thinkMs };
+  return { move, searchMs: 0, precise: false };
 }

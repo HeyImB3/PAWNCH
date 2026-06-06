@@ -45,8 +45,9 @@ export class ChessState {
     this.anim = null;
     this.preState = null;
     this.aiRequested = false;
-    this.aiPending = null;       // {move, thinkMs}
-    this.aiElapsed = 0;
+    this.aiPending = null;       // engine result: {move, searchMs, precise}
+    this.aiElapsed = 0;          // wall-time since this think began
+    this.aiDelayMs = null;       // chosen reveal delay (set once the engine replies)
     this.banner = m.round > 1 ? 'RESUME!' : 'FIGHT!';
     this.bannerT = 1.2;
     this.flagText = null;
@@ -99,7 +100,10 @@ export class ChessState {
     this.halfTime -= dt;
     if (this.halfTime <= 0 && this.phase !== 'anim') return this._endHalf(game);
 
-    // tick the side-to-move clock
+    // tick the side-to-move clock. The bot's whole think (search + the cosmetic
+    // reveal pause) burns its clock just like the player's time burns theirs —
+    // both sides get a generous 5-minute continuous clock, so it stays fair and
+    // either side can genuinely flag.
     const side = this.m.chess.turn;
     if (this.phase === 'play' || this.phase === 'aithink') {
       this.m.clocks[side] -= dt;
@@ -250,21 +254,37 @@ export class ChessState {
     if (!this.aiRequested) {
       this.aiRequested = true;
       this.aiElapsed = 0;
+      this.aiDelayMs = null;
       this.phase = 'aithink';
       const elo = m.mode === 'story' ? m.opponent.elo : 1200;
       const fen = Chess.toFen(m.chess);
       bestMove(m.chess, { elo, fen }).then((res) => { this.aiPending = res; })
-        .catch(() => { this.aiPending = { move: this.allLegal[0], thinkMs: 800 }; });
+        .catch(() => { this.aiPending = { move: this.allLegal[0], searchMs: 0, precise: false }; });
     }
     this.aiElapsed += dt;
-    if (this.aiPending && this.aiElapsed >= this.aiPending.thinkMs) {
+
+    // The engine has replied: decide the (cosmetic) reveal delay once. Opening
+    // moves are snappy; later moves pace normally, with a longer "thinking" beat
+    // on tough/precise moves so the player gets a breath. Never shorter than the
+    // engine's real search time (we don't cut Stockfish off mid-think).
+    if (this.aiPending && this.aiDelayMs == null) {
+      const opening = m.chess.fullmove <= CHESS.OPENING_MOVES;
+      const band = opening ? CHESS.OPENING_DELAY_MS
+        : (this.aiPending.precise ? CHESS.PRECISE_DELAY_MS : CHESS.MID_DELAY_MS);
+      this.aiDelayMs = Math.max(this.aiPending.searchMs, this._randMs(band));
+    }
+
+    if (this.aiPending && this.aiElapsed >= this.aiDelayMs) {
       const mv = this.aiPending.move;
-      this.aiRequested = false; this.aiPending = null;
+      this.aiRequested = false; this.aiPending = null; this.aiDelayMs = null;
       if (!mv) return this._endHalf(game); // no legal move shouldn't happen (status covers it)
       this.phase = 'play';
       this._startMove(game, mv);
     }
   }
+
+  // random delay (ms) within an inclusive [min, max] band from config
+  _randMs([min, max]) { return min + Math.random() * (max - min); }
 
   // ---- move animation + commit ----------------------------------------
   _startMove(game, mv, local = true, opts = {}) {

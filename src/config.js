@@ -131,6 +131,14 @@ export const CHESS = {
   // A forced mate (score mate N) always counts as precise.
 };
 
+// Hidden developer shortcut. Holding the two combo keys together for HOLD_MS
+// during a chess or boxing half fast-forwards to the other half — lets me test
+// the live build without playing through a whole half. Not advertised in-game.
+export const DEV = {
+  SKIP_COMBO: ['KeyB', 'Digit3'],   // hold "B" + "3" together…
+  SKIP_HOLD_MS: 7000,               // …for this long to skip the current half
+};
+
 export const SAVE_KEY = 'pawnch.save.v1';
 
 // Optional online server. Leave url null to default to ws://<host>:8080 in dev.

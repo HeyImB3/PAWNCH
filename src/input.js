@@ -78,6 +78,7 @@ class Input {
   // pressed (edge) this frame — consume via endFrame()
   pressed(action) { return this._codes(action).some((c) => this.pressedQ.has(c)); }
   pressedCode(code) { return this.pressedQ.has(code); }
+  isCodeDown(code) { return this.down.has(code); }
   consumeAnyKey() { const a = this.anyKey; this.anyKey = false; return a; }
   endFrame() { this.pressedQ.clear(); this.mPressed = false; this.mReleased = false; }
 }

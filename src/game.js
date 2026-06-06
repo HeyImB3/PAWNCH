@@ -10,7 +10,7 @@
 //    60s each round's chess half, and each half is capped to ~60s wall time.
 //  - If neither side wins in 10 rounds, the higher chess material wins.
 
-import { VIEW, MATCH, PAL } from './config.js';
+import { VIEW, MATCH, PAL, DEV } from './config.js';
 import { input } from './input.js';
 import * as audio from './audio.js';
 import { FX, bgGradient, scanlines, text, textWidth } from './gfx.js';
@@ -66,6 +66,7 @@ export class Game {
 
     this.paused = false;     // in-game pause overlay active? (freezes the half)
     this.pause = null;       // PauseOverlay instance while paused
+    this.devSkipHold = 0;    // ms the hidden B+3 dev-skip combo has been held
 
     this.last = performance.now();
     this._loop = this._loop.bind(this);
@@ -162,6 +163,29 @@ export class Game {
     return heal;
   }
 
+  // Hidden developer shortcut (see DEV in config.js). Holding the combo keys
+  // together for SKIP_HOLD_MS during a chess or boxing half fast-forwards to the
+  // other half: chess -> boxing, boxing -> the next round's chess. Lets me test
+  // the live build without playing a whole half. OFFLINE ONLY — disabled in any
+  // online match (m.net) so it can't desync the other player; online dev tools
+  // will be built separately.
+  _devSkipUpdate(dt) {
+    const holding = DEV.SKIP_COMBO.every((c) => this.input.isCodeDown(c));
+    const live = this.transitionDir === 0 && !this.paused && !this.match?.net &&
+                 (this.stateName === 'chess' || this.stateName === 'boxing');
+    if (!holding || !live) { this.devSkipHold = 0; return; }
+    this.devSkipHold += dt;
+    if (this.devSkipHold < DEV.SKIP_HOLD_MS) return;
+    this.devSkipHold = 0;
+    if (this.stateName === 'chess') {
+      this.state.phase = 'ended';     // stop the half re-resolving during the wipe
+      this.resolveChess({ decisive: false, winner: null, reason: 'devskip' });
+    } else {
+      this.state.ended = true;
+      this.resolveBoxing({ decisive: false, winner: null });
+    }
+  }
+
   persist() { save(this.save); }
 
   // ---- pause overlay + save / continue --------------------------------
@@ -247,6 +271,9 @@ export class Game {
   update(dt) {
     // first input resumes audio (browser autoplay policy)
     if (this.input.consumeAnyKey()) audio.resume();
+
+    // hidden dev shortcut: hold B+3 mid-half to fast-forward to the other half
+    this._devSkipUpdate(dt);
 
     // paused: the in-game pause overlay owns everything; the half is frozen
     if (this.paused) { this.pause.update(this, dt); return; }

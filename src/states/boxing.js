@@ -253,7 +253,7 @@ export class BoxingState {
     const human = you || this.m.mode === 'pvp';
     if (human) {
       const blink = Math.sin(this.t * 16) > 0;
-      const lbl = full ? 'RISE!!' : (you ? 'MASH  SPACE!' : 'P2  MASH!');
+      const lbl = full ? 'RISE!!' : (you ? 'MASH  SPACE!' : 'P2: MASH  NUM +');
       text(ctx, lbl, cx, cy + 2, { scale: 2, color: full ? PAL.green : (blink ? PAL.gold : PAL.white), align: 'center', shadow: PAL.ink });
     } else {
       const name = (this.m.mode === 'story' ? this.m.opponent.name : 'RIVAL').split(' ')[0];
@@ -371,28 +371,45 @@ export class BoxingState {
     }
   }
 
-  // small, always-on controls diagram tucked into the bottom corner(s).
+  // Always-on controls cards in the bottom corners. SOLO shows one hint; HOTSEAT
+  // shows a clean, color-coded reference so both players can always see their keys:
+  // P1 on the left (blue, like the HP HUD), P2 on the right (orange) — the numpad
+  // cluster. Rows are [key, action] so they render as two aligned columns.
   _controls(game, ctx) {
-    // foreground player (you / P1)
-    this._ctrlBox(game, ctx, 6, this.m.mode === 'pvp' ? 'P1' : 'CONTROLS',
-      ['A/D JAB', 'Q/E HOOK', '< / > DODGE', 'v DUCK', 'S GUARD'], 'left');
-    // hotseat opponent (P2) gets their own cluster on the right
-    if (this.m.mode === 'pvp') {
-      this._ctrlBox(game, ctx, game.W - 84, 'P2',
-        ['F/H JAB', 'T/U HOOK', 'G/J DODGE', 'B DUCK', 'V GUARD'], 'right');
+    if (this.m.mode !== 'pvp') {
+      this._ctrlBox(game, ctx, 6, 'CONTROLS', PAL.blueLite,
+        [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['< >', 'DODGE'], ['v', 'DUCK'], ['S', 'GUARD'], ['SPACE', 'GET UP']]);
+      return;
     }
+    // P1 (left player): left-hand cluster, Z/X/C dodge/duck so they stay left.
+    this._ctrlBox(game, ctx, 6, 'P1', PAL.blueLite,
+      [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'GUARD'], ['SPACE', 'GET UP']]);
+    // P2 (right player): mirrored numpad cluster (N = numpad); + = get up.
+    this._ctrlBox(game, ctx, game.W - 92, 'P2', PAL.orangeLite,
+      [['N4/6', 'JAB'], ['N7/9', 'HOOK'], ['N1/3', 'DODGE'], ['N2', 'DUCK'], ['N5', 'GUARD'], ['N +', 'GET UP']]);
   }
 
-  _ctrlBox(game, ctx, x, title, rows, align) {
-    const lh = 9, w = 78;
-    const h = (rows.length + 1) * lh + 8;
+  // a clean controls card: an accent-colored title bar (P1 blue / P2 orange),
+  // then key|action rows in two aligned columns (key tinted, action dimmed).
+  _ctrlBox(game, ctx, x, title, accent, rows) {
+    const lh = 11, padX = 6, headH = 10, w = 88;
+    const h = headH + 4 + rows.length * lh + 4;
     const y = game.H - h - 4;
-    ctx.fillStyle = 'rgba(7,10,22,0.5)';
+    // plate + accent frame
+    ctx.fillStyle = 'rgba(7,10,22,0.66)';
     ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(58,74,120,0.6)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = accent; ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    text(ctx, title, x + 5, y + 5, { scale: 1, color: PAL.textDim });
-    rows.forEach((r, i) => text(ctx, r, x + 5, y + 5 + (i + 1) * lh, { scale: 1, color: PAL.textDim }));
+    // title bar (label reads dark over the bright accent)
+    ctx.fillStyle = accent;
+    ctx.fillRect(x, y, w, headH);
+    text(ctx, title, x + padX, y + 2, { scale: 1, color: PAL.ink });
+    // key (accent) + action (dim) columns
+    rows.forEach(([key, act], i) => {
+      const ry = y + headH + 4 + i * lh;
+      text(ctx, key, x + padX, ry, { scale: 1, color: accent });
+      text(ctx, act, x + padX + 30, ry, { scale: 1, color: PAL.textDim });
+    });
   }
 
   // sliding lower-third "tale of the tape" nameplate at the intro

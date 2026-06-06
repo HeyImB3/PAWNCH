@@ -32,6 +32,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200); self.end_headers(); self.wfile.write(b'ok')
 
 print(f'PAWNCH dev server (no-cache) on http://localhost:{PORT}')
-socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
+# Threaded: a module-heavy ES app (and the preview client's keep-alive connection)
+# opens many parallel requests; a single-threaded server wedges on the first one.
+http.server.ThreadingHTTPServer.allow_reuse_address = True
+http.server.ThreadingHTTPServer.daemon_threads = True
+with http.server.ThreadingHTTPServer(("", PORT), Handler) as httpd:
     httpd.serve_forever()

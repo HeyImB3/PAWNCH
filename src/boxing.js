@@ -150,14 +150,15 @@ export class BoxingMatch {
     return fr.side === 'enemy';
   }
 
-  // a downed human charges their own get-up bar by mashing: you (Space/confirm)
-  // or, in hotseat, the downed P2 (their guard key). Each tap is one push.
+  // a downed human charges their own get-up bar by mashing their dedicated rise
+  // key: P1 taps confirm (Space), and in hotseat the downed P2 taps numpad +
+  // (p2_getup). Each tap is one push.
   _handleGetUpInput(c) {
     const p = this.player;
     if (p.pose === 'down' && c.pressed('confirm')) this._chargeGetUp(p);
     if (this.opts.mode === 'pvp') {
       const e = this.enemy;
-      if (e.pose === 'down' && (c.pressed('p2_block') || c.pressed('p2_jabL') || c.pressed('p2_jabR'))) this._chargeGetUp(e);
+      if (e.pose === 'down' && c.pressed('p2_getup')) this._chargeGetUp(e);
     }
   }
   _chargeGetUp(fr) {

@@ -8,18 +8,28 @@ export const DEFAULT_BINDINGS = {
   right: ['ArrowRight', 'KeyD'],
   confirm: ['Enter', 'Space', 'KeyJ'],
   cancel: ['Escape', 'Backspace', 'KeyK'],
-  // boxing
+  // boxing — PLAYER 1 / solo. Punches + guard sit in a tight LEFT-hand cluster
+  // (Q/E hooks, A/D jabs, S guard). Movement is on the arrows for solo play, with
+  // Z/X/C added so the LEFT player can stay fully on the left half in hotseat.
   jabL: ['KeyA'],        // left jab
   jabR: ['KeyD'],        // right jab
   hookL: ['KeyQ'],       // left hook
   hookR: ['KeyE'],       // right hook
-  dodgeL: ['ArrowLeft'],
-  dodgeR: ['ArrowRight'],
-  duck: ['ArrowDown'],
+  dodgeL: ['ArrowLeft', 'KeyZ'],
+  dodgeR: ['ArrowRight', 'KeyC'],
+  duck: ['ArrowDown', 'KeyX'],
   block: ['ShiftLeft', 'ShiftRight', 'KeyS'],
-  // player 2 (local multiplayer boxing) — separate cluster
-  p2_jabL: ['KeyF'], p2_jabR: ['KeyH'], p2_hookL: ['KeyT'], p2_hookR: ['KeyU'],
-  p2_dodgeL: ['KeyG'], p2_dodgeR: ['KeyJ'], p2_duck: ['KeyB'], p2_block: ['KeyV'],
+  // PLAYER 2 (hotseat boxing). A self-contained RIGHT-side cluster that mirrors
+  // P1's grid, so two players share one keyboard comfortably side by side. The
+  // NUMPAD is the primary, intuitive 3x3 — 7/9 hooks, 4/6 jabs, 5 guard, 1/3 dodge,
+  // 2 duck — and a right-hand letter set (U/O hooks, H/L jabs, ; guard, N/,/. dodge-
+  // duck-dodge) is the laptop fallback. Deliberately avoids J/K (confirm/cancel) and
+  // M (global mute) so P2 can never trip the menu, pause, or music toggle.
+  p2_jabL: ['Numpad4', 'KeyH'], p2_jabR: ['Numpad6', 'KeyL'],
+  p2_hookL: ['Numpad7', 'KeyU'], p2_hookR: ['Numpad9', 'KeyO'],
+  p2_dodgeL: ['Numpad1', 'KeyN'], p2_dodgeR: ['Numpad3', 'Period'],   // letter dodge avoids KeyM (global mute)
+  p2_duck: ['Numpad2', 'Comma'], p2_block: ['Numpad5', 'Semicolon'],
+  p2_getup: ['NumpadAdd', 'Slash'],   // dedicated mash-to-rise: numpad +  (or '/' on a numpad-less laptop)
 };
 
 class Input {

@@ -26,9 +26,12 @@ export class ChessState {
     this.t = 0;
     this.terminal = Chess.status(m.chess) !== 'ongoing'; // game already finished (e.g. drawn)?
 
-    // board orientation: a black player sees their own pieces at the bottom
-    this.flip = m.playerColor === Chess.BLACK;
-    this.cursor = this.flip ? 11 : 52;   // start near the player's own pawns
+    // board orientation. `targetFlip` is the logical orientation (black-at-bottom);
+    // `this.flip` is what's actually drawn. In hotseat the drawn board eases to the
+    // target each move via a card-flip (see _tickFlip); online/story always match.
+    this.flip = this.targetFlip;
+    this.flipAnim = null;                // { t, dur } while the board is turning around
+    this.cursor = this.flip ? 11 : 52;   // start near the side-to-move's own pawns
     this.selected = -1;
     this.legalFrom = [];         // legal moves from selected square
     this.allLegal = Chess.legalMoves(m.chess);
@@ -64,6 +67,15 @@ export class ChessState {
   // hotseat hands the shared controls to whoever is to move; otherwise it's the player's own color.
   get controlColor() { return (this.m.mode === 'pvp' && !this.m.net) ? this.m.chess.turn : this.m.playerColor; }
 
+  // logical board orientation (black-at-bottom = true). In local hotseat the two
+  // players share one mouse, so this follows the side to move (the drawn board then
+  // animates to match — see _tickFlip). Online/story keep the local player's own
+  // color facing them for the whole game.
+  get targetFlip() {
+    if (this.m.mode === 'pvp' && !this.m.net) return this.m.chess.turn === Chess.BLACK;
+    return this.m.playerColor === Chess.BLACK;
+  }
+
   // Esc opens the pause menu — but only when it isn't already busy doing
   // something Esc should back out of first (a selected piece, the promotion
   // picker) or resolving the half.
@@ -95,6 +107,7 @@ export class ChessState {
     }
 
     if (this.phase === 'anim') { this._tickAnim(game, dt); return; }
+    if (this.phase === 'flip') { this._tickFlip(game, dt); return; }
     if (this.phase === 'promote') { this._promoInput(game); return; }
 
     if (this.remoteTurn) this._remoteTurn(game);
@@ -312,7 +325,11 @@ export class ChessState {
       this._endHalf(game);
       return;
     }
-    this.phase = 'play';
+    // hotseat just handed control to the other side: if the board needs to turn
+    // around, play the card-flip (which re-homes the cursor at its midpoint);
+    // otherwise resume play immediately.
+    if (this.flip !== this.targetFlip) { this.flipAnim = { t: 0, dur: 360 }; this.phase = 'flip'; }
+    else this.phase = 'play';
   }
 
   // ---- endings ---------------------------------------------------------
@@ -355,10 +372,40 @@ export class ChessState {
     return [sx + (tx - sx) * ease, sy + (ty - sy) * ease - hop];
   }
 
+  // ---- board flip (hotseat card-flip) ----------------------------------
+  // squash the board edge-on, swap orientation at the thin midpoint so the turn
+  // never visibly "pops", then expand into the new view. Input is locked for the
+  // brief duration (phase 'flip').
+  _tickFlip(game, dt) {
+    const f = this.flipAnim;
+    f.t += dt;
+    if (this.flip !== this.targetFlip && f.t >= f.dur / 2) {
+      this.flip = this.targetFlip;            // swap while the board is edge-on
+      this.cursor = this.flip ? 11 : 52;      // re-home the keyboard cursor to the new side
+      audio.sfx.select();                     // soft tick at the turnover
+    }
+    if (f.t >= f.dur) { this.flipAnim = null; this.phase = 'play'; }
+  }
+
+  // horizontal squash factor for the flip (1 = face-on, ~0 = edge-on)
+  _flipScaleX() {
+    if (!this.flipAnim) return 1;
+    const p = Math.min(1, this.flipAnim.t / this.flipAnim.dur);
+    return Math.max(0.04, Math.abs(Math.cos(p * Math.PI)));
+  }
+
   // ---- draw ------------------------------------------------------------
   draw(game, ctx) {
     const W = game.W, H = game.H;
     const m = this.m;
+
+    // card-flip: squash the whole board horizontally around its center while the
+    // hotseat board turns around (scaleX 1 -> ~0 -> 1). Side panel/banner are drawn
+    // after restore(), so they stay put.
+    const flipSx = this._flipScaleX();
+    const bcx = OX + BOARD_PX / 2;
+    ctx.save();
+    ctx.translate(bcx, 0); ctx.scale(flipSx, 1); ctx.translate(-bcx, 0);
 
     // board frame
     panel(ctx, OX - 8, OY - 8, BOARD_PX + 16, BOARD_PX + 16, { fill: PAL.boardEdge, border: PAL.orange, border2: PAL.orangeDark });
@@ -429,6 +476,7 @@ export class ChessState {
       ctx.strokeStyle = `rgba(255,210,74,${pulse})`; ctx.lineWidth = 2;
       ctx.strokeRect(cx + 1, cy + 1, SQ - 2, SQ - 2);
     }
+    ctx.restore();   // end card-flip squash
 
     this._sidePanel(game, ctx);
     this._controls(game, ctx);

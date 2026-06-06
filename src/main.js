@@ -24,11 +24,12 @@ initEngine().then((ok) => {
 // Optionally load Aseprite art (no-op if assets/sprites/manifest.json is absent).
 loadAssets().then((ok) => { game.usingSprites = ok; });
 
-// Fullscreen on F.
+// Fullscreen on F. Fullscreen the whole page shell — not just the canvas frame —
+// so the frame keeps its 512:448 aspect ratio and letterboxes cleanly instead of
+// being stretched to the monitor's 16:9 (1920×1080).
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF') {
-    const frame = document.getElementById('frame');
-    if (!document.fullscreenElement) frame.requestFullscreen?.();
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
     else document.exitFullscreen?.();
   }
 });

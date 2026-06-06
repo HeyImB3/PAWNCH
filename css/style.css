@@ -72,6 +72,13 @@ body {
   user-select: none;
 }
 
+/* In fullscreen the <html> shell fills the monitor; the frame stays at 512:448 and
+   letterboxes against the vignette instead of stretching. height drives the size so
+   it scales up to fill a 1080p screen vertically, capped to viewport width. */
 :fullscreen #frame, :-webkit-full-screen #frame {
-  width: min(100vw, calc(100vh * (512 / 448)));
+  width: auto;
+  height: 100vh;
+  max-width: 100vw;
 }
+
+:fullscreen #hint, :-webkit-full-screen #hint { display: none; }

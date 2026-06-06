@@ -20,16 +20,34 @@ stays procedural). So you can replace the art piece by piece.
   footprint (the anchor is the upper chest, ~5 units below the image top).
 - Minimum useful set: `front:idle`, `back:idle` (others fall back to `idle`).
 
-**Pieces** — `"<color><type>"`, e.g. `wq`, `bn`
-- color: `w` (white) · `b` (black)
-- type: `p` `n` `b` `r` `q` `k`
-- Author each as a tight silhouette on a transparent background (no baked
-  aura/shadow). The renderer scales every sprite to a per-type target height
-  (`PIECE_TYPE_H` in `gfx.js`) so a white king == a black king regardless of
-  source size, and draws the animated chess-half aura around it: a swirling
-  purple/magenta glow on dark pieces, twinkling celestial glints on white.
-- `tools/clean_pieces.py` is the one-shot cleanup that produced the current set
-  from the raw `CHESS PIECES MK2` exports (strips the baked aura + sheet junk
-  and tight-crops). Re-run it on *raw* exports only.
+**Pieces** — organized into named **sets**. `manifest.json` maps a set name to a
+sub-directory of 12 PNGs (`wp.png`..`bk.png`):
 
-That's it — missing keys just use the built-in 16-bit art.
+```json
+{ "pieceSets": { "celestial": "celestial", "arcane": "arcane" } }
+```
+
+- Files in each set dir are named `"<color><type>.png"` — color `w`|`b`, type
+  `p` `n` `b` `r` `q` `k` (e.g. `celestial/wq.png`, `arcane/bn.png`).
+- The renderer scales every sprite to a per-type target height (`PIECE_TYPE_H`
+  in `gfx.js`) so a white king == a black king regardless of source size, and
+  layers an **animated chess-half aura** around it whose flavor depends on the
+  active set + color (see `PIECE_FX` in `config.js`):
+  - **`celestial`** (default) — white = "sun" (warm gold radiance), dark =
+    "galaxy/supernova" (cool cosmic swirl). Aura alpha is low so it complements
+    the art's own baked glow; keep a little glow on these sprites.
+  - **`arcane`** (unlocked by beating THE PAWNCHION) — the original purple swirl
+    (dark) + celestial-blue twinkle (white). Author these as tight silhouettes
+    with **no** baked aura; the engine supplies it at full strength.
+- The active set is chosen at runtime (Settings → Display → PIECES) and saved.
+- A legacy flat `"pieces": { "wq": "file.png", ... }` map is still honored and
+  loads as the default `celestial` set.
+- `tools/slice_mk3.py` produced the `celestial` set from the `MK3.png` showcase
+  sheet (white-background knockout, keeps the colored glow, tight-crops). Run
+  `python tools/slice_mk3.py --probe` first to sanity-check the detected boxes.
+- `tools/chess_slice.py` / `tools/clean_pieces.py` are the one-shot tools that
+  produced the `arcane` set from the raw `CHESS PIECES MK2` sheet.
+
+That's it — any missing file just uses the built-in 16-bit art (which is also
+recolored to match the active set's theme), so the game still runs with zero
+image files present.

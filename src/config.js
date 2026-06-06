@@ -44,8 +44,9 @@ export const PAL = {
   boardLight: '#ffd9a8',
   boardDark:  '#b85c1f',
   boardEdge:  '#5a2a08',
-  // chess-half piece auras (animated magic): dark pieces swirl purple/magenta,
-  // white pieces twinkle with celestial blue/white glints.
+  // chess-half piece auras (animated magic). The unlockable ARCANE set keeps the
+  // original look: dark pieces swirl purple/magenta, white pieces twinkle with
+  // celestial blue/white glints.
   auraDark:    '#9646d2',   // dark-piece purple aura
   moteViolet:  '#b061ff',
   moteMagenta: '#ff4d9d',
@@ -53,6 +54,17 @@ export const PAL = {
   auraLite:    '#6fa8ff',   // white-piece celestial aura
   glintCore:   '#d2e8ff',
   glint:       '#e8f2ff',
+  // Default CELESTIAL set — WHITE pieces are imbued with the "magic of the sun"
+  // (warm gold/orange radiance), DARK pieces with the "magic of supernovas &
+  // galaxies" (cool cosmic blues/violet).
+  sunGlow:     '#ff8a1e',   // warm halo behind a white piece
+  sunCore:     '#ffe7a8',   // bright spark core
+  sunFlare:    '#ffd24a',   // gold rays / glint lines
+  sunEmber:    '#ffb24a',   // rising warm ember
+  galaxyGlow:  '#2b6cff',   // cool halo behind a dark piece
+  galaxyCore:  '#bcd4ff',   // distant-star core
+  galaxyStar:  '#9fd0ff',   // orbiting star mote
+  galaxyNebula:'#7a5cff',   // violet nebula mote
   // ring
   ringFloor:  '#2a3566',
   ringFloor2: '#222c57',
@@ -80,6 +92,24 @@ export const AURA = {
   moteSize:   0.05,   // (was 0.06)
   emberRise:  0.48,   // how high embers climb above the piece (was 0.80)
   emberSway:  0.12,   // ember horizontal drift (was 0.16)
+};
+
+// Per-SET magic theme. Each named piece set (see assets/sprites/manifest.json)
+// maps a piece color -> an animation `kind` (drawn in gfx.js `pieceAura`), a
+// halo color, and `haloA` (base back-glow alpha, pre-pulse).
+//   CELESTIAL (default): white = "sun" (warm), dark = "galaxy/supernova" (cool).
+//     Alphas are kept low so the engine aura COMPLEMENTS the art's baked glow.
+//   ARCANE (unlockable): the original purple swirl (dark) + celestial twinkle
+//     (white) — full strength, since those cleaned sprites carry no baked aura.
+export const PIECE_FX = {
+  celestial: {
+    white: { kind: 'sun',    halo: PAL.sunGlow,    haloA: 0.10 },
+    dark:  { kind: 'galaxy', halo: PAL.galaxyGlow, haloA: 0.12 },
+  },
+  arcane: {
+    white: { kind: 'glints', halo: PAL.auraLite,   haloA: AURA.whiteAlpha },
+    dark:  { kind: 'swirl',  halo: PAL.auraDark,    haloA: AURA.darkAlpha },
+  },
 };
 
 // Boxing feel (Punch-Out-inspired). Times in ms unless noted.

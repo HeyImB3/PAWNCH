@@ -21,9 +21,12 @@ export class MatchEndState {
       // this was a REPLAY of an already-beaten opponent (progress unchanged).
       const prev = game.save.storyProgress;
       game.save.storyProgress = Math.min(OPPONENTS.length, Math.max(game.save.storyProgress, this.m.opponent.index + 1));
-      game.persist();
       this.advanced = game.save.storyProgress > prev;
       this.lastOpponent = this.m.opponent.index >= OPPONENTS.length - 1;
+      // Beating THE PAWNCHION unlocks the ARCANE chess set (pick it in Settings).
+      this.unlockedArcane = this.lastOpponent && !game.save.unlocks.arcanePieces;
+      if (this.unlockedArcane) game.save.unlocks.arcanePieces = true;
+      game.persist();
     }
     this.options = this._buildOptions();
     if (this.win && !this.isDraw) audio.sfx.win(); else audio.sfx.ko();
@@ -100,6 +103,8 @@ export class MatchEndState {
     if (this.t > 1.2) {
       if (this.story && this.win && !this.lastOpponent)
         text(ctx, this.advanced ? 'READY FOR THE NEXT OPPONENT?' : 'BACK TO THE FIGHT SELECT', W / 2, 318, { scale: 1, color: PAL.orangeLite, align: 'center' });
+      if (this.unlockedArcane)
+        text(ctx, 'ARCANE CHESS SET UNLOCKED!', W / 2, 318, { scale: 1, color: PAL.gold, align: 'center' });
       this.options.forEach((opt, idx) => {
         const y = 340 + idx * 28;
         const on = idx === this.sel;

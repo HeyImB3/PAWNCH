@@ -4,16 +4,25 @@
 // is asset-free — but if Aseprite art is registered (see assets.js) it's
 // blitted instead of the procedural fallback.
 
-import { PAL, AURA } from './config.js';
+import { PAL, AURA, PIECE_FX } from './config.js';
 
 // ---- Aseprite sprite registry -----------------------------------------
 // assets.js loads optional PNGs and registers them here keyed by name. Draw
 // helpers below prefer a registered image and otherwise return false so the
 // procedural art runs. Boxer keys: `${front|back}:${pose}`. Piece keys:
 // `${w|b}${type}` e.g. 'wq', 'bn'.
-const SPRITES = { boxers: {}, pieces: {} };
+// Pieces are grouped into named SETS (e.g. 'celestial', 'arcane'); each set is a
+// full {wp..bk} map and exactly one is active at a time (chosen via settings /
+// unlock). The active set's NAME also picks the magic theme (see SET_THEME +
+// PIECE_FX) even when its images are absent, so the procedural fallback matches.
+const SPRITES = { boxers: {}, pieceSets: {} };
+let activePieceSet = 'celestial';
+const SET_THEME = { celestial: 'celestial', arcane: 'arcane' };
+
 export function registerSprite(group, key, img) { (SPRITES[group] ||= {})[key] = img; }
-export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.keys(SPRITES.pieces).length > 0; }
+export function registerPiece(set, key, img) { (SPRITES.pieceSets[set] ||= {})[key] = img; }
+export function setPieceSet(name) { if (SET_THEME[name]) activePieceSet = name; return activePieceSet; }
+export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.values(SPRITES.pieceSets).reduce((n, s) => n + Object.keys(s).length, 0) > 0; }
 
 function drawBoxerSprite(ctx, x, y, scale, hue, pose, facing, step) {
   const img = SPRITES.boxers[`${facing === 1 ? 'front' : 'back'}:${pose}`] ||
@@ -30,23 +39,59 @@ function drawBoxerSprite(ctx, x, y, scale, hue, pose, facing, step) {
 const PIECE_TYPE_H = { k: 1.00, q: 0.95, b: 0.87, n: 0.90, r: 0.80, p: 0.72 };
 const PIECE_BASE = 1.34;   // king height = size * PIECE_BASE (fills the square + a touch)
 
+// A soft glow that follows the piece's SILHOUETTE (instead of a flat disc): a
+// blurred, tinted copy of the sprite drawn additively behind it. The tinted
+// silhouette is cached on the image (one glow color per piece).
+function silhouetteGlow(ctx, img, x, y, w, h, color, alpha) {
+  if (alpha <= 0) return;
+  const sil = tintedSilhouette(img, color);
+  const pad = Math.max(2, Math.round(h * 0.07));   // grow slightly so the glow spills past the edge
+  const blur = Math.max(2, Math.round(h * 0.06));
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = Math.min(1, alpha);
+  ctx.filter = `blur(${blur}px)`;                  // soft halo hugging the shape
+  ctx.drawImage(sil, x - pad, y - pad, w + pad * 2, h + pad * 2);
+  ctx.restore();
+}
+function tintedSilhouette(img, color) {
+  if (img.__sil && img.__silColor === color) return img.__sil;
+  if (typeof document === 'undefined') return img;   // headless: glow the sprite itself
+  const cv = document.createElement('canvas');
+  cv.width = img.width; cv.height = img.height;
+  const g = cv.getContext('2d');
+  g.drawImage(img, 0, 0);
+  g.globalCompositeOperation = 'source-in';          // keep alpha, replace color
+  g.fillStyle = color;
+  g.fillRect(0, 0, cv.width, cv.height);
+  img.__sil = cv; img.__silColor = color;
+  return cv;
+}
+
 function drawPieceSprite(ctx, type, cx, cy, size, white, opts = {}) {
   const ty = type.toLowerCase();
-  const img = SPRITES.pieces[(white ? 'w' : 'b') + ty];
+  const img = (SPRITES.pieceSets[activePieceSet] || {})[(white ? 'w' : 'b') + ty];
   if (!img) return false;
   const h = size * PIECE_BASE * (PIECE_TYPE_H[ty] || 0.9);
   const w = h * (img.width / img.height);
   const { t: time = 0, phase = 0, glow = 1 } = opts;
   const bob = Math.sin(time * 2 + phase) * size * 0.018;     // gentle idle float
   const cyy = cy + size * 0.03 - bob;                        // rest the base on the square
+  const ix = Math.round(cx - w / 2), iy = Math.round(cyy - h / 2), iw = Math.round(w), ih = Math.round(h);
   // faint contact shadow so the piece sits on the square
   ctx.fillStyle = 'rgba(7,10,22,0.28)';
   ctx.beginPath();
   ctx.ellipse(cx, cyy + h * 0.46, w * 0.30, size * 0.07, 0, 0, Math.PI * 2);
   ctx.fill();
-  // magical aura + the back half of the swirl (drawn behind the piece)
+  // soft light glow that hugs the piece silhouette (replaces the old flat disc)
+  if (glow > 0) {
+    const spec = pieceFxSpec(white);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 2 + phase);
+    silhouetteGlow(ctx, img, ix, iy, iw, ih, spec.halo, spec.haloA * glow * (1.4 + 0.5 * pulse));
+  }
+  // orbiting motes / sun-rays behind the piece
   pieceAura(ctx, cx, cyy, size, white, time, phase, glow, 'back');
-  ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cyy - h / 2), Math.round(w), Math.round(h));
+  ctx.drawImage(img, ix, iy, iw, ih);
   // sparkles / front half of the swirl (drawn over the piece)
   pieceAura(ctx, cx, cyy, size, white, time, phase, glow, 'front');
   return true;
@@ -56,40 +101,59 @@ function drawPieceSprite(ctx, type, cx, cy, size, white, opts = {}) {
 // (cx,cy) at a given pixel height `h`. Returns false if no sprite is loaded —
 // callers can then fall back to the procedural glyph. Used for the coin engraving.
 export function pieceSprite(ctx, type, white, cx, cy, h) {
-  const img = SPRITES.pieces[(white ? 'w' : 'b') + type.toLowerCase()];
+  const img = (SPRITES.pieceSets[activePieceSet] || {})[(white ? 'w' : 'b') + type.toLowerCase()];
   if (!img) return false;
   const w = h * (img.width / img.height);
   ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
   return true;
 }
 
-// Animated magic around a piece during the chess half. Dark pieces get a
-// swirling purple/magenta aura with orbiting motes + rising embers; white
-// pieces get a soft celestial glow with twinkling star-glints. Kept low-alpha
-// and small so it reads as atmosphere without muddling the board. `layer` is
-// 'back' (behind the sprite) or 'front' (over it) so motes orbit in 3D.
+// Animated magic around a piece during the chess half. The flavor depends on the
+// ACTIVE piece set + the piece color (see PIECE_FX in config.js): the default
+// CELESTIAL set gives white pieces a warm "sun" radiance and dark pieces a cool
+// "galaxy/supernova" swirl; the unlockable ARCANE set keeps the original purple
+// swirl (dark) + celestial-blue twinkle (white). Kept low-alpha and tight so it
+// reads as atmosphere over the art's own glow. `layer` is 'back' (behind the
+// sprite) or 'front' (over it) so motes orbit in 3D.
+const TAU = Math.PI * 2;
+function pieceFxSpec(white) {
+  const theme = SET_THEME[activePieceSet] || 'celestial';
+  return (PIECE_FX[theme] || PIECE_FX.celestial)[white ? 'white' : 'dark'];
+}
 function pieceAura(ctx, cx, cy, size, white, t, phase, glow, layer) {
   if (glow <= 0) return;
   const cyA = cy - size * 0.05;                 // center the aura on the piece body
-  if (layer === 'back') {
-    const pulse = 0.5 + 0.5 * Math.sin(t * 2 + phase);
-    const rad = size * (AURA.haloRadius + AURA.haloPulse * pulse);
-    const a = (white ? AURA.whiteAlpha : AURA.darkAlpha) * glow;
-    const col = white ? PAL.auraLite : PAL.auraDark;
-    const gr = ctx.createRadialGradient(cx, cyA, 1, cx, cyA, rad);
-    gr.addColorStop(0, withA(col, a));
-    gr.addColorStop(0.55, withA(col, a * 0.45));
-    gr.addColorStop(1, withA(col, 0));
-    ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.arc(cx, cyA, rad, 0, Math.PI * 2); ctx.fill();
-  }
+  const spec = pieceFxSpec(white);
+  // The soft back glow now HUGS the sprite silhouette (see silhouetteGlow in
+  // drawPieceSprite) instead of a flat disc; here we only add the orbiting
+  // motes / glints / sun-rays / embers on top.
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';     // additive glow
-  if (!white) {
-    // orbiting purple/magenta motes — split front/back for a 3D swirl
+  (AURA_FX[spec.kind] || AURA_FX.swirl)(ctx, cx, cyA, size, t, phase, glow, layer);
+  ctx.restore();
+}
+
+// The four magic flavors. Each draws the per-frame motes/glints for one `layer`
+// ('back' behind the piece, 'front' over it); the soft halo is handled above.
+const AURA_FX = {
+  // ARCANE white — twinkling celestial star-glints orbiting slowly.
+  glints(ctx, cx, cyA, size, t, phase, glow, layer) {
+    if (layer !== 'front') return;
+    const N = AURA.glintCount;
+    for (let i = 0; i < N; i++) {
+      const ang = t * 0.5 + phase + i * (TAU / N);
+      const px = cx + Math.cos(ang) * size * AURA.glintOrbitX;
+      const py = cyA + Math.sin(ang) * size * AURA.glintOrbitY;
+      let tw = Math.sin(t * 2.3 + phase * 1.3 + i * 1.9);
+      tw = tw > 0 ? tw * tw * tw : 0;            // sharp blink
+      if (tw > 0.03) starGlint(ctx, px, py, size * AURA.glintSize * (0.5 + tw), tw * 0.85 * glow, PAL.glintCore, PAL.glint);
+    }
+  },
+  // ARCANE dark — purple/magenta motes swirling in 3D + rising embers.
+  swirl(ctx, cx, cyA, size, t, phase, glow, layer) {
     const N = AURA.moteCount;
     for (let i = 0; i < N; i++) {
-      const ang = t * 1.6 + phase + i * (Math.PI * 2 / N);
+      const ang = t * 1.6 + phase + i * (TAU / N);
       const depth = (Math.sin(ang) + 1) / 2;     // 1 = near (front), 0 = far (back)
       if ((depth >= 0.5) !== (layer === 'front')) continue;
       const px = cx + Math.cos(ang) * size * AURA.moteOrbitX;
@@ -97,27 +161,65 @@ function pieceAura(ctx, cx, cy, size, white, t, phase, glow, layer) {
       const r = (0.6 + 0.7 * depth) * size * AURA.moteSize;
       glowDot(ctx, px, py, r, i % 2 ? PAL.moteMagenta : PAL.moteViolet, (0.18 + 0.28 * depth) * glow);
     }
-    // rising dark-magic embers (over the piece) — kept low so they hug the piece
     if (layer === 'front') for (let j = 0; j < 2; j++) {
       const u = (t * 0.5 + phase * 0.3 + j * 0.5) % 1;
-      const px = cx + Math.sin(u * 6.283 + j * 2) * size * AURA.emberSway;
+      const px = cx + Math.sin(u * TAU + j * 2) * size * AURA.emberSway;
       const py = cyA + size * 0.30 - u * size * AURA.emberRise;
       glowDot(ctx, px, py, size * 0.032, PAL.ember, Math.sin(u * Math.PI) * 0.22 * glow);
     }
-  } else if (layer === 'front') {
-    // twinkling celestial star-glints orbiting slowly, tight to the piece
+  },
+  // CELESTIAL white — "magic of the sun": a faint rotating ray-burst behind the
+  // piece, twinkling gold sparks + a couple of rising warm embers in front.
+  sun(ctx, cx, cyA, size, t, phase, glow, layer) {
+    if (layer === 'back') {
+      const rays = 8, rot = t * 0.25 + phase;
+      ctx.lineWidth = Math.max(1, size * 0.03);
+      for (let i = 0; i < rays; i++) {
+        const a = rot + i * (TAU / rays);
+        const len = size * (0.32 + 0.05 * Math.sin(t * 2 + i));
+        ctx.strokeStyle = withA(PAL.sunFlare, 0.06 * glow);
+        ctx.beginPath(); ctx.moveTo(cx, cyA); ctx.lineTo(cx + Math.cos(a) * len, cyA + Math.sin(a) * len); ctx.stroke();
+      }
+      return;
+    }
     const N = AURA.glintCount;
     for (let i = 0; i < N; i++) {
-      const ang = t * 0.5 + phase + i * (Math.PI * 2 / N);
+      const ang = t * 0.6 + phase + i * (TAU / N);
       const px = cx + Math.cos(ang) * size * AURA.glintOrbitX;
       const py = cyA + Math.sin(ang) * size * AURA.glintOrbitY;
-      let tw = Math.sin(t * 2.3 + phase * 1.3 + i * 1.9);
-      tw = tw > 0 ? tw * tw * tw : 0;            // sharp blink
-      if (tw > 0.03) starGlint(ctx, px, py, size * AURA.glintSize * (0.5 + tw), tw * 0.85 * glow);
+      let tw = Math.sin(t * 2.6 + phase * 1.3 + i * 1.7);
+      tw = tw > 0 ? tw * tw * tw : 0;
+      if (tw > 0.03) starGlint(ctx, px, py, size * AURA.glintSize * (0.5 + tw), tw * 0.8 * glow, PAL.sunCore, PAL.sunFlare);
     }
-  }
-  ctx.restore();
-}
+    for (let j = 0; j < 2; j++) {
+      const u = (t * 0.45 + phase * 0.3 + j * 0.5) % 1;
+      const px = cx + Math.sin(u * TAU + j * 2) * size * AURA.emberSway;
+      const py = cyA + size * 0.26 - u * size * AURA.emberRise * 0.9;
+      glowDot(ctx, px, py, size * 0.03, PAL.sunEmber, Math.sin(u * Math.PI) * 0.20 * glow);
+    }
+  },
+  // CELESTIAL dark — "magic of supernovas & galaxies": star-motes orbiting on a
+  // flattened galactic disc (front/back 3D split) + a couple of distant twinkles.
+  galaxy(ctx, cx, cyA, size, t, phase, glow, layer) {
+    const N = AURA.moteCount + 1;
+    for (let i = 0; i < N; i++) {
+      const ang = t * 1.2 + phase + i * (TAU / N);
+      const depth = (Math.sin(ang) + 1) / 2;
+      if ((depth >= 0.5) !== (layer === 'front')) continue;
+      const px = cx + Math.cos(ang) * size * AURA.moteOrbitX * 1.15;
+      const py = cyA + Math.sin(ang) * size * AURA.moteOrbitY * 0.8;
+      const r = (0.5 + 0.8 * depth) * size * AURA.moteSize;
+      glowDot(ctx, px, py, r, i % 2 ? PAL.galaxyStar : PAL.galaxyNebula, (0.16 + 0.26 * depth) * glow);
+    }
+    if (layer === 'front') for (let i = 0; i < 2; i++) {
+      const ang = t * 0.4 + phase * 1.7 + i * 2.3;
+      const px = cx + Math.cos(ang) * size * 0.30;
+      const py = cyA + Math.sin(ang * 1.3) * size * 0.24;
+      let tw = Math.sin(t * 3 + i * 2.1); tw = tw > 0 ? tw * tw : 0;
+      if (tw > 0.04) starGlint(ctx, px, py, size * 0.05 * (0.5 + tw), tw * 0.7 * glow, PAL.galaxyCore, PAL.galaxyStar);
+    }
+  },
+};
 
 function glowDot(ctx, x, y, r, hex, a) {
   if (a <= 0) return;
@@ -128,9 +230,9 @@ function glowDot(ctx, x, y, r, hex, a) {
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
 }
 
-function starGlint(ctx, x, y, s, a) {
-  glowDot(ctx, x, y, s * 0.9, PAL.glintCore, a * 0.9);   // soft core
-  ctx.strokeStyle = withA(PAL.glint, a);
+function starGlint(ctx, x, y, s, a, core = PAL.glintCore, line = PAL.glint) {
+  glowDot(ctx, x, y, s * 0.9, core, a * 0.9);   // soft core
+  ctx.strokeStyle = withA(line, a);
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(x, y - s * 1.6); ctx.lineTo(x, y + s * 1.6);
@@ -340,7 +442,7 @@ export function piece(ctx, type, cx, cy, size, white, { t = 0, phase = 0, lift =
   const x = Math.round(cx - w / 2);
   const y = Math.round(cy - h / 2 - lift - bob);
 
-  const aura = white ? PAL.blueLite : PAL.orangeLite;
+  const aura = pieceFxSpec(white).halo;   // match the active set's magic theme
   const body = white ? '#f3e6cf' : '#27304f';
   const bodySh = white ? '#cbb38c' : '#171d33';
   const hi = white ? '#ffffff' : '#586494';

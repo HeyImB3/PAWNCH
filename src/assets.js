@@ -8,14 +8,19 @@
 //
 // manifest.json format:
 // {
-//   "boxers": { "front:idle": "boxer_front_idle.png", "front:punchL": "...png",
-//               "back:idle": "boxer_back_idle.png" , ... },
-//   "pieces": { "wq": "white_queen.png", "bn": "black_knight.png", ... }
+//   "boxers": { "front:idle": "boxer_front_idle.png", ... },
+//   "pieceSets": { "celestial": "celestial", "arcane": "arcane" }
 // }
+// `pieceSets` maps a set NAME -> a sub-directory holding the 12 piece PNGs
+// (wp.png..bk.png). The game switches between sets at runtime (settings/unlock).
+// A legacy flat "pieces": { "wq": "file.png", ... } map is still honored and
+// registered as the default 'celestial' set.
 // Boxer pose keys: front|back : idle|guard|windupL|windupR|punchL|punchR|hurt|down|walk
 // Piece keys: (w|b)(p|n|b|r|q|k)
 
-import { registerSprite } from './gfx.js';
+import { registerSprite, registerPiece } from './gfx.js';
+
+const PIECE_KEYS = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk'];
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -36,13 +41,22 @@ export async function loadAssets(base = 'assets/sprites') {
     return false; // no manifest -> procedural art
   }
   let count = 0;
-  for (const group of ['boxers', 'pieces']) {
-    const entries = manifest[group] || {};
-    await Promise.all(Object.entries(entries).map(async ([key, file]) => {
-      try { registerSprite(group, key, await loadImage(`${base}/${file}`)); count++; }
-      catch { /* skip a missing/bad file, keep procedural for that key */ }
-    }));
-  }
+  // boxers: flat key -> file
+  await Promise.all(Object.entries(manifest.boxers || {}).map(async ([key, file]) => {
+    try { registerSprite('boxers', key, await loadImage(`${base}/${file}`)); count++; }
+    catch { /* skip a missing/bad file, keep procedural for that key */ }
+  }));
+  // piece sets: name -> sub-dir of wp.png..bk.png (any missing file stays procedural)
+  await Promise.all(Object.entries(manifest.pieceSets || {}).map(([set, dir]) =>
+    Promise.all(PIECE_KEYS.map(async (key) => {
+      try { registerPiece(set, key, await loadImage(`${base}/${dir}/${key}.png`)); count++; }
+      catch { /* a set may be only partially supplied; that's fine */ }
+    }))));
+  // legacy flat "pieces" map -> the default 'celestial' set
+  await Promise.all(Object.entries(manifest.pieces || {}).map(async ([key, file]) => {
+    try { registerPiece('celestial', key, await loadImage(`${base}/${file}`)); count++; }
+    catch { /* skip */ }
+  }));
   console.log(`[PAWNCH] loaded ${count} sprite(s) from ${base}`);
   return count > 0;
 }

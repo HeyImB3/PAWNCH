@@ -1,7 +1,7 @@
 // Settings: sound volumes, a controls diagram, and display options.
 
 import { PAL } from '../config.js';
-import { text, panel, barH } from '../gfx.js';
+import { text, panel, barH, setPieceSet } from '../gfx.js';
 import * as audio from '../audio.js';
 import { DEFAULT_BINDINGS } from '../input.js';
 
@@ -36,7 +36,7 @@ export class SettingsState {
   _rows(game) {
     if (this.tab === 0) return ['MASTER', 'MUSIC', 'SFX', 'BACK'];
     if (this.tab === 1) return [...this.remap.map((r) => r[0]), 'RESET', 'BACK'];
-    return ['SCANLINES', 'SCALE', 'BACK'];
+    return ['SCANLINES', 'SCALE', 'PIECES', 'BACK'];
   }
 
   update(game, dt) {
@@ -48,6 +48,10 @@ export class SettingsState {
       if (i.pressed('left') && this.sel < rows.length - 1) this._adjust(game, -1);
       else if (i.pressed('right') && this.sel < rows.length - 1) this._adjust(game, +1);
     }
+    if (this.tab === 2) {
+      if (i.pressed('left')) this._adjust(game, -1);
+      else if (i.pressed('right')) this._adjust(game, +1);
+    }
     if (i.pressed('down')) { this.sel = (this.sel + 1) % rows.length; audio.sfx.select(); }
     if (i.pressed('up')) { this.sel = (this.sel - 1 + rows.length) % rows.length; audio.sfx.select(); }
     if (i.pressedCode('KeyE')) { this.tab = (this.tab + 1) % 3; this.sel = 0; audio.sfx.select(); }
@@ -58,6 +62,7 @@ export class SettingsState {
       else if (row === 'RESET') { this._resetBindings(game); }
       else if (row === 'SCANLINES') { game.save.settings.scanlines = !game.save.settings.scanlines; audio.sfx.select(); }
       else if (row === 'SCALE') { this._cycleScale(game); }
+      else if (row === 'PIECES') { this._cyclePieceSet(game); }
       else if (this.tab === 1) { this._beginRebind(game, row); }
     }
     if (i.pressed('cancel')) { audio.sfx.confirm(); game.persist(); this._back(game); }
@@ -103,11 +108,22 @@ export class SettingsState {
     } else if (this.tab === 2) {
       if (row === 'SCANLINES') { game.save.settings.scanlines = !game.save.settings.scanlines; audio.sfx.select(); }
       if (row === 'SCALE') this._cycleScale(game);
+      if (row === 'PIECES') this._cyclePieceSet(game);
     }
   }
   _cycleScale(game) {
     game.save.settings.scale = game.save.settings.scale === 'fit' ? 'integer' : 'fit';
     audio.sfx.select();
+  }
+  // Switch the active chess set. ARCANE is gated behind beating THE PAWNCHION;
+  // while locked the row is inert (a soft blip, no change).
+  _cyclePieceSet(game) {
+    if (!game.save.unlocks.arcanePieces) { audio.sfx.select(); return; }
+    const next = game.save.settings.pieceSet === 'arcane' ? 'celestial' : 'arcane';
+    game.save.settings.pieceSet = next;
+    setPieceSet(next);
+    game.persist();
+    audio.sfx.confirm();
   }
 
   draw(game, ctx) {
@@ -180,16 +196,28 @@ export class SettingsState {
   }
 
   _display(game, ctx) {
+    const W = game.W;
     const s = game.save.settings;
-    const rows = [['SCANLINES', s.scanlines ? 'ON' : 'OFF'], ['SCALE', s.scale === 'fit' ? 'FIT SCREEN' : 'INTEGER']];
-    rows.forEach(([label, val], i) => {
-      const y = 150 + i * 44;
+    const unlocked = !!game.save.unlocks.arcanePieces;
+    const setLabel = s.pieceSet === 'arcane' ? 'ARCANE' : 'CELESTIAL';
+    const rows = [
+      ['SCANLINES', s.scanlines ? 'ON' : 'OFF', true],
+      ['SCALE', s.scale === 'fit' ? 'FIT SCREEN' : 'INTEGER', true],
+      ['PIECES', unlocked ? setLabel : 'LOCKED', unlocked],
+    ];
+    rows.forEach(([label, val, enabled], i) => {
+      const y = 144 + i * 38;
       const on = this.sel === i;
       text(ctx, label, 100, y, { scale: 2, color: on ? PAL.white : PAL.textDim });
-      text(ctx, val, 320, y, { scale: 2, color: PAL.orange });
+      text(ctx, val, 320, y, { scale: 2, color: enabled ? PAL.orange : PAL.line });
     });
-    text(ctx, 'BACK', 100, 150 + 2 * 44, { scale: 2, color: this.sel === 2 ? PAL.white : PAL.textDim });
-    text(ctx, 'ARROWS L/R OR ENTER TO TOGGLE', 100, 150 + 3 * 44, { scale: 1, color: PAL.textDim });
+    // hint line under the PIECES row
+    text(ctx, unlocked ? 'CELESTIAL = SUN & GALAXY    ARCANE = CLASSIC SET'
+                       : 'BEAT THE PAWNCHION TO UNLOCK THE ARCANE SET',
+      W / 2, 144 + 3 * 38 - 2, { scale: 1, color: unlocked ? PAL.textDim : PAL.orangeLite, align: 'center' });
+    const by = 144 + 3 * 38 + 16;
+    text(ctx, 'BACK', 100, by, { scale: 2, color: this.sel === 3 ? PAL.white : PAL.textDim });
+    text(ctx, 'ARROWS L/R OR ENTER TO TOGGLE', 100, by + 28, { scale: 1, color: PAL.textDim });
   }
 }
 

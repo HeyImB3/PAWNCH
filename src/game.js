@@ -13,7 +13,7 @@
 import { VIEW, MATCH, PAL, DEV } from './config.js';
 import { input } from './input.js';
 import * as audio from './audio.js';
-import { FX, bgGradient, scanlines, text, textWidth } from './gfx.js';
+import { FX, bgGradient, scanlines, text, textWidth, setPieceSet } from './gfx.js';
 import { load, save } from './save.js';
 import * as Chess from './chess/board.js';
 
@@ -53,6 +53,7 @@ export class Game {
     this.save = load();
     this.input.setBindings(this.save.settings.bindings);
     audio.setVolumes(this.save.settings.volume);
+    setPieceSet(this.save.settings.pieceSet);   // apply the saved chess set
 
     this.state = null;
     this.stateName = null;

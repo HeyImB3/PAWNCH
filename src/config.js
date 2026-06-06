@@ -15,6 +15,12 @@ export const MATCH = {
   // fraction of max health restored at the start of each NEW round (rounds 2..10)
   HEAL_MIN: 0.10,
   HEAL_MAX: 0.15,
+  // Skip-the-chess deterrent: a human side that makes NO move during a round's
+  // chess half has its HP capped at this value for that round's boxing half
+  // (no effect if it's already below the cap, so a hurt fighter isn't punished
+  // twice). Applied only at that one chess->boxing handoff, so it never carries
+  // into later rounds.
+  NO_MOVE_HP_CAP: 50,
   WALK_SECONDS: 2.6,   // walk-to-the-board flair (snappy, not awkward)
 };
 
@@ -139,6 +145,20 @@ export const BOX = {
     CHARGE_PER_TAP: [0.075, 0.068], // fill added per mash on fall 1 / fall 2
     DECAY_PER_SEC:  [0.17, 0.36],   // fill bleeds away each second (mash to outrun it)
     AI_CHARGE_PER_SEC: [0.62, 0.58],// the CPU claws its way up on its own (story)
+  },
+  // PERFECT PARRY (anti-mash skill move). Raising guard opens a brief parry
+  // WINDOW: a blockable hit that lands inside it is PARRIED — no damage, and the
+  // attacker is STAGGERED (frozen, flashing red) for STUN_MS, handing the parrier
+  // a free opening. You can't fish for it: after a window closes you can't open a
+  // new one for LOCKOUT_MS, and a window that expires unused costs WHIFF_STAMINA.
+  // Unblockable boss specials ignore parry (you must still slip/duck them).
+  PARRY: {
+    WINDOW_MS: 150,        // player's parry window after raising guard (a fresh tap)
+    AI_WINDOW_MS: 170,     // the bot's window when it reads a punch and guards to parry (a touch wider = reliable)
+    STUN_MS: 2000,         // stagger inflicted on a parried attacker (their "2 free seconds" given up)
+    LOCKOUT_MS: 360,       // after a window closes, how long before a new one can open
+    WHIFF_STAMINA: 8,      // stamina lost when a parry window expires without a parry
+    AI_COOLDOWN_MS: 1250,  // minimum gap between a bot's parry attempts (lower = sharper readers / more parries)
   },
 };
 

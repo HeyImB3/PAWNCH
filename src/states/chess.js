@@ -24,6 +24,9 @@ export class ChessState {
     // Only the per-round wall-time window resets each chess half.
     this.halfTime = (MATCH.CHESS_HALF_SECONDS || MATCH.CHESS_SECONDS || 60) * 1000;
     this.t = 0;
+    // track who actually moved this chess half (skip-the-chess HP deterrent —
+    // see game.applyNoMovePenalty). Resets every half.
+    m.movedThisHalf = { player: false, enemy: false };
     this.terminal = Chess.status(m.chess) !== 'ongoing'; // game already finished (e.g. drawn)?
 
     // board orientation. `targetFlip` is the logical orientation (black-at-bottom);
@@ -324,6 +327,7 @@ export class ChessState {
     this.placeFx = { sq: a.mv.to, t: 0 };          // settle bounce
     (m.pgnMoves ||= []).push(Chess.moveLabel(this.preState, a.mv)); // SAN for PGN
     const moved = this.preState.turn;
+    (m.movedThisHalf ||= { player: false, enemy: false })[moved === m.playerColor ? 'player' : 'enemy'] = true;
     m.chess = Chess.applyMove(this.preState, a.mv);
     m.clocks[moved] += (MATCH.CHESS_INCREMENT_MS || 0); // Fischer increment keeps the continuous clock alive
     this.anim = null;

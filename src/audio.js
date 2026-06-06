@@ -101,6 +101,9 @@ export const sfx = {
   hit()     { _sfx(() => { const t = ctx.currentTime; noise(sfxGain, { t, dur: 0.14, vol: 0.4, hp: 200 }); blip(sfxGain, { type: 'triangle', freq: f('A2'), t, dur: 0.14, vol: 0.3 }); }); },
   dodge()   { _sfx(() => blip(sfxGain, { type: 'triangle', freq: f('G5'), t: ctx.currentTime, dur: 0.08, vol: 0.16, detune: -400 })); },
   block()   { _sfx(() => noise(sfxGain, { t: ctx.currentTime, dur: 0.05, vol: 0.2, hp: 2000 })); },
+  // PERFECT PARRY — a bright ascending arcade "star" twinkle: a fast rising
+  // arpeggio capped by a high shimmer, so a clean parry feels rewarding.
+  parry()   { _sfx(() => { const t = ctx.currentTime; [1047, 1319, 1568, 2093].forEach((fr, i) => blip(sfxGain, { type: 'square', freq: fr, t: t + i * 0.045, dur: 0.08, vol: 0.22 })); blip(sfxGain, { type: 'triangle', freq: 2637, t: t + 0.16, dur: 0.22, vol: 0.16 }); noise(sfxGain, { t, dur: 0.05, vol: 0.1, hp: 3000 }); }); },
   bell()    { _sfx(() => { const t = ctx.currentTime; for (let i = 0; i < 3; i++) blip(sfxGain, { type: 'triangle', freq: f('A5'), t: t + i * 0.18, dur: 0.16, vol: 0.3 }); }); },
   // a short, punchy upward blip for each get-up mash — pitch climbs with the bar.
   getup(charge = 0) { _sfx(() => { const t = ctx.currentTime; const base = 320 + charge * 520; blip(sfxGain, { type: 'square', freq: base, t, dur: 0.05, vol: 0.2 }); noise(sfxGain, { t, dur: 0.04, vol: 0.12, hp: 1400 }); }); },

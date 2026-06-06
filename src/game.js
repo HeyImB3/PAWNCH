@@ -128,7 +128,25 @@ export class Game {
       m.over = true; m.winner = result.winner; m.reason = result.reason;
       this.changeState('matchend');
     } else {
+      this.applyNoMovePenalty(result);
       this.changeState('boxing');
+    }
+  }
+
+  // Skip-the-chess deterrent: a human side that made NO move during the chess
+  // half has its HP capped at MATCH.NO_MOVE_HP_CAP for that round's boxing half
+  // (no effect if it's already lower, so a hurt fighter isn't punished twice).
+  // Only human-controlled sides are punished — the story AI always moves, and
+  // shouldn't be penalized for simply not getting a turn before time ran out.
+  // The hidden dev fast-forward (reason 'devskip') is exempt.
+  applyNoMovePenalty(result) {
+    if (result.reason === 'devskip') return;
+    const m = this.match, moved = m.movedThisHalf;
+    if (!moved) return;
+    const cap = MATCH.NO_MOVE_HP_CAP;
+    const sides = m.mode === 'pvp' ? ['player', 'enemy'] : ['player'];
+    for (const side of sides) {
+      if (!moved[side]) m.hp[side] = Math.min(m.hp[side], cap);
     }
   }
 

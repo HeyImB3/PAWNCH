@@ -7,25 +7,44 @@
 // read-and-react (Punch-Out style): tells are visible, but whiffing or eating a
 // shot is punishing, and it tightens fast as the ladder climbs.
 function boxingFromDifficulty(d, special) {
+  // "Hard cliff after Patty." Patty (d<=0.1) stays a genuine gentle tutorial so
+  // players can learn the controls + parry. EVERYONE after him is lifted onto a
+  // high difficulty band: their EFFECTIVE difficulty D starts at FLOOR (~the old
+  // upper-mid) for fight 2 and ramps to 1.0 at the champion. The ladder's curve is
+  // preserved — just compressed into a much tougher range so nobody can breeze
+  // through the mid-roster by button-mashing. Re-tune feel here: FLOOR sets the
+  // cliff height, the mix() endpoints set the ceiling.
+  //
+  // FLOOR is the main mid-roster dial. Because D interpolates toward a FIXED top
+  // of 1.0, raising FLOOR lifts fights 2-7 the most and barely moves the top three
+  // (8-10), which already feel right. Bump it again later if 2-7 still feel soft.
+  const FLOOR = 0.68;
+  const D = d <= 0.1 ? d : FLOOR + (1 - FLOOR) * (d - 0.16) / (1 - 0.16);
+  const mix = (easy, hard) => easy + (hard - easy) * D;
   return {
-    telegraphMs: Math.round(720 - d * 430),   // windup before their hit lands (longer = easier)
-    recoverMs: Math.round(580 - d * 360),      // openings after they punch (smaller = harder to counter)
-    aggression: 0.45 + d * 0.50,               // how often they attack
-    comboChance: 0.12 + d * 0.60,              // chance to chain punches
-    dodgeSkill: 0.16 + d * 0.62,               // chance to slip the player's punch
-    guardChance: 0.18 + d * 0.45,              // chance to raise guard
-    punchDmg: Math.round(9 + d * 15),          // damage their hits deal
-    feintChance: 0.05 + d * 0.45,              // fake-out telegraphs
-    highChance: 0.45 + d * 0.15,               // share of attacks aimed high (head)
+    telegraphMs: Math.round(mix(720, 220)),    // windup before their hit lands (shorter = harder to read)
+    recoverMs: Math.round(mix(560, 140)),      // opening after they punch (smaller = far less counter time)
+    aggression: mix(0.45, 1.0),                // how often they attack
+    comboChance: mix(0.12, 0.88),              // chance to chain punches
+    dodgeSkill: mix(0.16, 0.85),               // chance to slip the player's punch
+    guardChance: mix(0.18, 0.62),              // chance to raise guard
+    punchDmg: Math.round(mix(9, 32)),          // damage their hits deal
+    feintChance: mix(0.05, 0.62),              // fake-out telegraphs
+    highChance: mix(0.45, 0.62),               // share of attacks aimed high (head)
+    // "Sharp readers": skill at PERFECT-PARRYING the player's punches (reads a
+    // commit and guards into the parry window — punishes mashing). OFF only for
+    // Patty; a strong baseline from fight 2, climbing the ladder. Pairs with a
+    // short AI cooldown (config) and a punish combo (boxing.js _enemyPunishCombo).
+    parrySkill: d <= 0.1 ? 0 : Math.min(0.92, 0.40 + D * 0.58),
     // a generic heavy "haymaker" — part of the baseline kit (occasional big hook)
     signature: {
       name: 'HAYMAKER',
-      dmg: Math.round(20 + d * 26),
-      telegraphMs: Math.round(960 - d * 360),
-      chance: 0.05 + d * 0.10,
+      dmg: Math.round(mix(20, 54)),
+      telegraphMs: Math.round(mix(960, 540)),
+      chance: mix(0.05, 0.20),
     },
     // the opponent's ONE unique, themed boss move (see buildSpecial in boxing.js)
-    special: buildSpecialDef(special, d),
+    special: buildSpecialDef(special, D),
   };
 }
 

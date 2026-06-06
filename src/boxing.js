@@ -22,7 +22,8 @@ import { BOX } from './config.js';
 export const DEFAULT_PARAMS = {
   telegraphMs: 600, recoverMs: 400, aggression: 0.4, comboChance: 0.3,
   dodgeSkill: 0.3, guardChance: 0.3, punchDmg: 12, feintChance: 0.2,
-  highChance: 0.5, signature: { name: 'HAYMAKER', dmg: 24, telegraphMs: 750, chance: 0.08 },
+  highChance: 0.5, parrySkill: 0,
+  signature: { name: 'HAYMAKER', dmg: 24, telegraphMs: 750, chance: 0.08 },
 };
 
 function makeFighter(side) {
@@ -41,6 +42,8 @@ function makeFighter(side) {
     recoverOverride: null,// per-attack recover window (specials), else null = default
     stars: 0,
     flash: 0,             // hit flash timer
+    parryT: 0,            // ms left in the active perfect-parry window (>0 = armed)
+    parryLockT: 0,        // ms left before a new parry window may open (rate-limit)
     starFx: 0,            // star-punch glow timer
     offset: 0,            // lateral lean (dodge) for render
     duckY: 0,
@@ -70,7 +73,7 @@ export class BoxingMatch {
     this.maxCombo = 0;
     // seq = a queued boss SPECIAL (multi-step). specialCd gates how often the
     // boss move can fire, so it reads as a deliberate, learnable pattern.
-    this.ai = { state: 'wait', t: rand(600, 1400), feint: false, seq: [], specialCd: 2600 };
+    this.ai = { state: 'wait', t: rand(600, 1400), feint: false, seq: [], specialCd: 2600, parryCd: 0 };
     this.hitHooks = opts.hooks || {};
 
     // online relay (beta): each client owns its OWN fighter's HP.
@@ -111,6 +114,20 @@ export class BoxingMatch {
     if (fr.flash > 0) fr.flash -= dt;
     if (fr.starFx > 0) fr.starFx -= dt;
     if (fr.comboTimer > 0) { fr.comboTimer -= dt; if (fr.comboTimer <= 0) fr.combo = 0; }
+
+    // PERFECT-PARRY window: counts down once guard is raised. If it expires
+    // WITHOUT catching a hit, that's a whiffed read — brief lockout + a stamina
+    // bite so the parry can't be mashed. A successful parry zeroes parryT itself
+    // (see _tryParry), so this whiff branch only fires on genuine misses.
+    if (fr.parryLockT > 0) fr.parryLockT = Math.max(0, fr.parryLockT - dt);
+    if (fr.parryT > 0) {
+      fr.parryT -= dt;
+      if (fr.parryT <= 0) {
+        fr.parryT = 0;
+        fr.parryLockT = BOX.PARRY.LOCKOUT_MS;
+        this._drain(fr, BOX.PARRY.WHIFF_STAMINA);
+      }
+    }
 
     if (fr.poseT > 0) {
       fr.poseT -= dt;
@@ -182,7 +199,8 @@ export class BoxingMatch {
   _resolvePose(fr) {
     const prev = fr.pose;
     if (prev === 'windup') {
-      this._strike(fr);
+      const parried = this._strike(fr);
+      if (parried) { this._stagger(fr); return; } // defender perfect-parried -> attacker is staggered
       fr.pose = 'recover';
       fr.poseT = this._recoverMs(fr);
       fr.recoverOverride = null;         // consumed
@@ -210,7 +228,7 @@ export class BoxingMatch {
     if (c.pressed('dodgeL')) return this._dodge(p, 'L');
     if (c.pressed('dodgeR')) return this._dodge(p, 'R');
     if (c.pressed('duck')) return this._duck(p);
-    if (c.isDown('block')) { p.pose = 'guard'; } else if (p.pose === 'guard') p.pose = 'idle';
+    this._guard(p, c.isDown('block'), c.pressed('block'));
     if (c.pressed('hookL')) return this._playerPunch(p, this.enemy, 'L', 'hook');
     if (c.pressed('hookR')) return this._playerPunch(p, this.enemy, 'R', 'hook');
     if (c.pressed('jabL')) return this._playerPunch(p, this.enemy, 'L', 'jab');
@@ -222,7 +240,7 @@ export class BoxingMatch {
     if (c.pressed('p2_dodgeL')) return this._dodge(p, 'L');
     if (c.pressed('p2_dodgeR')) return this._dodge(p, 'R');
     if (c.pressed('p2_duck')) return this._duck(p);
-    if (c.isDown('p2_block')) { p.pose = 'guard'; } else if (p.pose === 'guard') p.pose = 'idle';
+    this._guard(p, c.isDown('p2_block'), c.pressed('p2_block'));
     if (c.pressed('p2_hookL')) return this._playerPunch(p, this.player, 'L', 'hook');
     if (c.pressed('p2_hookR')) return this._playerPunch(p, this.player, 'R', 'hook');
     if (c.pressed('p2_jabL')) return this._playerPunch(p, this.player, 'L', 'jab');
@@ -240,6 +258,62 @@ export class BoxingMatch {
     fr.pose = 'duck'; fr.poseT = BOX.DUCK_TIME; this._drain(fr, 9);
     this.hitHooks.onDodge?.(fr.side);
     if (this.isNet && fr.side === 'player') this.send({ k: 'pose', pose: 'duck' });
+  }
+
+  // Hold = guard (chip block). The instant guard is RAISED (a fresh press) arms a
+  // perfect-parry window, unless we're still locked out from the last one. You
+  // must drop and re-raise to get a new window — holding doesn't keep arming it.
+  _guard(fr, held, raised) {
+    if (raised && fr.parryLockT <= 0) fr.parryT = BOX.PARRY.WINDOW_MS;
+    if (held) fr.pose = 'guard';
+    else if (fr.pose === 'guard') fr.pose = 'idle';
+  }
+
+  // A blockable hit landing inside the defender's parry window is PARRIED: no
+  // damage, the window is consumed (no whiff cost), and the caller staggers the
+  // attacker. Unblockable specials ignore parry — they must be slipped/ducked.
+  _tryParry(att, def) {
+    if (att.unblockable) return false;
+    if (def.pose !== 'guard' || def.parryT <= 0) return false;
+    def.parryT = 0;
+    def.parryLockT = BOX.PARRY.LOCKOUT_MS;
+    this.hitHooks.onParry?.(def.side);
+    return true;
+  }
+
+  // Stagger a parried attacker: frozen (can't act, see _busy) and flashing red for
+  // STUN_MS, cancelling any attack/boss combo so the parrier gets a free opening.
+  _stagger(fr) {
+    this._clearAtk(fr);
+    fr.pose = 'stun'; fr.poseT = BOX.PARRY.STUN_MS;
+    fr.arm = null; fr.kind = null; fr.combo = 0; fr.comboTimer = 0;
+    // cancel any boss combo and leave just a short grogginess once the stun ends
+    // (ai.t doesn't tick while stunned — the AI early-returns on the busy check).
+    if (fr.side === 'enemy') { this.ai.seq = []; this.ai.t = rand(250, 500); }
+  }
+
+  // Capitalize on a bot parry: queue a short, fast punish combo that lands on the
+  // staggered player during their stun (they can't defend it). 2 hits, or 3 for
+  // the sharpest readers; the finisher is a heavier hook. Each hit is slightly
+  // softer than a clean shot since they're free. Fired from _playerContact, then
+  // the seq runs itself through _enemyAI like any boss combo.
+  _enemyPunishCombo() {
+    const P = this.params;
+    const hits = (P.parrySkill || 0) >= 0.7 ? 3 : 2;
+    const dmg = Math.max(4, Math.round(P.punchDmg * 0.7));
+    const seq = [];
+    let arm = Math.random() < 0.5 ? 'L' : 'R';
+    for (let i = 0; i < hits; i++) {
+      const last = i === hits - 1;
+      seq.push({
+        arm, target: Math.random() < 0.5 ? 'high' : 'low',
+        kind: last ? 'hook' : 'jab',
+        telegraphMs: 190, dmg: last ? Math.round(dmg * 1.3) : dmg,
+        recover: last ? 420 : 130, special: null,
+      });
+      arm = arm === 'L' ? 'R' : 'L';
+    }
+    this.ai.seq = seq;
   }
 
   _playerPunch(att, def, arm, kind) {
@@ -260,6 +334,14 @@ export class BoxingMatch {
     att.landedThisWindup = true;
     // a counter-stance boss reads the punch and PUNISHES it — patience beats it.
     if (def.pose === 'stance') { this.hitHooks.onMiss?.(att.side); this._stancePunish(def, att); return; }
+    // a perfect parry beats the punch outright and staggers the puncher. If the
+    // STORY bot was the parrier, it capitalizes — queueing a free punish combo
+    // that lands during the staggered player's ~2s of helplessness.
+    if (this._tryParry(att, def)) {
+      this._stagger(att);
+      if (def === this.enemy && this.opts.mode !== 'pvp' && !this.isNet) this._enemyPunishCombo();
+      return;
+    }
     const avoided = this._defended(att, def);
     if (avoided === 'dodge') { this.hitHooks.onMiss?.(att.side); return; }
     const counter = def.pose === 'recover';
@@ -287,12 +369,24 @@ export class BoxingMatch {
     if (this._busy(e)) return;
     this.ai.t -= dt;
     if (this.ai.specialCd > 0) this.ai.specialCd -= dt;
+    if (this.ai.parryCd > 0) this.ai.parryCd -= dt;
 
     // mid-special: fire the next queued step the instant the previous one's
     // recovery ends (the recover window IS the gap between hits).
     if (this.ai.seq.length) { this._enemyStep(this.ai.seq.shift()); return; }
 
     if (this.ai.t > 0) return;
+
+    // reactive PERFECT PARRY: read the player's committed punch and guard right
+    // into the parry window — punishes button-mashing. Gated by skill + a cooldown
+    // so it reads as a learnable threat, not a wall. (Off for the easy on-ramp.)
+    if (this.player.pose === 'punch' && this.ai.parryCd <= 0 && Math.random() < (P.parrySkill || 0)) {
+      this._clearAtk(e);
+      e.pose = 'guard'; e.parryT = BOX.PARRY.AI_WINDOW_MS;
+      this.ai.parryCd = BOX.PARRY.AI_COOLDOWN_MS;
+      this.ai.t = rand(220, 420);
+      return;
+    }
 
     // reactive slip when the player commits to a punch
     if (this.player.pose === 'punch' && Math.random() < P.dodgeSkill) {
@@ -354,11 +448,14 @@ export class BoxingMatch {
 
   _clearAtk(e) { e.special = null; e.unblockable = false; e.dmgOverride = null; e.recoverOverride = null; }
 
+  // resolves a windup attack. Returns true if the defender PERFECT-PARRIED it
+  // (the caller then staggers the attacker); false otherwise.
   _strike(att) {
     const def = att.side === 'enemy' ? this.player : this.enemy;
-    if (att.side === 'enemy' && this.ai.feint) { this.ai.feint = false; this._clearAtk(att); return; }
+    if (att.side === 'enemy' && this.ai.feint) { this.ai.feint = false; this._clearAtk(att); return false; }
+    if (this._tryParry(att, def)) return true;     // parried -> _resolvePose staggers the attacker
     const avoided = this._defended(att, def);
-    if (avoided === 'dodge') { this.hitHooks.onDodge?.(def.side); this._clearAtk(att); return; }
+    if (avoided === 'dodge') { this.hitHooks.onDodge?.(def.side); this._clearAtk(att); return false; }
     let dmg = att.dmgOverride != null ? att.dmgOverride
             : att.kind === 'signature' ? this.params.signature.dmg
             : att.kind === 'hook' ? this.params.punchDmg * 1.4
@@ -367,6 +464,7 @@ export class BoxingMatch {
     if (avoided === 'block') dmg *= (1 - BOX.BLOCK_REDUCTION);
     this._applyDamage(def, dmg, att);
     if (att.side === 'enemy') this._clearAtk(att);
+    return false;
   }
 
   // returns 'dodge' (fully avoided), 'block' (reduced), or null (clean hit)
@@ -384,7 +482,9 @@ export class BoxingMatch {
     dmg = Math.max(1, Math.round(dmg));
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 140;
-    if (def.pose !== 'guard') { def.pose = 'hurt'; def.poseT = 220; }
+    // don't let a hit interrupt a STAGGER — a parried fighter stays frozen for the
+    // full stun (and keeps flashing red) while they eat the punisher's free combo.
+    if (def.pose !== 'guard' && def.pose !== 'stun') { def.pose = 'hurt'; def.poseT = 220; }
     const attacker = att.side === 'player' ? this.player : att.side === 'enemy' ? this.enemy : null;
     if (attacker) this._registerHit(attacker);
     this.hitHooks.onHit?.(def.side, dmg, att.kind);
@@ -408,14 +508,22 @@ export class BoxingMatch {
       } else if (a.k === 'punch') {
         this.enemy.pose = 'punch'; this.enemy.arm = a.arm; this.enemy.kind = a.kind; this.enemy.poseT = 200;
         const def = this.player;
-        const avoided = this._defended({ arm: a.arm, kind: a.kind, target: a.kind === 'jab' ? 'low' : 'high' }, def);
-        if (avoided === 'dodge') { this.hitHooks.onDodge?.('player'); }
-        else {
-          let dmg = a.kind === 'jab' ? 7 : a.kind === 'hook' ? 13 : 22;
-          if (avoided === 'block') dmg *= (1 - BOX.BLOCK_REDUCTION);
-          this._applyDamage(def, dmg, { side: 'enemy', kind: a.kind });
-          this.send({ k: 'hp', hp: this.player.hp });
+        const att = { arm: a.arm, kind: a.kind, target: a.kind === 'jab' ? 'low' : 'high', unblockable: false };
+        if (this._tryParry(att, def)) {
+          this._stagger(this.enemy);          // show the remote attacker staggered locally
+          this.send({ k: 'parried' });        // and tell their client their punch was parried
+        } else {
+          const avoided = this._defended(att, def);
+          if (avoided === 'dodge') { this.hitHooks.onDodge?.('player'); }
+          else {
+            let dmg = a.kind === 'jab' ? 7 : a.kind === 'hook' ? 13 : 22;
+            if (avoided === 'block') dmg *= (1 - BOX.BLOCK_REDUCTION);
+            this._applyDamage(def, dmg, { side: 'enemy', kind: a.kind });
+            this.send({ k: 'hp', hp: this.player.hp });
+          }
         }
+      } else if (a.k === 'parried') {
+        this._stagger(this.player);           // our punch was parried by the remote -> we're staggered
       } else if (a.k === 'hp') {
         this.enemy.hp = a.hp;
       } else if (a.k === 'ko') {
@@ -425,7 +533,7 @@ export class BoxingMatch {
   }
 
   _busy(fr) {
-    return ['windup', 'punch', 'recover', 'dodgeL', 'dodgeR', 'duck', 'hurt', 'down', 'ko', 'stance'].includes(fr.pose) && fr.poseT > 0;
+    return ['windup', 'punch', 'recover', 'dodgeL', 'dodgeR', 'duck', 'hurt', 'down', 'ko', 'stance', 'stun'].includes(fr.pose) && fr.poseT > 0;
   }
 
   _checkKO() {

@@ -6,7 +6,7 @@
 // (side + HIGH/LOW + a SIGNATURE warning), and hit-stop/crowd juice.
 
 import { MATCH, PAL, BOX } from '../config.js';
-import { text, panel, ring, boxer, barH } from '../gfx.js';
+import { text, textWidth, panel, ring, boxer, barH } from '../gfx.js';
 import * as audio from '../audio.js';
 import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
 import { OPPONENTS, HUE } from '../opponents.js';
@@ -33,8 +33,13 @@ export class BoxingState {
     this.comboFlash = 0;
     this.nameT = 0;            // intro nameplate slide
     this.sigWarnT = 0;         // signature warning flash
+    this.tellPopT = 0;         // attack-tell banner pop-in timer (set on each windup)
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.red) : HUE.red;
     this.accent = this.oppHue.body;
+    // a brightened copy of the opponent's theme — flickered onto them while they
+    // wind up a SPECIAL (Punch-Out-style tell), plus a red "staggered" palette.
+    this.flareHue = { body: lighten(this.oppHue.body, 0.55), trim: lighten(this.oppHue.trim, 0.45), skin: lighten(this.oppHue.skin, 0.4) };
+    this.redHue = { body: PAL.red, trim: '#7a0e1c', skin: '#ff9a9a' };
 
     // STORY uses the opponent's tuned boxing kit; PVP/online use the default.
     // Guard the story path: a malformed or older saved opponent can lack `boxing`
@@ -49,7 +54,7 @@ export class BoxingState {
       inbox: m.net ? (m.netInboxBox ||= []) : null,
       hooks: {
         onPunch: (side, kind) => { if (side === 'player') (kind === 'jab' ? audio.sfx.jab() : audio.sfx.hook()); },
-        onWindup: (arm, kind, target, special) => { if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
+        onWindup: (arm, kind, target, special) => { this.tellPopT = 0.2; if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
         onHit: (side, dmg, kind) => {
           audio.sfx.hit();
           const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 200];
@@ -61,6 +66,16 @@ export class BoxingState {
           if (side === 'player') game.fx.doFlash(PAL.red, 0.22);
         },
         onDodge: () => audio.sfx.dodge(),
+        onParry: (side) => {
+          // a clean parry: star twinkle, a bright flash, a beat of hit-stop, and a
+          // gold star burst over the parrier — they just earned a free opening.
+          audio.sfx.parry();
+          game.fx.doFlash(side === 'player' ? PAL.blueLite : PAL.gold, 0.4);
+          game.doFreeze(120);
+          this.crowd = 1;
+          const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 150];
+          game.fx.burst(x, y, PAL.gold, 16, 3); game.fx.ring(x, y, PAL.gold);
+        },
         onCounter: () => { audio.sfx.check(); game.fx.doFlash(PAL.gold, 0.3); game.doFreeze(90); },
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
@@ -103,6 +118,7 @@ export class BoxingState {
     if (this.bannerT > 0) this.bannerT -= dt / 1000;
     if (this.comboFlash > 0) this.comboFlash -= dt / 1000;
     if (this.sigWarnT > 0) this.sigWarnT -= dt / 1000;
+    if (this.tellPopT > 0) this.tellPopT -= dt / 1000;
     this.nameT = Math.min(1, this.nameT + dt / 1000 / 0.4);
     this.crowd = Math.max(0, this.crowd - dt / 1000 * 1.2);
     audio.playFightTheme(this.m.fightTrack);
@@ -116,55 +132,110 @@ export class BoxingState {
     const p = this.match.player, e = this.match.enemy;
 
     // opponent (center, facing camera)
-    const eMap = { idle: 'idle', guard: 'guard', stance: 'guard', windup: e.arm === 'L' ? 'windupL' : 'windupR', punch: e.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
+    const eMap = { idle: 'idle', guard: 'guard', stance: 'guard', windup: e.arm === 'L' ? 'windupL' : 'windupR', punch: e.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', stun: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
     const ex = W / 2 + e.offset, ey = 150 + e.duckY;
+    // SPECIAL tell (Punch-Out style): flicker the opponent in a brightened version
+    // of their theme color while a special / signature winds up. Stagger overrides
+    // it with a pulsing red.
+    const eFlaring = (e.special || e.kind === 'signature') && (e.pose === 'windup' || e.pose === 'stance') && Math.floor(this.t * 18) % 2 === 0;
+    let eHue = this.oppHue;
+    if (e.pose === 'stun') eHue = Math.floor(this.t * 12) % 2 ? this.redHue : this.oppHue;
+    else if (eFlaring) eHue = this.flareHue;
     if (e.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
-    boxer(ctx, ex, ey, 5.2, this.oppHue, eMap[e.pose] || 'idle', 1, this.t * 4);
+    boxer(ctx, ex, ey, 5.2, eHue, eMap[e.pose] || 'idle', 1, this.t * 4);
     ctx.globalAlpha = 1;
+    if (e.pose === 'stun') this._stunFx(ctx, ex, ey - 40);
 
     // attack TELL during enemy windup, or a "don't punch!" warning during a counter stance
-    if (e.pose === 'windup') this._tell(ctx, ex, e);
-    else if (e.pose === 'stance') this._stanceWarn(ctx, ex, e);
+    if (e.pose === 'windup') this._tell(ctx, e);
+    else if (e.pose === 'stance') this._stanceWarn(ctx, e);
 
     // player (foreground, from behind)
-    const pMap = { idle: 'idle', guard: 'guard', windup: 'guard', punch: p.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
+    const pMap = { idle: 'idle', guard: 'guard', windup: 'guard', punch: p.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', stun: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
     const pxs = W / 2 + p.offset, pys = H - 118 + p.duckY;
+    const pHue = (p.pose === 'stun' && Math.floor(this.t * 12) % 2) ? this.redHue : HUE.player;
     if (p.starFx > 0) { // star uppercut glow
       ctx.globalAlpha = 0.5 * (p.starFx / 320);
       ctx.fillStyle = PAL.gold; ctx.beginPath(); ctx.arc(pxs, pys - 20, 70, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
     if (p.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
-    boxer(ctx, pxs, pys, 6.5, HUE.player, pMap[p.pose] || 'idle', -1, this.t * 4);
+    boxer(ctx, pxs, pys, 6.5, pHue, pMap[p.pose] || 'idle', -1, this.t * 4);
     ctx.globalAlpha = 1;
+    if (p.pose === 'stun') this._stunFx(ctx, pxs, pys - 56);
 
     this._hud(game, ctx);
     this._nameplate(game, ctx);
     this._banner(game, ctx);
   }
 
-  _tell(ctx, ex, e) {
+  // Attack TELL — a punchy 16-bit arcade banner up in the air to the LEFT of the
+  // ring (clear of the centered round/timer and the fighter). It POPS in on each
+  // windup (overshoot then settle) and shakes on big moves. SPECIAL / signature
+  // banners are themed to the FIGHTER'S color scheme (this.accent); only the
+  // danger cue (SLIP IT!) stays a warning color. Plain jabs/hooks keep their
+  // functional blue/orange so the player can still read the punch type at a glance.
+  _tell(ctx, e) {
     const special = !!e.special;
-    const big = e.kind === 'signature' || special;  // big = blinking red warning
-    const col = big ? PAL.red : e.kind === 'hook' ? PAL.orange : PAL.blueLite;
-    const blink = big ? (Math.sin(this.t * 24) > 0) : true;
-    if (!blink) return;
-    const y = 126;  // below the center HUD (round/timer), above the fighter's head
-    // side arrow (it's coming from the attacker's arm side)
-    const arrow = e.arm === 'L' ? '>' : '<';
-    const lbl = (e.target === 'high' ? 'HIGH ' : 'LOW ') + (big ? '!!' : '');
-    text(ctx, arrow, ex + (e.arm === 'L' ? -34 : 26), y, { scale: 2, color: col });
-    text(ctx, lbl, ex, y, { scale: 1, color: col, align: 'center', shadow: PAL.ink });
-    // name the incoming boss move (or the generic haymaker), + a SLIP! cue if unblockable
-    const name = e.special || (e.kind === 'signature' ? 'HAYMAKER' : null);
-    if (name) text(ctx, name + (e.unblockable ? ' - SLIP!' : ''), ex, y - 14, { scale: 1, color: PAL.red, align: 'center', shadow: PAL.ink });
+    const big = e.kind === 'signature' || special;
+    if (big && Math.sin(this.t * 24) <= 0) return;   // big moves blink the whole banner
+    const arrow = e.arm === 'L' ? '>' : '<';         // which side the shot swings from
+    const dir = arrow + ' ' + (e.target === 'high' ? 'HIGH' : 'LOW');
+    const lines = [];
+    if (big) {
+      const lite = lighten(this.accent, 0.5);        // readable text in the fighter's hue
+      const name = e.special || 'HAYMAKER';
+      lines.push({ s: name + ' !!', c: lite, sh: PAL.ink });
+      lines.push({ s: dir + ' !!', c: lite, sh: PAL.ink });
+      if (e.unblockable) lines.push({ s: 'SLIP IT!', c: PAL.gold, sh: PAL.ink });
+      this._tellBanner(ctx, lines, this.accent, true);
+    } else {
+      const col = e.kind === 'hook' ? PAL.orange : PAL.blueLite;
+      lines.push({ s: dir, c: col, sh: PAL.ink });
+      this._tellBanner(ctx, lines, col, false);
+    }
   }
 
   // a counter-stance boss is reading you — warn the player NOT to throw a punch.
-  _stanceWarn(ctx, ex, e) {
+  // Themed to the fighter too, with the action cue kept red for legibility.
+  _stanceWarn(ctx, e) {
     if (Math.sin(this.t * 18) <= 0) return;
-    text(ctx, e.special || 'COUNTER', ex, 112, { scale: 1, color: PAL.gold, align: 'center', shadow: PAL.ink });
-    text(ctx, "DON'T PUNCH!", ex, 126, { scale: 1, color: PAL.red, align: 'center', shadow: PAL.ink });
+    this._tellBanner(ctx, [
+      { s: (e.special || 'COUNTER') + ' !!', c: lighten(this.accent, 0.5), sh: PAL.ink },
+      { s: "DON'T PUNCH!", c: PAL.red, sh: PAL.ink },
+    ], this.accent, true);
+  }
+
+  // draws the shared tell banner: a chunky outlined plate of stacked text lines,
+  // anchored upper-left "in the air", scaled by the pop timer (overshoot->settle)
+  // and shaken for big moves. `accent` tints the frame; `big` adds glow + shake.
+  _tellBanner(ctx, lines, accent, big) {
+    const sc = 2, lh = 20, pad = 7;
+    let wmax = 0;
+    for (const ln of lines) wmax = Math.max(wmax, textWidth(ln.s, sc));
+    const bw = wmax + pad * 2, bh = lines.length * lh + pad * 2 - 2;
+    const bx = 14, by = 100;                                  // up in the air, left of the ring
+    const pop = Math.max(0, this.tellPopT) / 0.2;            // 1 -> 0
+    const scale = 1 + pop * 0.32;                             // pop-in overshoot
+    const shake = big ? Math.round(Math.sin(this.t * 38) * 2) : 0;
+    ctx.save();
+    const ox = bx + bw / 2, oy = by + bh / 2;
+    ctx.translate(ox + shake, oy); ctx.scale(scale, scale); ctx.translate(-ox, -oy);
+    // big moves get the chunky outlined plate; ordinary jabs/hooks just pop the
+    // text so the screen doesn't flash a box on every single punch.
+    if (big) panel(ctx, bx, by, bw, bh, { fill: 'rgba(7,10,22,0.82)', border: accent, border2: PAL.ink, glow: true });
+    let ly = by + pad - 2;
+    for (const ln of lines) { text(ctx, ln.s, bx + pad, ly, { scale: sc, color: ln.c, shadow: ln.sh }); ly += lh; }
+    ctx.restore();
+  }
+
+  // dizzy stars orbiting a staggered (parried) fighter's head — the classic
+  // arcade "stunned" tell, paired with the red flicker on the sprite itself.
+  _stunFx(ctx, cx, cy) {
+    for (let i = 0; i < 3; i++) {
+      const a = this.t * 7 + i * (Math.PI * 2 / 3);
+      text(ctx, '*', cx + Math.cos(a) * 18, cy + Math.sin(a) * 7, { scale: 2, color: PAL.gold, align: 'center', shadow: PAL.ink });
+    }
   }
 
   _hud(game, ctx) {
@@ -201,9 +272,16 @@ export class BoxingState {
     this._kdPips(ctx, W - 14, 10, e.knockdowns, PAL.orange);
     this._kdPips(ctx, W - 14, 44, p.knockdowns, PAL.blue);
 
-    // the ref's count + the mash-to-rise power bar on a downed fighter
-    for (const fr of [p, e]) {
-      if (fr.pose === 'down') this._getUpMeter(game, ctx, fr);
+    // the ref's count + the mash-to-rise power bar on a downed fighter. If BOTH
+    // go down together (a simultaneous knockdown), stack the gauges instead of
+    // letting them overlap — YOU on top, the opponent below, each shrunk to fit.
+    const downP = p.pose === 'down', downE = e.pose === 'down';
+    if (downP && downE) {
+      this._getUpMeter(game, ctx, p, { cy: game.H / 2 - 96, scale: 0.72 });
+      this._getUpMeter(game, ctx, e, { cy: game.H / 2 + 96, scale: 0.72 });
+    } else {
+      if (downP) this._getUpMeter(game, ctx, p);
+      if (downE) this._getUpMeter(game, ctx, e);
     }
 
     this._controls(game, ctx);
@@ -226,8 +304,12 @@ export class BoxingState {
   // and a segmented charge bar that lights orange->gold->green as you fill it,
   // with a leading-segment flicker, a per-tap white flash + scale pop, and a
   // shake/glow as it nears full. The CPU fills its own bar automatically.
-  _getUpMeter(game, ctx, fr) {
-    const W = game.W, H = game.H, cx = W / 2, cy = H / 2;
+  _getUpMeter(game, ctx, fr, opt = {}) {
+    const W = game.W, H = game.H, cx = W / 2;
+    const cy = opt.cy ?? H / 2;                 // shifted when two gauges are stacked
+    const sc = opt.scale ?? 1;                  // shrunk to fit when both fighters are down
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
     const you = fr.side === 'player';
     const charge = fr.getUpCharge;
     const remaining = Math.max(0, BOX.GET_UP_COUNT - fr.downCount);
@@ -322,6 +404,7 @@ export class BoxingState {
         this._chevron(ctx, cx + dx, chy, PAL.gold);
       }
     }
+    ctx.restore();   // close the stacked-layout transform
   }
 
   // a chunky pixel "^" (up chevron), apex centered on cx
@@ -381,21 +464,21 @@ export class BoxingState {
       // (Z/C dodge, X duck) — the arrows still work too (shared bindings), but the
       // card mirrors the hotseat P1 reference so the two modes read identically.
       this._ctrlBox(game, ctx, 6, 'CONTROLS', PAL.blueLite,
-        [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'GUARD'], ['SPACE', 'GET UP']]);
+        [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'BLK/PARRY'], ['SPACE', 'GET UP']]);
       return;
     }
     // P1 (left player): left-hand cluster, Z/X/C dodge/duck so they stay left.
     this._ctrlBox(game, ctx, 6, 'P1', PAL.blueLite,
-      [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'GUARD'], ['SPACE', 'GET UP']]);
+      [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'BLK/PARRY'], ['SPACE', 'GET UP']]);
     // P2 (right player): mirrored numpad cluster (N = numpad); + = get up.
-    this._ctrlBox(game, ctx, game.W - 92, 'P2', PAL.orangeLite,
-      [['N4/6', 'JAB'], ['N7/9', 'HOOK'], ['N1/3', 'DODGE'], ['N2', 'DUCK'], ['N5', 'GUARD'], ['N +', 'GET UP']]);
+    this._ctrlBox(game, ctx, game.W - 94, 'P2', PAL.orangeLite,
+      [['N4/6', 'JAB'], ['N7/9', 'HOOK'], ['N1/3', 'DODGE'], ['N2', 'DUCK'], ['N5', 'BLK/PARRY'], ['N +', 'GET UP']]);
   }
 
   // a clean controls card: an accent-colored title bar (P1 blue / P2 orange),
   // then key|action rows in two aligned columns (key tinted, action dimmed).
   _ctrlBox(game, ctx, x, title, accent, rows) {
-    const lh = 11, padX = 6, headH = 10, w = 88;
+    const lh = 11, padX = 6, headH = 10, w = 92;
     const h = headH + 4 + rows.length * lh + 4;
     const y = game.H - h - 4;
     // plate + accent frame
@@ -449,4 +532,13 @@ export class BoxingState {
 function leadFor(m) {
   const mat = material(m.chess.board);
   return m.playerColor === WHITE ? mat.diff : -mat.diff;
+}
+
+// blend a #rrggbb color toward white by t (0..1) — used for the special-windup
+// "flare" flicker so an opponent flashes a brightened version of their theme.
+function lighten(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const m = (v) => Math.round(v + (255 - v) * t);
+  return '#' + ((1 << 24) + (m(r) << 16) + (m(g) << 8) + m(b)).toString(16).slice(1);
 }

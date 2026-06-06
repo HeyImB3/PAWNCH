@@ -525,15 +525,26 @@ export class ChessState {
     text(ctx, 'ROUND ' + m.round + '/' + MATCH.TOTAL_ROUNDS, px, 32, { scale: 1, color: PAL.textDim });
     text(ctx, 'CHESS HALF', px, 44, { scale: 1, color: PAL.blueLite });
 
+    // who you're up against: name + chess rating, kept on screen the whole half so
+    // it's easy to remember who you're playing and how strong they are. STORY only —
+    // online/local opponents have no rated profile. Pushes the clocks down to fit.
+    let clockY = 60;
+    if (m.mode === 'story' && m.opponent) {
+      panel(ctx, px, 56, pw, 26, { fill: PAL.panel, border: this.oppHue.body, border2: PAL.ink });
+      text(ctx, m.opponent.name, px + 5, 60, { scale: 1, color: PAL.white });
+      text(ctx, 'CHESS ' + m.opponent.elo, px + 5, 72, { scale: 1, color: PAL.orangeLite });
+      clockY = 90;
+    }
+
     // clocks (smaller than before to fit the slim column, but still the focal info)
     const myColor = m.playerColor, oppColor = myColor === Chess.WHITE ? Chess.BLACK : Chess.WHITE;
-    this._clock(ctx, px, 60, pw, 'OPPONENT', m.clocks[oppColor], m.chess.turn === oppColor, PAL.orange);
-    this._clock(ctx, px, 114, pw, 'YOU', m.clocks[myColor], m.chess.turn === myColor, PAL.blue);
+    this._clock(ctx, px, clockY, pw, 'OPPONENT', m.clocks[oppColor], m.chess.turn === oppColor, PAL.orange);
+    this._clock(ctx, px, clockY + 54, pw, 'YOU', m.clocks[myColor], m.chess.turn === myColor, PAL.blue);
 
     // material
     const mat = Chess.material(m.chess.board);
     const myMat = myColor === Chess.WHITE ? mat.diff : -mat.diff;
-    const my = 176;
+    const my = clockY + 116;
     text(ctx, 'MATERIAL', px, my, { scale: 1, color: PAL.textDim });
     const sign = myMat > 0 ? '+' : '';
     text(ctx, myMat === 0 ? 'EVEN' : sign + myMat, px, my + 13, { scale: 2, color: myMat > 0 ? PAL.green : myMat < 0 ? PAL.red : PAL.textDim });

@@ -377,8 +377,11 @@ export class BoxingState {
   // cluster. Rows are [key, action] so they render as two aligned columns.
   _controls(game, ctx) {
     if (this.m.mode !== 'pvp') {
+      // Solo story: player one uses the SAME left-hand kit as hotseat fighter 1
+      // (Z/C dodge, X duck) — the arrows still work too (shared bindings), but the
+      // card mirrors the hotseat P1 reference so the two modes read identically.
       this._ctrlBox(game, ctx, 6, 'CONTROLS', PAL.blueLite,
-        [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['< >', 'DODGE'], ['v', 'DUCK'], ['S', 'GUARD'], ['SPACE', 'GET UP']]);
+        [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'GUARD'], ['SPACE', 'GET UP']]);
       return;
     }
     // P1 (left player): left-hand cluster, Z/X/C dodge/duck so they stay left.

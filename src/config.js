@@ -155,7 +155,7 @@ export const BOX = {
   PARRY: {
     WINDOW_MS: 150,        // player's parry window after raising guard (a fresh tap)
     AI_WINDOW_MS: 170,     // the bot's window when it reads a punch and guards to parry (a touch wider = reliable)
-    STUN_MS: 2000,         // stagger inflicted on a parried attacker (their "2 free seconds" given up)
+    STUN_MS: 1500,         // stagger inflicted on a parried attacker (their "1.5 free seconds" given up)
     LOCKOUT_MS: 360,       // after a window closes, how long before a new one can open
     WHIFF_STAMINA: 8,      // stamina lost when a parry window expires without a parry
     AI_COOLDOWN_MS: 1250,  // minimum gap between a bot's parry attempts (lower = sharper readers / more parries)

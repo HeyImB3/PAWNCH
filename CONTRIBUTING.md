@@ -1,7 +1,7 @@
 # Contributing to PAWNCH 🥊♟️
 
-Thanks for wanting to help out! PAWNCH is an open (MIT) chess-boxing game, built to
-stay simple and easy to iterate on toward a Steam release. Whether you're fixing a
+Thanks for wanting to help out! PAWNCH is a source-available (PolyForm Noncommercial)
+chess-boxing game, built to stay simple and easy to iterate on toward a Steam release. Whether you're fixing a
 typo or adding a whole new opponent, you're welcome here.
 
 ## What you need

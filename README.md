@@ -17,8 +17,8 @@ and you take the whole match. Ten rounds. One champion.
 > needs a server (see [docs/HOSTING.md](docs/HOSTING.md)).
 
 Built in the spirit of classic 16-bit boxing games (the dodge/jab/hook feel) and
-arcade-fighter title screens. Clean, open (MIT), and easy to keep iterating
-toward a Steam release. All art + audio are **procedurally generated placeholders**
+arcade-fighter title screens. Clean, source-available (PolyForm Noncommercial),
+and easy to keep iterating toward a Steam release. All art + audio are **procedurally generated placeholders**
 (orange & blue palette) meant to be repainted in Aseprite later.
 
 ---
@@ -187,4 +187,8 @@ chess game (press P on the result screen).
 
 ## License
 
-MIT — make it your own.
+**PolyForm Noncommercial 1.0.0** — see [`LICENSE`](LICENSE). The source is open to
+read, fork, and modify for **noncommercial** purposes (personal use, hobby projects,
+learning, mods you share for free). **Commercial use — including selling PAWNCH or
+any derivative — requires permission from the copyright holder.** Copyright © 2026
+HeyImB3.

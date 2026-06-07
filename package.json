@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "PAWNCH - a chess-boxing game in 16-bit retro style. Win the chess OR the boxing to take the round.",
   "type": "module",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "start": "npx --yes serve -l 5173 .",
     "dev": "python3 -m http.server 5173",

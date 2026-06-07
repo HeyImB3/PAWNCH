@@ -11,7 +11,17 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(git remote:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git stash list:*)",
+      "Bash(git tag:*)",
+      "Bash(git describe:*)",
+      "Bash(git blame:*)",
+      "Bash(git shortlog:*)",
+      "Bash(git config --get:*)",
+      "Bash(git config --list:*)"
     ]
   }
 }

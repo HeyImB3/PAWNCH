@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PAWNCH — Arena Scenery Preview</title>
+<style>
+  :root { --ink:#070a16; --panel:#141a33; --line:#3a4a78; --text:#eaf0ff; --dim:#8ea0cf; --orange:#ff7a18; }
+  html,body { margin:0; background:var(--ink); color:var(--text); font-family:"Courier New",monospace; letter-spacing:.04em }
+  body { padding:20px 24px 60px }
+  h1 { color:var(--orange); text-transform:uppercase; text-shadow:2px 2px 0 #000; margin:0 0 4px }
+  p { color:var(--dim); font-size:13px; margin:0 0 18px; line-height:1.5 }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:4px; overflow:hidden; box-shadow:0 0 0 3px var(--ink) }
+  canvas { display:block; width:100%; height:auto; image-rendering:pixelated; background:#000 }
+  .cap { padding:7px 10px; font-size:12px; text-transform:uppercase; color:var(--text); border-top:1px solid var(--line) }
+  .cap small { color:var(--dim); text-transform:none }
+</style>
+</head>
+<body>
+  <h1>PAWNCH · Arena Scenery Preview</h1>
+  <p>Every arena rendered live by the real <code>src/scenery.js</code> + the real <code>ring()</code>, so this matches the in-game boxing backdrop.
+  The crowd value pulses 0→1 so you can see how each audience flares on big hits. This page is the tuning surface — edit <code>SCENERY.SCENES</code> in <code>src/config.js</code> and refresh.</p>
+  <div class="grid" id="grid"></div>
+  <script type="module">
+    import { drawScene } from '/src/scenery.js';
+    import { ring } from '/src/gfx.js';
+
+    // [sceneId, label, accent (the fighter's hue body color)]
+    const ORDER = [
+      ['classic',   'Classic Ring',              '#2b6cff'],
+      ['beach',     'Tropical Beach · Patty',    '#ff7a18'],
+      ['woods',     'Spooky Woods · Gus',        '#39d98a'],
+      ['cyber',     'Cyberpunk Street · Rosa',   '#ff3b53'],
+      ['dream',     'Dream World · Kid Knightmare', '#2b6cff'],
+      ['temple',    'Mountain Temple · Bishop',  '#9a5cff'],
+      ['castle',    'Sky Castle · Queen',        '#ff6ab0'],
+      ['space',     'Deep Space · Iron',         '#8fa0c0'],
+      ['abyss',     'Underwater Cave · Tal',     '#1fc8d0'],
+      ['chesshall', 'Grand Chess Hall · Magnus', '#ffd24a'],
+      ['stadium',   'Mega Stadium · Pawnchion',  '#ff7a18'],
+    ];
+    const W = 512, FLOOR = 170, H = 248;
+    const grid = document.getElementById('grid');
+    const cards = ORDER.map(([id, label, accent]) => {
+      const card = document.createElement('div'); card.className = 'card';
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+      const cap = document.createElement('div'); cap.className = 'cap';
+      cap.innerHTML = label + '  <small>(' + id + ')</small>';
+      card.append(cv, cap); grid.append(card);
+      return { id, accent, ctx };
+    });
+
+    let t0 = null;
+    function frame(ts) {
+      if (t0 == null) t0 = ts;
+      const t = (ts - t0) / 1000;
+      const crowd = 0.5 + 0.5 * Math.sin(t * 1.2);   // pulse so flares are visible
+      for (const c of cards) {
+        try {
+          drawScene(c.ctx, c.id, { W, floorTop: FLOOR, t, crowd, accent: c.accent });
+          ring(c.ctx, W, H, { floorTop: FLOOR, accent: c.accent, crowd });
+        } catch (e) {
+          c.ctx.fillStyle = '#300'; c.ctx.fillRect(0, 0, W, H);
+          c.ctx.fillStyle = '#f88'; c.ctx.font = '14px monospace';
+          c.ctx.fillText('ERROR: ' + c.id + ' — see console', 12, 24);
+          console.error('[scenery-preview]', c.id, e);
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

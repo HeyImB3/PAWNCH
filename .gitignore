@@ -25,3 +25,6 @@ build/
 
 # Claude local-only settings (keep launch.json so others can run the preview)
 .claude/settings.local.json
+
+# Superpowers brainstorm mockups (transient; specs/plans live in docs/)
+.superpowers/

@@ -1,7 +1,8 @@
 // Settings: sound volumes, a controls diagram, and display options.
 
-import { PAL } from '../config.js';
+import { PAL, SCENERY } from '../config.js';
 import { text, panel, barH, setPieceSet } from '../gfx.js';
+import { availableArenas } from '../scenery.js';
 import * as audio from '../audio.js';
 import { DEFAULT_BINDINGS } from '../input.js';
 
@@ -36,7 +37,7 @@ export class SettingsState {
   _rows(game) {
     if (this.tab === 0) return ['MASTER', 'MUSIC', 'SFX', 'BACK'];
     if (this.tab === 1) return [...this.remap.map((r) => r[0]), 'RESET', 'BACK'];
-    return ['SCANLINES', 'SCALE', 'PIECES', 'BACK'];
+    return ['SCANLINES', 'SCALE', 'PIECES', 'ARENA', 'BACK'];
   }
 
   update(game, dt) {
@@ -63,6 +64,7 @@ export class SettingsState {
       else if (row === 'SCANLINES') { game.save.settings.scanlines = !game.save.settings.scanlines; audio.sfx.select(); }
       else if (row === 'SCALE') { this._cycleScale(game); }
       else if (row === 'PIECES') { this._cyclePieceSet(game); }
+      else if (row === 'ARENA') { this._cycleArena(game); }
       else if (this.tab === 1) { this._beginRebind(game, row); }
     }
     if (i.pressed('cancel')) { audio.sfx.confirm(); game.persist(); this._back(game); }
@@ -109,6 +111,7 @@ export class SettingsState {
       if (row === 'SCANLINES') { game.save.settings.scanlines = !game.save.settings.scanlines; audio.sfx.select(); }
       if (row === 'SCALE') this._cycleScale(game);
       if (row === 'PIECES') this._cyclePieceSet(game);
+      if (row === 'ARENA') this._cycleArena(game);
     }
   }
   _cycleScale(game) {
@@ -122,6 +125,17 @@ export class SettingsState {
     const next = game.save.settings.pieceSet === 'arcane' ? 'celestial' : 'arcane';
     game.save.settings.pieceSet = next;
     setPieceSet(next);
+    game.persist();
+    audio.sfx.confirm();
+  }
+  // Switch the active multiplayer arena. CLASSIC is always available; the rest
+  // unlock by beating that fighter in Story. Inert (soft blip) if nothing's unlocked.
+  _cycleArena(game) {
+    const list = availableArenas(game.save);
+    if (list.length <= 1) { audio.sfx.select(); return; }   // only CLASSIC -> nothing to cycle
+    const cur = list.indexOf(game.save.settings.arena);
+    const next = list[(cur + 1 + list.length) % list.length] || 'classic';
+    game.save.settings.arena = next;
     game.persist();
     audio.sfx.confirm();
   }
@@ -200,24 +214,30 @@ export class SettingsState {
     const s = game.save.settings;
     const unlocked = !!game.save.unlocks.arcanePieces;
     const setLabel = s.pieceSet === 'arcane' ? 'ARCANE' : 'CELESTIAL';
+    const arenaCount = availableArenas(game.save).length;        // incl. CLASSIC
+    const arenaName = SCENERY.NAMES[s.arena] || 'CLASSIC RING';
     const rows = [
       ['SCANLINES', s.scanlines ? 'ON' : 'OFF', true],
       ['SCALE', s.scale === 'fit' ? 'FIT SCREEN' : 'INTEGER', true],
       ['PIECES', unlocked ? setLabel : 'LOCKED', unlocked],
+      ['ARENA', arenaName, true],
     ];
     rows.forEach(([label, val, enabled], i) => {
-      const y = 144 + i * 38;
+      const y = 138 + i * 32;
       const on = this.sel === i;
       text(ctx, label, 100, y, { scale: 2, color: on ? PAL.white : PAL.textDim });
-      text(ctx, val, 320, y, { scale: 2, color: enabled ? PAL.orange : PAL.line });
+      text(ctx, val, 300, y, { scale: 2, color: enabled ? PAL.orange : PAL.line });
     });
-    // hint line under the PIECES row
-    text(ctx, unlocked ? 'CELESTIAL = SUN & GALAXY    ARCANE = CLASSIC SET'
-                       : 'BEAT THE PAWNCHION TO UNLOCK THE ARCANE SET',
-      W / 2, 144 + 3 * 38 - 2, { scale: 1, color: unlocked ? PAL.textDim : PAL.orangeLite, align: 'center' });
-    const by = 144 + 3 * 38 + 16;
-    text(ctx, 'BACK', 100, by, { scale: 2, color: this.sel === 3 ? PAL.white : PAL.textDim });
-    text(ctx, 'ARROWS L/R OR ENTER TO TOGGLE', 100, by + 28, { scale: 1, color: PAL.textDim });
+    // context hint: pieces hint when PIECES is selected, else arena unlock progress
+    let hint;
+    if (this.sel === 2) hint = unlocked ? 'CELESTIAL = SUN & GALAXY   ARCANE = CLASSIC SET'
+                                        : 'BEAT THE PAWNCHION TO UNLOCK THE ARCANE SET';
+    else hint = arenaCount > 1 ? 'ARENAS UNLOCKED: ' + arenaCount + '/' + (SCENERY.OPPONENT_SCENES.length + 1) + '   WIN FIGHTS FOR MORE'
+                               : 'WIN A STORY FIGHT TO UNLOCK ITS ARENA';
+    text(ctx, hint, W / 2, 138 + 4 * 32 + 2, { scale: 1, color: PAL.orangeLite, align: 'center' });
+    const by = 138 + 4 * 32 + 18;
+    text(ctx, 'BACK', 100, by, { scale: 2, color: this.sel === 4 ? PAL.white : PAL.textDim });
+    text(ctx, 'ARROWS L/R OR ENTER TO CHANGE', 100, by + 26, { scale: 1, color: PAL.textDim });
   }
 }
 

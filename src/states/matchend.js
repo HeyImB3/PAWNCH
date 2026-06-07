@@ -1,7 +1,7 @@
 // Match end: WIN / LOSE / DRAW screen. In story mode a win advances progress
 // and offers "Ready for the next opponent?"; a loss offers a rematch.
 
-import { PAL } from '../config.js';
+import { PAL, SCENERY } from '../config.js';
 import { text, panel, boxer, logo } from '../gfx.js';
 import * as audio from '../audio.js';
 import { OPPONENTS, HUE } from '../opponents.js';
@@ -26,6 +26,13 @@ export class MatchEndState {
       // Beating THE PAWNCHION unlocks the ARCANE chess set (pick it in Settings).
       this.unlockedArcane = this.lastOpponent && !game.save.unlocks.arcanePieces;
       if (this.unlockedArcane) game.save.unlocks.arcanePieces = true;
+      // Beating a fighter unlocks THEIR arena for multiplayer (idempotent on replays).
+      const scene = SCENERY.OPPONENT_SCENES[this.m.opponent.index];
+      this.unlockedArena = null;
+      if (scene && !game.save.unlocks.arenas[scene]) {
+        game.save.unlocks.arenas[scene] = true;
+        this.unlockedArena = SCENERY.NAMES[scene];
+      }
       game.persist();
     }
     this.options = this._buildOptions();
@@ -102,9 +109,11 @@ export class MatchEndState {
     // menu
     if (this.t > 1.2) {
       if (this.story && this.win && !this.lastOpponent)
-        text(ctx, this.advanced ? 'READY FOR THE NEXT OPPONENT?' : 'BACK TO THE FIGHT SELECT', W / 2, 318, { scale: 1, color: PAL.orangeLite, align: 'center' });
+        text(ctx, this.advanced ? 'READY FOR THE NEXT OPPONENT?' : 'BACK TO THE FIGHT SELECT', W / 2, 312, { scale: 1, color: PAL.orangeLite, align: 'center' });
       if (this.unlockedArcane)
-        text(ctx, 'ARCANE CHESS SET UNLOCKED!', W / 2, 318, { scale: 1, color: PAL.gold, align: 'center' });
+        text(ctx, 'ARCANE CHESS SET UNLOCKED!', W / 2, 312, { scale: 1, color: PAL.gold, align: 'center' });
+      if (this.unlockedArena)
+        text(ctx, this.unlockedArena + ' ARENA UNLOCKED!', W / 2, 326, { scale: 1, color: PAL.green, align: 'center' });
       this.options.forEach((opt, idx) => {
         const y = 340 + idx * 28;
         const on = idx === this.sel;

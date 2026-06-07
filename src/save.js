@@ -1,6 +1,6 @@
 // Tiny localStorage-backed save: story progress + settings.
 
-import { SAVE_KEY } from './config.js';
+import { SAVE_KEY, SCENERY } from './config.js';
 import { DEFAULT_BINDINGS } from './input.js';
 import { OPPONENTS } from './opponents.js';
 
@@ -15,12 +15,14 @@ const DEFAULT = {
   savedMatch: null,           // an in-progress match parked from the pause menu (null = none)
   unlocks: {
     arcanePieces: false,       // the ARCANE chess set — earned by beating THE PAWNCHION
+    arenas: {},                // { [sceneId]: true } — arenas unlocked for multiplayer
   },
   settings: {
     volume: { master: 0.8, music: 0.7, sfx: 0.9 },
     scale: 'fit',              // 'fit' | 'integer'
     scanlines: true,
     pieceSet: 'celestial',     // active chess set: 'celestial' (default) | 'arcane' (unlock)
+    arena: 'classic',          // selected multiplayer arena id (Settings -> DISPLAY)
     bindings: DEFAULT_BINDINGS,
     bindingsRev: BINDINGS_REV,
   },
@@ -39,6 +41,12 @@ export function load() {
     // Retro-grant: anyone who has already cleared the whole ladder (incl. saves
     // from before this set existed) keeps the ARCANE chess set unlocked.
     if (state.storyProgress >= OPPONENTS.length) state.unlocks.arcanePieces = true;
+    // Retro-grant arenas for every already-beaten fighter (mirrors the arcane set):
+    // beating fighter i unlocks arena OPPONENT_SCENES[i].
+    const beaten = Math.min(state.storyProgress, SCENERY.OPPONENT_SCENES.length);
+    for (let i = 0; i < beaten; i++) state.unlocks.arenas[SCENERY.OPPONENT_SCENES[i]] = true;
+    // Can't have a locked arena selected (hand-edited/cross-device save) — fall back.
+    if (state.settings.arena !== 'classic' && !state.unlocks.arenas[state.settings.arena]) state.settings.arena = 'classic';
     // Can't have the ARCANE set selected without having unlocked it (e.g. a
     // hand-edited or cross-device save) — fall back to the default set.
     if (state.settings.pieceSet === 'arcane' && !state.unlocks.arcanePieces) state.settings.pieceSet = 'celestial';

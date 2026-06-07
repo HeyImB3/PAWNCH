@@ -7,6 +7,7 @@
 
 import { MATCH, PAL, BOX } from '../config.js';
 import { text, textWidth, panel, ring, boxer, barH } from '../gfx.js';
+import { drawScene, sceneFor } from '../scenery.js';
 import * as audio from '../audio.js';
 import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
 import { OPPONENTS, HUE } from '../opponents.js';
@@ -36,6 +37,7 @@ export class BoxingState {
     this.tellPopT = 0;         // attack-tell banner pop-in timer (set on each windup)
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.red) : HUE.red;
     this.accent = this.oppHue.body;
+    this.sceneId = sceneFor(m, game.save);   // story: opponent arena; pvp: player's pick
     // a brightened copy of the opponent's theme — flickered onto them while they
     // wind up a SPECIAL (Punch-Out-style tell), plus a red "staggered" palette.
     this.flareHue = { body: lighten(this.oppHue.body, 0.55), trim: lighten(this.oppHue.trim, 0.45), skin: lighten(this.oppHue.skin, 0.4) };
@@ -127,6 +129,7 @@ export class BoxingState {
 
   draw(game, ctx) {
     const W = game.W, H = game.H;
+    drawScene(ctx, this.sceneId, { W, floorTop: 170, t: this.t, crowd: this.crowd, accent: this.accent });
     ring(ctx, W, H, { floorTop: 170, accent: this.accent, crowd: this.crowd });
 
     const p = this.match.player, e = this.match.enemy;

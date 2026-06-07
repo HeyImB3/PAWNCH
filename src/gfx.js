@@ -411,7 +411,7 @@ function bevelGlyph(ctx, ch, x, y, s, shear) {
 }
 
 // lighten/darken a #rrggbb hex by amt (-255..255)
-function shade(hex, amt) {
+export function shade(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
   const cl = (v) => Math.max(0, Math.min(255, v));
   const r = cl(((n >> 16) & 255) + amt), g = cl(((n >> 8) & 255) + amt), b = cl((n & 255) + amt);
@@ -481,7 +481,7 @@ export function piece(ctx, type, cx, cy, size, white, { t = 0, phase = 0, lift =
   for (let c = 0; c < COLS; c++) if (g[sr]?.[c] === '1') { ctx.fillStyle = `rgba(255,255,255,${0.5 * glow})`; ctx.fillRect(x + c * s, y + sr * s, s, Math.max(1, s / 2)); break; }
 }
 
-function withA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+export function withA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
 
 // ---- boxer sprite ------------------------------------------------------
 // A 16-bit caricature boxer (Punch-Out-ish): rounded head, neck, sloped
@@ -711,29 +711,10 @@ export function bgGradient(ctx, w, h, top = PAL.ink2, bottom = PAL.ink) {
 // Boxing ring: perspective floor, ropes, corner posts, crowd glow.
 // `accent` tints the arena per-opponent; `crowd` (0..1) flares the crowd on big hits.
 export function ring(ctx, W, H, { floorTop = 150, accent = PAL.blue, crowd = 0 } = {}) {
-  // arena backdrop (tinted toward the accent)
-  const g = ctx.createLinearGradient(0, 0, 0, floorTop);
-  g.addColorStop(0, mix('#070b1e', accent, 0.16)); g.addColorStop(1, '#10152b');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, floorTop);
-
-  // overhead spotlights
-  for (const [sx, col] of [[W * 0.28, PAL.orange], [W * 0.72, accent]]) {
-    const gr = ctx.createLinearGradient(sx, 0, sx, floorTop);
-    gr.addColorStop(0, mixA(col, 0.18 + crowd * 0.15)); gr.addColorStop(1, mixA(col, 0));
-    ctx.fillStyle = gr;
-    ctx.beginPath(); ctx.moveTo(sx - 10, 0); ctx.lineTo(sx + 10, 0); ctx.lineTo(sx + 70, floorTop); ctx.lineTo(sx - 70, floorTop); ctx.closePath(); ctx.fill();
-  }
-
-  // tiered crowd (3 bands, nearer = bigger/brighter), flares with `crowd`
-  for (let band = 0; band < 3; band++) {
-    const by = 12 + band * 26, bh = 22, sz = 2 + band;
-    ctx.fillStyle = `rgba(${200 + band * 18},${205},${230},${0.10 + band * 0.05 + crowd * 0.45})`;
-    for (let i = 0; i < 26; i++) {
-      const cx2 = ((i * 41 + band * 13) % W);
-      ctx.fillRect(cx2, by + ((i * 7) % bh), sz, sz);
-    }
-  }
-  if (crowd > 0.01) { ctx.fillStyle = mixA(accent, crowd * 0.22); ctx.fillRect(0, 0, W, floorTop); }
+  // The arena BACKDROP (gradient, spotlights, tiered crowd, accent wash) now lives
+  // in scenery.js (the `classic` scene) so each opponent can swap it out. ring()
+  // draws ONLY the physical ring over the chosen scene. `accent` still tints the
+  // ropes/posts/emblem below; `crowd` is kept in the signature (unused here now).
 
   // ring apron (front skirt) + canvas floor
   ctx.fillStyle = mix(PAL.ringFloor, '#000', 0.35);
@@ -780,18 +761,18 @@ export function ring(ctx, W, H, { floorTop = 150, accent = PAL.blue, crowd = 0 }
   }
 }
 // blend two #rrggbb hex colors; t=0 -> a, t=1 -> b
-function mix(a, b, t) {
+export function mix(a, b, t) {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
   const r = Math.round(((pa >> 16 & 255)) * (1 - t) + (pb >> 16 & 255) * t);
   const g = Math.round(((pa >> 8 & 255)) * (1 - t) + (pb >> 8 & 255) * t);
   const bch = Math.round(((pa & 255)) * (1 - t) + (pb & 255) * t);
   return '#' + ((1 << 24) + (r << 16) + (g << 8) + bch).toString(16).slice(1);
 }
-function mixA(hex, alpha) {
+export function mixA(hex, alpha) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${alpha})`;
 }
-function lerp(a, b, t) { return a + (b - a) * t; }
+export function lerp(a, b, t) { return a + (b - a) * t; }
 
 // A little 8-bit chess table off in the corner (for the walk intro).
 // An ornate carved-wood chess table with a gold-trimmed board shown in light

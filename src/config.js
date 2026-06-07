@@ -195,3 +195,35 @@ export const SAVE_KEY = 'pawnch.save.v1';
 export const NET = {
   url: null,
 };
+
+// Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a
+// built-in CLASSIC ring. Story forces the opponent's arena; multiplayer uses the
+// player's unlocked, selected arena (see save.settings.arena). All scene tuning
+// lives here so draw code (src/scenery.js) holds no magic numbers / raw hex.
+export const SCENERY = {
+  // opponent index (0..9) -> scene id. Index-aligned to the ROSTER in opponents.js.
+  OPPONENT_SCENES: ['beach', 'woods', 'cyber', 'dream', 'temple', 'castle', 'space', 'abyss', 'chesshall', 'stadium'],
+  // display names (Settings arena picker + unlock toast)
+  NAMES: {
+    classic: 'CLASSIC RING', beach: 'TROPICAL BEACH', woods: 'SPOOKY WOODS',
+    cyber: 'CYBERPUNK STREET', dream: 'DREAM WORLD', temple: 'MOUNTAIN TEMPLE',
+    castle: 'SKY CASTLE', space: 'DEEP SPACE', abyss: 'UNDERWATER CAVE',
+    chesshall: 'GRAND CHESS HALL', stadium: 'MEGA STADIUM',
+  },
+  ANIM: 1.0,          // global ambient-motion speed multiplier (turn scenes calmer/busier)
+  CROWD_FLARE: 0.45,  // extra audience brightness on big hits (driven by boxing `crowd` 0..1)
+  // per-scene palettes + density/speed knobs. Colors are scene-specific (NOT brand
+  // palette) so they live here, namespaced, instead of in PAL.
+  SCENES: {
+    beach:   { sky: ['#7ad0ff', '#bfe9ff', '#ffd9a0', '#f2c27a'], sun: '#fff6cf', sunGlow: '#ffd24a', sea: '#3aa7e0', seaHi: '#7fd0ef', sand: '#e7c486', palm: '#3a2410', leaf: '#2f9b54', crowd: '#3a2a1a', crowdN: 22, palms: 2 },
+    woods:   { sky: ['#0d1f15', '#06120c', '#040a06'], trunk: '#0c1c14', trunkN: 5, fireCore: '#fff6c0', fireMid: '#ff9a18', fireGlow: '#ffb24a', candleN: 6, fly: '#bfff7a', flyN: 7, crowd: '#0a140e', crowdN: 14 },
+    cyber:   { sky: ['#13062a', '#1a0830', '#070414'], bld: '#0a0618', bldN: 6, neon: ['#ff3bd0', '#22e7ff', '#ffe14a', '#7a5cff'], crowd: '#7a9bff', crowdN: 30, rain: 'rgba(150,200,255,0.10)' },
+    dream:   { sky: ['#5a2a8a', '#b85cc0', '#ffb0d6', '#8fd0ff'], cloud: 'rgba(255,255,255,0.6)', shape: 'rgba(255,255,255,0.5)', ghost: 'rgba(255,255,255,0.45)', ghostN: 5, star: '#ffffff', starN: 10 },
+    temple:  { sky: ['#caa0ff', '#9a5cff', '#5a3a8a'], peak: '#4a2f7a', peak2: '#3a2566', stone: '#3a2566', stoneHi: '#52397f', roof: '#2a1a4a', flag: ['#ff7a18', '#ffd24a'], cloud: 'rgba(255,255,255,0.5)', monk: '#1e1232', monkN: 16 },
+    castle:  { sky: ['#8fd0ff', '#bfe6ff', '#e8f4ff'], cloud: '#ffffff', cloudN: 4, keep: '#9aa6c8', tower: '#8a96b8', roof: '#ff3b53', banner: '#ff7a18', crowd: '#2a2040', crowdN: 18, bird: '#22324f' },
+    space:   { core: '#1a1040', edge: '#020108', star: '#ffffff', starN: 22, planet: ['#7a9bff', '#2b4cc0', '#16236a'], ring: 'rgba(111,160,255,0.5)', neb: '#7a5cff', gallery: '#0e1a3a', ast: '#cfe0ff', astN: 6 },
+    abyss:   { sky: ['#0a4a52', '#073238', '#04181c'], rock: '#06262b', fireCore: '#fff3c0', fireMid: '#ff8a18', fireGlow: '#ff9a3a', fireN: 3, jelly: ['#ffd0ff', '#c46aff'], jellyN: 5, bub: 'rgba(191,239,255,0.55)', bubN: 8 },
+    chesshall: { sky: ['#2a1d3a', '#1a1228', '#0e0a18'], col: '#2e2348', win: '#3a2f6a', chand: '#ffd24a', chandN: 3, table: '#4a3018', tableTop: '#6f4d29', head: '#d8c0a0', headN: 7, piece: '#f0e3c8' },
+    stadium: { sky: ['#0a1430', '#13357f', '#1a4a9a'], tiers: ['#ff7a18', '#2b6cff', '#ffd24a', '#39d98a'], tierN: 3, light: '#ffffff', jumbo: '#020610', jumboFrame: '#3a4a78', conf: ['#ff7a18', '#ffd24a', '#2b6cff'], floor: '#2a3566' },
+  },
+};

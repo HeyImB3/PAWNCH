@@ -108,3 +108,254 @@ export function availableArenas(save) {
   const unlocked = save?.unlocks?.arenas || {};
   return ['classic', ...SCENERY.OPPONENT_SCENES.filter((id) => unlocked[id])];
 }
+
+// ---- the ten fighter arenas -------------------------------------------------
+// Each draws only the backdrop region (y ~0..floorTop); ring() draws over the
+// lower band. Pure functions of t + crowd; colors/knobs come from SCENERY.SCENES.
+
+// TROPICAL BEACH (Patty) — gentle sun, rolling surf, swaying palms, sand crowd.
+function beachScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.beach;
+  sky(ctx, W, floorTop, C.sky);
+  const horizon = floorTop * 0.5;
+  const sx = W * 0.22, sy = horizon * 0.5;
+  glow(ctx, sx, sy, 40, C.sunGlow, 0.5 + 0.1 * Math.sin(t * 1.5));
+  ctx.fillStyle = C.sun; ctx.beginPath(); ctx.arc(sx, sy, 16, 0, TAU); ctx.fill();
+  ctx.fillStyle = C.sea; ctx.fillRect(0, horizon, W, floorTop * 0.18);
+  ctx.fillStyle = C.seaHi;
+  for (let x = 0; x < W; x += 8) ctx.fillRect(x, horizon + 4 + Math.sin(t * 2 + x * 0.05) * 2, 5, 1);
+  ctx.fillStyle = C.sand; ctx.fillRect(0, horizon + floorTop * 0.18, W, floorTop);
+  crowdRow(ctx, W, floorTop - 14, 8, C.crowdN, C.crowd, t, { wave: 1.5, speed: 2, alpha: 0.5, flare: crowd * SCENERY.CROWD_FLARE });
+  for (let i = 0; i < C.palms; i++) {
+    const px = W * (0.18 + i * 0.62), base = floorTop - 10;
+    const swayX = Math.sin(t * 1.2 * A() + i) * 5;
+    ctx.strokeStyle = C.palm; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(px, base); ctx.quadraticCurveTo(px + swayX * 0.5, base - 22, px + swayX, base - 40); ctx.stroke();
+    ctx.fillStyle = C.leaf;
+    for (let a = -2; a <= 2; a++) { ctx.beginPath(); ctx.ellipse(px + swayX, base - 42, 16, 4, a * 0.5 + Math.sin(t + a) * 0.05, 0, TAU); ctx.fill(); }
+  }
+}
+SCENES.beach = { draw: beachScene };
+
+// SPOOKY WOODS (Gus Gambit) — dark trunks, bobbing candles, fireflies, hooded crowd.
+function woodsScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.woods;
+  sky(ctx, W, floorTop, C.sky);
+  ctx.fillStyle = C.trunk;
+  for (let i = 0; i < C.trunkN; i++) {
+    const x = (i + 0.5) / C.trunkN * W + (hash(i) - 0.5) * 30, w = 10 + hash(i + 3) * 14;
+    ctx.fillRect(x - w / 2, floorTop * (0.1 + hash(i + 1) * 0.1), w, floorTop);
+  }
+  crowdRow(ctx, W, floorTop - 16, 16, C.crowdN, C.crowd, t, { wave: 1, speed: 1.4, sz: 5, alpha: 0.85, flare: crowd * 0.2 });
+  for (let i = 0; i < C.candleN; i++) {
+    const cx = (i + 0.5) / C.candleN * W + Math.sin(t * 0.6 + i) * 10;
+    const cy = floorTop * (0.25 + 0.45 * hash(i + 7)) + Math.sin(t * 1.6 * A() + i * 1.3) * 6;
+    flame(ctx, cx, cy, 5, t, i * 1.7, C.fireCore, C.fireMid, C.fireGlow);
+  }
+  for (let i = 0; i < C.flyN; i++) {
+    const fx = drift(t, 6 + i, W, 10, i * 70), fy = floorTop * (0.3 + 0.5 * hash(i + 2)) + Math.sin(t * 2 + i) * 8;
+    twinkle(ctx, fx, fy, 2, C.fly, t, i * 2.1);
+  }
+}
+SCENES.woods = { draw: woodsScene };
+
+// CYBERPUNK STREET (Rosa Rookrush) — building silhouettes, neon, rain, sidewalk crowd.
+function cyberScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.cyber;
+  sky(ctx, W, floorTop, C.sky);
+  ctx.fillStyle = C.bld;
+  for (let i = 0; i < C.bldN; i++) {
+    const w = W / C.bldN, x = i * w, h = floorTop * (0.5 + 0.45 * hash(i + 1));
+    ctx.fillRect(x + 2, floorTop - h, w - 4, h);
+  }
+  for (let i = 0; i < 6; i++) {
+    const col = C.neon[i % C.neon.length], bx = (i * 97 % (W - 50)) + 6, by = 12 + (i * 37 % 70);
+    const on = (Math.sin(t * 7 * A() + i * 2) > -0.4) ? 1 : 0.35;
+    glow(ctx, bx + 22, by + 12, 30, col, 0.4 * on);
+    ctx.globalAlpha = on; ctx.fillStyle = col; ctx.fillRect(bx, by, 44, 24); ctx.globalAlpha = 1;
+  }
+  ctx.strokeStyle = C.rain; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i < 40; i++) {
+    const rx = (i * 53 + (t * 200 * A()) % W) % W, ry = (i * 41 + (t * 300 * A())) % floorTop;
+    ctx.moveTo(rx, ry); ctx.lineTo(rx - 3, ry + 9);
+  }
+  ctx.stroke();
+  crowdRow(ctx, W, floorTop - 12, 10, C.crowdN, C.crowd, t, { wave: 1.5, speed: 2.5, alpha: 0.55, flare: crowd * SCENERY.CROWD_FLARE });
+}
+SCENES.cyber = { draw: cyberScene };
+
+// DREAM WORLD (Kid Knightmare) — hue-shifting pastel sky, floating shapes, spectres.
+function dreamScene(ctx, p) {
+  const { W, floorTop, t } = p; const C = SCENERY.SCENES.dream;
+  const k = (Math.sin(t * 0.2) + 1) / 2;
+  sky(ctx, W, floorTop, [mix(C.sky[0], C.sky[3], k), C.sky[1], mix(C.sky[2], C.sky[0], k)]);
+  for (let i = 0; i < 3; i++) {
+    const cx = drift(t, 4 + i * 2, W, 40, i * 160), cy = floorTop * (0.2 + 0.2 * i);
+    ctx.fillStyle = C.cloud; ctx.beginPath(); ctx.ellipse(cx, cy, 40, 12, 0, 0, TAU); ctx.fill();
+  }
+  for (let i = 0; i < 4; i++) {
+    const x = (i + 0.5) / 4 * W + Math.sin(t * 0.5 + i) * 12, y = floorTop * (0.3 + 0.3 * hash(i + 5)) + Math.sin(t * 1.2 + i) * 8;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(t * 0.6 + i); ctx.fillStyle = C.shape;
+    if (i % 2) ctx.fillRect(-7, -7, 14, 14); else { ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(8, 7); ctx.lineTo(-8, 7); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+  for (let i = 0; i < C.starN; i++) twinkle(ctx, hash(i) * W, hash(i + 1) * floorTop * 0.7, 2, C.star, t, i * 1.3);
+  for (let i = 0; i < C.ghostN; i++) {
+    const gx = drift(t, 8 + i * 2, W, 16, i * 90), gy = floorTop - 14 + Math.sin(t * 1.5 + i) * 4;
+    ctx.fillStyle = C.ghost; ctx.beginPath();
+    ctx.moveTo(gx - 6, gy + 10); ctx.lineTo(gx - 6, gy - 6); ctx.arc(gx, gy - 6, 6, Math.PI, 0); ctx.lineTo(gx + 6, gy + 10); ctx.closePath(); ctx.fill();
+  }
+}
+SCENES.dream = { draw: dreamScene };
+
+// MOUNTAIN TEMPLE (Bishop Bruiser) — twilight peaks, pillared shrine, monks, flags.
+function templeScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.temple;
+  sky(ctx, W, floorTop, C.sky);
+  for (let i = 0; i < 2; i++) { const cx = drift(t, 5 + i * 3, W, 50, i * 200); ctx.fillStyle = C.cloud; ctx.beginPath(); ctx.ellipse(cx, floorTop * (0.2 + i * 0.2), 46, 8, 0, 0, TAU); ctx.fill(); }
+  const peak = (x, w, h, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, floorTop); ctx.lineTo(x + w / 2, floorTop - h); ctx.lineTo(x + w, floorTop); ctx.closePath(); ctx.fill(); };
+  peak(-20, 160, floorTop * 0.7, C.peak2); peak(W - 140, 170, floorTop * 0.8, C.peak2);
+  const bx = W / 2 - 70, bw = 140, baseY = floorTop - 40;
+  ctx.fillStyle = C.stone; ctx.fillRect(bx, baseY, bw, 40);
+  ctx.fillStyle = C.stoneHi; for (let i = 0; i < 4; i++) ctx.fillRect(bx + 12 + i * 36, baseY, 8, 40);
+  ctx.fillStyle = C.roof; ctx.beginPath(); ctx.moveTo(bx - 14, baseY); ctx.lineTo(W / 2, baseY - 30); ctx.lineTo(bx + bw + 14, baseY); ctx.closePath(); ctx.fill();
+  crowdRow(ctx, W, floorTop - 12, 8, C.monkN, C.monk, t, { wave: 0.8, speed: 1, sz: 5, alpha: 0.8, flare: crowd * 0.2 });
+  for (let i = 0; i < 8; i++) {
+    const fx = W * 0.2 + i * (W * 0.6 / 8), fy = 24 + Math.sin(i) * 4, flutter = 0.6 + 0.4 * Math.sin(t * 4 * A() + i);
+    ctx.fillStyle = C.flag[i % C.flag.length]; ctx.fillRect(fx, fy, 12 * flutter, 8);
+  }
+}
+SCENES.temple = { draw: templeScene };
+
+// SKY CASTLE (Queen Quake) — bright sky, parallax clouds, floating keep, banners, birds.
+function castleScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.castle;
+  sky(ctx, W, floorTop, C.sky);
+  for (let i = 0; i < C.cloudN; i++) {
+    const cx = drift(t, 3 + i * 2, W, 60, i * 130), cy = floorTop * (0.12 + 0.22 * hash(i + 1));
+    ctx.fillStyle = C.cloud; ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.ellipse(cx, cy, 50, 14, 0, 0, TAU); ctx.ellipse(cx + 26, cy + 4, 30, 10, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  const bob = Math.sin(t * 0.8 * A()) * 4, midY = floorTop * 0.5 + bob;
+  for (const tx of [W / 2 - 64, W / 2 + 40]) {
+    ctx.fillStyle = C.tower; ctx.fillRect(tx, midY - 30, 24, 70);
+    ctx.fillStyle = C.roof; ctx.beginPath(); ctx.moveTo(tx - 4, midY - 30); ctx.lineTo(tx + 12, midY - 50); ctx.lineTo(tx + 28, midY - 30); ctx.closePath(); ctx.fill();
+    const fl = 0.6 + 0.4 * Math.sin(t * 4 + tx); ctx.fillStyle = C.banner; ctx.fillRect(tx + 12, midY - 50, 8 * fl, 12);
+  }
+  ctx.fillStyle = C.keep; ctx.fillRect(W / 2 - 34, midY - 10, 68, 50);
+  ctx.fillStyle = shade(C.keep, -30); ctx.fillRect(W / 2 - 8, midY + 14, 16, 26);
+  crowdRow(ctx, W, midY + 42, 6, C.crowdN, C.crowd, t, { wave: 1, speed: 2, sz: 3, alpha: 0.6, flare: crowd * SCENERY.CROWD_FLARE });
+  for (let i = 0; i < 3; i++) {
+    const bx = W / 2 + Math.cos(t * 0.8 + i * 2) * 90, by = floorTop * 0.3 + Math.sin(t * 0.8 + i * 2) * 20;
+    ctx.strokeStyle = C.bird; ctx.lineWidth = 1; ctx.beginPath();
+    ctx.moveTo(bx - 4, by); ctx.lineTo(bx, by - 2 - Math.sin(t * 8 + i)); ctx.lineTo(bx + 4, by); ctx.stroke();
+  }
+}
+SCENES.castle = { draw: castleScene };
+
+// DEEP SPACE (Iron Endgame) — starfield, ringed planet, nebula, astronaut gallery.
+function spaceScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.space;
+  const g = ctx.createRadialGradient(W * 0.7, floorTop * 0.3, 4, W * 0.5, floorTop * 0.5, W * 0.8);
+  g.addColorStop(0, C.core); g.addColorStop(1, C.edge); ctx.fillStyle = g; ctx.fillRect(0, 0, W, floorTop);
+  for (let i = 0; i < C.starN; i++) twinkle(ctx, hash(i) * W, hash(i + 9) * floorTop * 0.85, 1 + (hash(i + 3) > 0.8 ? 1 : 0), C.star, t, i);
+  glow(ctx, drift(t, 3, W, 60, 0), floorTop * 0.55, 70, C.neb, 0.22 + 0.06 * Math.sin(t));
+  const px = W * 0.74, py = floorTop * 0.32;
+  const pg = ctx.createRadialGradient(px - 6, py - 6, 2, px, py, 26);
+  pg.addColorStop(0, C.planet[0]); pg.addColorStop(0.6, C.planet[1]); pg.addColorStop(1, C.planet[2]);
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, 24, 0, TAU); ctx.fill();
+  ctx.strokeStyle = C.ring; ctx.lineWidth = 3; ctx.save(); ctx.translate(px, py); ctx.rotate(-0.3); ctx.scale(1, 0.32); ctx.beginPath(); ctx.arc(0, 0, 40, 0, TAU); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = C.gallery; ctx.fillRect(0, floorTop - 24, W, 24);
+  for (let i = 0; i < C.astN; i++) {
+    const ax = (i + 0.5) / C.astN * W, ay = floorTop - 14 + Math.sin(t * 1.5 * A() + i * 1.7) * 4;
+    glow(ctx, ax, ay, 7, C.ast, 0.4 + crowd * 0.4);
+    ctx.fillStyle = C.ast; ctx.fillRect(ax - 4, ay - 6, 8, 12); ctx.fillStyle = C.planet[1]; ctx.fillRect(ax - 2, ay - 4, 4, 3);
+  }
+}
+SCENES.space = { draw: spaceScene };
+
+// UNDERWATER CAVE (Tal Tempest) — teal depths, rock walls, little fires, jellyfish, bubbles.
+function abyssScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.abyss;
+  sky(ctx, W, floorTop, C.sky);
+  ctx.globalAlpha = 0.12; ctx.fillStyle = C.jelly[1];
+  for (let x = 0; x < W; x += 16) ctx.fillRect(x, 6 + Math.sin(t * 2 + x * 0.04) * 4, 8, 2);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = C.rock;
+  ctx.beginPath(); ctx.moveTo(0, floorTop); ctx.lineTo(0, floorTop * 0.5); ctx.lineTo(70, floorTop); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W, floorTop); ctx.lineTo(W, floorTop * 0.4); ctx.lineTo(W - 84, floorTop); ctx.closePath(); ctx.fill();
+  for (let i = 0; i < C.fireN; i++) flame(ctx, 24 + i * 18, floorTop - 18 - i * 4, 5, t, i * 2, C.fireCore, C.fireMid, C.fireGlow);
+  for (let i = 0; i < C.jellyN; i++) {
+    const jx = (i + 0.5) / C.jellyN * W + Math.sin(t + i) * 14;
+    const jy = floorTop - ((t * 18 * A() + i * 40) % (floorTop + 20));
+    const col = C.jelly[i % C.jelly.length];
+    glow(ctx, jx, jy, 16, col, 0.5 + crowd * 0.3);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(jx, jy, 9, 7, 0, Math.PI, TAU); ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.beginPath();
+    for (let k = -2; k <= 2; k++) { ctx.moveTo(jx + k * 3, jy); ctx.lineTo(jx + k * 3 + Math.sin(t * 3 + k) * 2, jy + 10); }
+    ctx.stroke();
+  }
+  for (let i = 0; i < C.bubN; i++) {
+    const bx = hash(i) * W, by = floorTop - ((t * 30 * A() + i * 25) % (floorTop + 10));
+    ctx.fillStyle = C.bub; ctx.beginPath(); ctx.arc(bx, by, 1.5 + hash(i + 1) * 1.5, 0, TAU); ctx.fill();
+  }
+}
+SCENES.abyss = { draw: abyssScene };
+
+// GRAND CHESS HALL (Magnus) — tall windows, columns, chandeliers, rows of boards.
+function chesshallScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.chesshall;
+  sky(ctx, W, floorTop, C.sky);
+  ctx.fillStyle = C.win;
+  for (let i = 0; i < 4; i++) { const x = 24 + i * (W - 48) / 4; ctx.fillRect(x, 8, 26, 70); }
+  ctx.fillStyle = C.col;
+  for (const x of [70, W / 2 - 7, W - 84]) ctx.fillRect(x, 0, 14, floorTop);
+  for (let i = 0; i < C.chandN; i++) {
+    const cx = (i + 0.5) / C.chandN * W, cy = 14 + Math.sin(t * 1.5 * A() + i) * 3;
+    ctx.strokeStyle = shade(C.chand, -60); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, cy); ctx.stroke();
+    glow(ctx, cx, cy, 14, C.chand, 0.5); ctx.fillStyle = C.chand; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, TAU); ctx.fill();
+  }
+  for (let i = 0; i < C.headN; i++) {
+    const tx = 30 + i * (W - 60) / (C.headN - 1), ty = floorTop - 22;
+    ctx.fillStyle = C.tableTop; ctx.fillRect(tx - 14, ty, 28, 4);
+    ctx.fillStyle = C.table; ctx.fillRect(tx - 14, ty + 4, 28, 8);
+    ctx.fillStyle = C.piece; ctx.fillRect(tx - 3, ty - 6, 2, 6); ctx.fillRect(tx + 1, ty - 6, 2, 6);
+    const hx = tx + Math.sin(t * 1.2 + i) * 2;
+    ctx.fillStyle = C.head; ctx.beginPath(); ctx.arc(hx, ty - 12, 4, 0, TAU); ctx.fill();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(C.chand, crowd * 0.12); ctx.fillRect(0, 0, W, floorTop); }
+}
+SCENES.chesshall = { draw: chesshallScene };
+
+// MEGA STADIUM (THE PAWNCHION) — packed tiers doing the WAVE, lights, jumbotron, confetti.
+function stadiumScene(ctx, p) {
+  const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.stadium;
+  sky(ctx, W, floorTop, C.sky);
+  for (const lx of [W * 0.12, W * 0.88]) {
+    const on = 0.7 + 0.3 * Math.sin(t * 3 + lx);
+    glow(ctx, lx, 8, 22, C.light, 0.5 * on);
+    ctx.fillStyle = C.light; ctx.globalAlpha = on; ctx.fillRect(lx - 5, 2, 10, 8); ctx.globalAlpha = 1;
+  }
+  for (let band = 0; band < C.tierN; band++) {
+    const y = 18 + band * 16, h = 14;
+    for (let i = 0; i < 64; i++) {
+      const x = i / 64 * W, dy = Math.sin(t * 3 * A() - i * 0.35 + band * 0.5) * 4;
+      ctx.fillStyle = C.tiers[(i + band) % C.tiers.length];
+      ctx.globalAlpha = Math.min(1, 0.6 + crowd * SCENERY.CROWD_FLARE);
+      ctx.fillRect(x | 0, (y + dy) | 0, 6, h);
+    }
+  }
+  ctx.globalAlpha = 1;
+  const jx = W / 2 - 36, jy = 14;
+  ctx.fillStyle = C.jumboFrame; ctx.fillRect(jx - 3, jy - 3, 78, 42);
+  ctx.fillStyle = C.jumbo; ctx.fillRect(jx, jy, 72, 36);
+  glow(ctx, W / 2, jy + 18, 40, C.tiers[1], 0.18);
+  text(ctx, 'PAWNCH', W / 2, jy + 12, { scale: 1, color: C.tiers[0], align: 'center' });
+  text(ctx, 'CHAMP', W / 2, jy + 24, { scale: 1, color: C.tiers[2], align: 'center' });
+  for (let i = 0; i < 18; i++) {
+    const cx = hash(i) * W, cy = (t * 40 * A() + i * 30) % floorTop;
+    ctx.fillStyle = C.conf[i % C.conf.length]; ctx.fillRect(cx, cy, 3, 5);
+  }
+  ctx.fillStyle = C.floor; ctx.fillRect(0, floorTop - 18, W, 18);
+}
+SCENES.stadium = { draw: stadiumScene };

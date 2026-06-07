@@ -6,6 +6,22 @@ the whole match. The game is **vanilla JavaScript (ES modules) with no build ste
 and no dependencies**. This file tells you (Claude) how to work in this repo. For
 the player-facing overview and full feature list, see [`README.md`](README.md).
 
+## Design pillars (read before tuning any gameplay)
+
+These are *why* PAWNCH exists; the Golden Rules below enforce them. Trading one of
+these away for a change that "feels nicer" is a regression, not a shortcut.
+
+- **It's a skill game, and it's hard on purpose.** Patty (fight 1) is the only
+  gentle tutorial — the ladder cliffs upward right after him and climbs to a
+  near-perfect champion. Wins should feel *earned*. Never dumb down the AI to make a
+  half feel better; fix the player's tools or the telegraphing instead.
+- **You out-*read* opponents, you don't out-*mash* them.** The boxing half rewards
+  timing, spacing, and the perfect parry — never punch spam. Mashing must stay
+  actively punished (see the anti-mash Golden Rule).
+- **Both halves carry equal weight.** Winning *either* the chess half or the boxing
+  half wins the match, so neither can be ignored or auto-skipped — that's what the
+  chess-skip HP cap defends.
+
 ## Run it / see your changes
 
 The game is static ES modules, so it **must be served over `http://`** — never
@@ -42,7 +58,8 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
 - **Chess brain** in `src/chess/`: `board.js` (full legal rules + FEN), `ai.js`
   (built-in alpha-beta `chooseMove`), `engine.js` (`bestMove()` tries Stockfish-WASM
   from a CDN, falls back to the built-in AI, with a humanized think time).
-- **Boxing sim** in `src/boxing.js` (`BoxingMatch`) — Punch-Out-style.
+- **Boxing sim** in `src/boxing.js` (`BoxingMatch`) — Punch-Out-style read-and-react:
+  telegraphed tells, perfect-parry staggers, best-of-3 knockdowns, get-up minigame.
 
 ## Golden rules (don't break these)
 
@@ -63,17 +80,38 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
    chess↔boxing crossover belong in the `match` model and its `resolve*` methods.
 7. **Match the surrounding style** — small, focused modules with short explanatory
    comments. Read the neighboring file before adding code.
+8. **Opponents are tough on purpose — never flatten the curve.** Only Patty (fight
+   1) is a real tutorial. `boxingFromDifficulty()` (`src/opponents.js`) lifts
+   everyone after him onto a high band — effective difficulty starts at `FLOOR`
+   (~0.68) for fight 2 and ramps to 1.0 at the champion, and `parrySkill` climbs
+   alongside it. Changes must *preserve* this steep skill curve: if a tweak makes
+   the mid-roster mashable or lets the champion be beaten without reading tells,
+   that's a regression. Re-tune via `FLOOR` / the `mix()` endpoints / `parrySkill`
+   — never by gutting the AI.
+9. **You can't win the boxing half by mashing — keep it that way.** Every boxing
+   change must keep offensive spam punished: the perfect parry (`BOX.PARRY` —
+   window, `WHIFF_STAMINA`, `LOCKOUT_MS`, plus AI parry-reads driven by
+   `parrySkill`) and the chess-skip cap (`MATCH.NO_MOVE_HP_CAP`) exist for exactly
+   this. The ONE sanctioned mash is the get-up minigame (`BOX.GET_UP` — mash to beat
+   the count); don't "fix" that one as if it were the bad kind.
 
 ## Common tasks
 
 - **Add a Story Mode opponent** → use **`/new-opponent`** (edits the `ROSTER` in
-  `src/opponents.js`). Difficulty `d` (0–1) drives every boxing stat; ELO climbs
-  ~+200/step, capped at 2000.
+  `src/opponents.js`). Difficulty `d` (0–1) drives every boxing stat via
+  `boxingFromDifficulty()`, which compresses everyone after Patty into a high band
+  (`FLOOR`) and scales `parrySkill` — so a new mid-roster fighter should still feel
+  genuinely hard (see Golden Rule 8). ELO climbs ~+200/step, capped at 2000.
 - **Add a new screen / mode** → use **`/new-state`** (scaffolds the class and
   registers it in `game.js`).
-- **Change how a fight feels** → `BOX` in `src/config.js`.
+- **Change how a fight feels** → `BOX` in `src/config.js` — incl. `BOX.PARRY` (the
+  anti-mash perfect parry) and `BOX.GET_UP` (the knockdown/get-up minigame).
 - **Change round / clock / heal rules** → `MATCH` in `src/config.js` plus the
-  `resolve*` methods in `game.js`.
+  `resolve*` methods in `game.js`. Chess is ONE continuous per-player clock for the
+  whole match (`CHESS_SECONDS` + `CHESS_INCREMENT_MS`, ticking only during chess
+  halves); each half is windowed to `CHESS_HALF_SECONDS`; new rounds heal
+  `HEAL_MIN..HEAL_MAX`; and skipping your chess move caps that round's boxing HP at
+  `NO_MOVE_HP_CAP`.
 - **Add a sound** → `audio.js` (the `sfx` object / song data). Chiptune only — no
   audio files.
 

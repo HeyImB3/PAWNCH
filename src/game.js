@@ -182,6 +182,20 @@ export class Game {
     return heal;
   }
 
+  // A flow transition between states (walk->chess, roundbreak->walk). Offline this
+  // is just a changeState. Online (the WIP authoritative timeline) only the
+  // authority advances and relays the transition; the peer follows. The state
+  // files call this instead of changeState so both paths share one entry point.
+  // TODO(online-sync): the broader online timeline is still WIP — see docs/ONLINE_SYNC_TODO.md.
+  netFlow(name, params = {}) {
+    const m = this.match;
+    if (m?.net) {
+      if (!m.netAuthority) return;          // peer follows the authority's relay
+      m.net.sendPhase('state', { name, params });
+    }
+    this.changeState(name, params);
+  }
+
   // Hidden developer shortcut (see DEV in config.js). Holding the combo keys
   // together for SKIP_HOLD_MS during a chess or boxing half fast-forwards to the
   // other half: chess -> boxing, boxing -> the next round's chess. Lets me test

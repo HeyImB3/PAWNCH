@@ -3,7 +3,7 @@
 // back to the Game (checkmate / flag = decisive; timeout / draw = go box).
 
 import { MATCH, PAL, CHESS } from '../config.js';
-import { text, textWidth, panel, piece as drawPiece, boxer } from '../gfx.js';
+import { text, textWidth, panel, piece as drawPiece } from '../gfx.js';
 import * as audio from '../audio.js';
 import * as Chess from '../chess/board.js';
 import { bestMove } from '../chess/engine.js';

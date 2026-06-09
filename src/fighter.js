@@ -105,6 +105,17 @@ function drawLegs(ctx,g,C){
   ctx.fillRect(lx-g.calfHalf-2,g.yAnkle-1,caW+4,g.yFeet-g.yAnkle+2);
   ctx.fillRect(rx-g.calfHalf-2,g.yAnkle-1,caW+4,g.yFeet-g.yAnkle+2);
 }
+function drawDown(ctx,g,C,glove){
+  const y=g.yFeet-6;
+  ctx.fillStyle='rgba(0,0,0,0.34)'; ctx.fillRect(CX-34,y+6,68,5);
+  ctx.strokeStyle=C.body; ctx.lineCap='round'; ctx.lineWidth=g.thighHalf*2;       // legs out flat
+  ctx.beginPath(); ctx.moveTo(CX-6,y); ctx.lineTo(CX-30,y+2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(CX+6,y); ctx.lineTo(CX+30,y-2); ctx.stroke();
+  ctx.fillStyle=C.body; ctx.beginPath(); ctx.ellipse(CX,y-6,g.shoulderHalf*0.9,7,0,0,Math.PI*2); ctx.fill(); // torso
+  ctx.fillStyle=C.trim; ctx.fillRect(CX-10,y-2,20,5);                              // trunks
+  ctx.fillStyle=C.skin; ctx.beginPath(); ctx.ellipse(CX-g.shoulderHalf*0.9-6,y-8,g.headRx,g.headRy*0.8,0,0,Math.PI*2); ctx.fill(); // head to the side
+  ctx.fillStyle=glove.g; ctx.beginPath(); ctx.arc(CX+g.shoulderHalf*0.9+6,y-2,g.gloveR,0,Math.PI*2); ctx.fill();
+}
 function drawTorso(ctx,g,C){
   ctx.fillStyle=C.body; torsoPath(ctx,g); ctx.fill();
   ctx.save(); torsoPath(ctx,g); ctx.clip();
@@ -147,6 +158,16 @@ function drawHead(ctx,g,C,look){
       ctx.beginPath(); ctx.moveTo(bx,g.yHeadTop+2); ctx.lineTo(bx+5,g.yHeadTop+4); ctx.lineTo(bx+2,g.yHeadTop-11); ctx.closePath(); ctx.fill(); }
     ctx.fillStyle=C.trim; ctx.fillRect(CX-1,g.yHeadTop-9,3,8);
   }
+}
+function drawHeadBack(ctx,g,C,look){
+  ctx.fillStyle=C.skin; ctx.fillRect(CX-g.neckW/2,g.yNeck-2,g.neckW,8);          // neck nape
+  ctx.fillStyle=look.hairCol||'#241813';
+  ctx.beginPath(); ctx.ellipse(CX,g.yHeadC,g.headRx,g.headRy,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=shade(look.hairCol||'#241813',-22);                              // right-side shadow
+  ctx.save(); ctx.beginPath(); ctx.ellipse(CX,g.yHeadC,g.headRx,g.headRy,0,0,Math.PI*2); ctx.clip();
+  ctx.fillRect(CX+g.headRx*0.3,g.yHeadC-g.headRy,g.headRx,g.headRy*2); ctx.restore();
+  ctx.fillStyle=shade(look.hairCol||'#241813',16);                               // crisp nape fade line
+  ctx.fillRect(CX-g.headRx*0.7,g.yHeadC+g.headRy*0.5,g.headRx*1.4,1.5);
 }
 const HAT={
   pawnDomeShort(ctx,g,C){ const t=g.yHeadTop, hw=g.headRx;
@@ -267,24 +288,36 @@ function drawFX(ctx,g,C,pp,step){ const t=step*0.1; ctx.save();
   ctx.restore();
 }
 
-function render(look,pose,step){
+function render(look,pose,step,facing,info){
   const [art,ctx]=newCv(IW,IH); const g=geom(look); const C=colors(look.hue);
-  const pp=poseFor(g,pose,step,look);
+  const pp=poseFor(g,pose,step,look,info);
   look._forge = pp.fx==='forge';
+  const back = facing===-1;
   const glove = look.gloveTint==='orange' ? {g:C.body,hi:C.bodyHi,sh:C.bodySh} : {g:'#ededf2',hi:'#ffffff',sh:'#b9b9c6'};
-  drawLegs(ctx,g,C);
-  ctx.save(); ctx.translate(pp.leanX,pp.sink);
-  drawArm(ctx,pp.R,C.body,glove,g);
-  drawTorso(ctx,g,C);
-  drawChest(ctx,g,look,C);
-  drawSash(ctx,g,look,C);
-  if(look.towers) drawTowers(ctx,g,C);
-  drawHead(ctx,g,C,look);
-  (HAT[look.headgear]||HAT.none)(ctx,g,C);
-  drawArm(ctx,pp.L,C.body,glove,g);
-  ctx.restore();
+  if(pose==='down'){ drawDown(ctx,g,C,glove); }
+  else {
+    drawLegs(ctx,g,C);
+    ctx.save(); ctx.translate(pp.leanX,pp.sink);
+    drawArm(ctx,pp.R,C.body,glove,g);
+    drawTorso(ctx,g,C);
+    if(!back){ drawChest(ctx,g,look,C); drawSash(ctx,g,look,C); }
+    if(look.towers) drawTowers(ctx,g,C);
+    if(back){ drawHeadBack(ctx,g,C,look); }
+    else { drawHead(ctx,g,C,look); (HAT[look.headgear]||HAT.none)(ctx,g,C); }
+    drawArm(ctx,pp.L,C.body,glove,g);
+    ctx.restore();
+  }
   const lined=outlineCanvas(art); const lctx=lined.getContext('2d');
-  lctx.save(); lctx.translate(pp.leanX,pp.sink); drawFace(lctx,g,C,look); lctx.restore();
+  if(!back && pose!=='down'){ lctx.save(); lctx.translate(pp.leanX,pp.sink); drawFace(lctx,g,C,look); lctx.restore(); }
   if(pp.fx) drawFX(lctx,g,C,pp,step);
   return {lined,label:pp.label,geom:g};
+}
+
+// Public API: render `look` in `pose` and blit it pixel-crisp.
+// x = horizontal center; y = FEET baseline (sprite/hat grow upward). size = blit scale.
+// facing: 1 = front (opponents), -1 = back (player). info = { arm, kind, target } (optional).
+export function drawFighter(ctx, x, y, size, look, pose='idle', facing=1, step=0, info=null){
+  const { lined } = render(look, pose, step, facing, info);
+  const dx = Math.round(x - CX*size), dy = Math.round(y - FEET*size);
+  ctx.drawImage(lined, dx, dy, Math.round(IW*size), Math.round(IH*size));
 }

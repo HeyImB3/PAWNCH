@@ -1,10 +1,11 @@
 // Between-round rest: both fighters recover 10-15% HP (the "make it back to
 // your corner" heal), then we walk back to the board for the next round.
 
-import { PAL, MATCH } from '../config.js';
-import { text, panel, ring, boxer, barH } from '../gfx.js';
+import { PAL, MATCH, FIGHTER } from '../config.js';
+import { text, panel, ring, barH } from '../gfx.js';
+import { drawFighter } from '../fighter.js';
 import * as audio from '../audio.js';
-import { HUE } from '../opponents.js';
+import { HUE, HERO_LOOK } from '../opponents.js';
 
 export class RoundBreakState {
   enter(game) {
@@ -14,6 +15,7 @@ export class RoundBreakState {
     this.healed = game.applyRoundHeal();
     this.after = { ...this.m.hp };
     this.oppHue = this.m.mode === 'story' ? (HUE[this.m.opponent.hue] || HUE.red) : HUE.red;
+    this.oppLook = (this.m.mode === 'story' && this.m.opponent?.look) ? this.m.opponent.look : { ...HERO_LOOK, hue: HUE.red };
     audio.sfx.bell();
   }
 
@@ -21,7 +23,7 @@ export class RoundBreakState {
     this.t += dt / 1000;
     if (this.t > 1 && (game.input.pressed('confirm') || this.t > 3.2)) {
       audio.sfx.confirm();
-      game.changeState('walk');
+      game.netFlow('walk');   // online: only the authority advances; the peer follows
     }
   }
 
@@ -33,8 +35,8 @@ export class RoundBreakState {
     text(ctx, 'RECOVER...', W / 2, 60, { scale: 2, color: PAL.blueLite, align: 'center', shadow: PAL.ink });
 
     // fighters resting in their corners
-    boxer(ctx, 110, H - 60, 5, HUE.player, 'idle', 1, this.t * 2);
-    boxer(ctx, W - 110, H - 60, 5, this.oppHue, 'idle', 1, this.t * 2 + 1);
+    drawFighter(ctx, 110, H - 34, FIGHTER.SIZE.break, HERO_LOOK, 'idle', 1, this.t * 2);
+    drawFighter(ctx, W - 110, H - 34, FIGHTER.SIZE.break, this.oppLook, 'idle', 1, this.t * 2 + 1);
 
     // animated heal bars
     const k = Math.min(1, this.t / 1.2);

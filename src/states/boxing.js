@@ -6,11 +6,13 @@
 // (side + HIGH/LOW + a SIGNATURE warning), and hit-stop/crowd juice.
 
 import { MATCH, PAL, BOX } from '../config.js';
-import { text, textWidth, panel, ring, boxer, barH } from '../gfx.js';
+import { FIGHTER } from '../config.js';
+import { text, textWidth, panel, ring, barH } from '../gfx.js';
+import { drawFighter } from '../fighter.js';
 import { drawScene, sceneFor } from '../scenery.js';
 import * as audio from '../audio.js';
 import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
-import { OPPONENTS, HUE } from '../opponents.js';
+import { OPPONENTS, HUE, HERO_LOOK, DEFAULT_LOOK } from '../opponents.js';
 import { material, WHITE } from '../chess/board.js';
 
 // Get-up bar gradient: a chunky 16-bit ramp from electric blue (empty/left) into
@@ -36,6 +38,8 @@ export class BoxingState {
     this.sigWarnT = 0;         // signature warning flash
     this.tellPopT = 0;         // attack-tell banner pop-in timer (set on each windup)
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.red) : HUE.red;
+    this.enemyLook = (m.mode === 'story' && m.opponent?.look) ? m.opponent.look : DEFAULT_LOOK;
+    this.playerLook = HERO_LOOK;
     this.accent = this.oppHue.body;
     this.sceneId = sceneFor(m, game.save);   // story: opponent arena; pvp: player's pick
     // a brightened copy of the opponent's theme — flickered onto them while they
@@ -135,37 +139,34 @@ export class BoxingState {
     const p = this.match.player, e = this.match.enemy;
 
     // opponent (center, facing camera)
-    const eMap = { idle: 'idle', guard: 'guard', stance: 'guard', windup: e.arm === 'L' ? 'windupL' : 'windupR', punch: e.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', stun: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
-    const ex = W / 2 + e.offset, ey = 150 + e.duckY;
-    // SPECIAL tell (Punch-Out style): flicker the opponent in a brightened version
-    // of their theme color while a special / signature winds up. Stagger overrides
-    // it with a pulsing red.
+    const ex = W / 2 + e.offset;
     const eFlaring = (e.special || e.kind === 'signature') && (e.pose === 'windup' || e.pose === 'stance') && Math.floor(this.t * 18) % 2 === 0;
-    let eHue = this.oppHue;
-    if (e.pose === 'stun') eHue = Math.floor(this.t * 12) % 2 ? this.redHue : this.oppHue;
-    else if (eFlaring) eHue = this.flareHue;
+    let eLook = this.enemyLook;
+    if (e.pose === 'stun') eLook = Math.floor(this.t * 12) % 2 ? { ...this.enemyLook, hue: this.redHue } : this.enemyLook;
+    else if (eFlaring) eLook = { ...this.enemyLook, hue: this.flareHue };
     if (e.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
-    boxer(ctx, ex, ey, 5.2, eHue, eMap[e.pose] || 'idle', 1, this.t * 4);
+    const em = mapPose(e);
+    drawFighter(ctx, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, eLook, em.pose, 1, this.t * 4, em.info);
     ctx.globalAlpha = 1;
-    if (e.pose === 'stun') this._stunFx(ctx, ex, ey - 40);
+    if (e.pose === 'stun') this._stunFx(ctx, ex, FIGHTER.ENEMY_FEET_Y - 150);
 
     // attack TELL during enemy windup, or a "don't punch!" warning during a counter stance
     if (e.pose === 'windup') this._tell(ctx, e);
     else if (e.pose === 'stance') this._stanceWarn(ctx, e);
 
     // player (foreground, from behind)
-    const pMap = { idle: 'idle', guard: 'guard', windup: 'guard', punch: p.arm === 'L' ? 'punchL' : 'punchR', recover: 'idle', hurt: 'hurt', stun: 'hurt', dodgeL: 'idle', dodgeR: 'idle', duck: 'idle', down: 'down', ko: 'down' };
-    const pxs = W / 2 + p.offset, pys = H - 118 + p.duckY;
-    const pHue = (p.pose === 'stun' && Math.floor(this.t * 12) % 2) ? this.redHue : HUE.player;
-    if (p.starFx > 0) { // star uppercut glow
+    const pxs = W / 2 + p.offset;
+    let pLook = (p.pose === 'stun' && Math.floor(this.t * 12) % 2) ? { ...this.playerLook, hue: this.redHue } : this.playerLook;
+    if (p.starFx > 0) {
       ctx.globalAlpha = 0.5 * (p.starFx / 320);
-      ctx.fillStyle = PAL.gold; ctx.beginPath(); ctx.arc(pxs, pys - 20, 70, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = PAL.gold; ctx.beginPath(); ctx.arc(pxs, FIGHTER.PLAYER_FEET_Y - 150, 70, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
     if (p.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
-    boxer(ctx, pxs, pys, 6.5, pHue, pMap[p.pose] || 'idle', -1, this.t * 4);
+    const pm = mapPose(p);
+    drawFighter(ctx, pxs, FIGHTER.PLAYER_FEET_Y, FIGHTER.SIZE.player, pLook, pm.pose, -1, this.t * 4, pm.info);
     ctx.globalAlpha = 1;
-    if (p.pose === 'stun') this._stunFx(ctx, pxs, pys - 56);
+    if (p.pose === 'stun') this._stunFx(ctx, pxs, FIGHTER.PLAYER_FEET_Y - 150);
 
     this._hud(game, ctx);
     this._nameplate(game, ctx);
@@ -474,8 +475,12 @@ export class BoxingState {
     this._ctrlBox(game, ctx, 6, 'P1', PAL.blueLite,
       [['A/D', 'JAB'], ['Q/E', 'HOOK'], ['Z/C', 'DODGE'], ['X', 'DUCK'], ['S', 'BLK/PARRY'], ['SPACE', 'GET UP']]);
     // P2 (right player): mirrored numpad cluster (N = numpad); + = get up.
-    this._ctrlBox(game, ctx, game.W - 94, 'P2', PAL.orangeLite,
-      [['N4/6', 'JAB'], ['N7/9', 'HOOK'], ['N1/3', 'DODGE'], ['N2', 'DUCK'], ['N5', 'BLK/PARRY'], ['N +', 'GET UP']]);
+    // Hotseat only — online players each control their own side from one keyboard,
+    // so the P2 numpad card is irrelevant on the remote client.
+    if (!this.m.net) {
+      this._ctrlBox(game, ctx, game.W - 94, 'P2', PAL.orangeLite,
+        [['N4/6', 'JAB'], ['N7/9', 'HOOK'], ['N1/3', 'DODGE'], ['N2', 'DUCK'], ['N5', 'BLK/PARRY'], ['N +', 'GET UP']]);
+    }
   }
 
   // a clean controls card: an accent-colored title bar (P1 blue / P2 orange),
@@ -544,4 +549,22 @@ function lighten(hex, t) {
   const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
   const m = (v) => Math.round(v + (255 - v) * t);
   return '#' + ((1 << 24) + (m(r) << 16) + (m(g) << 8) + m(b)).toString(16).slice(1);
+}
+
+// Map a BoxingMatch fighter's sim state to a fighter.js render pose + info.
+// This is where jab finally renders differently from hook, and where a boss
+// SPECIAL / signature wind-up shows the fighter's unique special pose.
+function mapPose(fr) {
+  const p = fr.pose;
+  const info = { arm: fr.arm || 'R', kind: fr.kind || 'jab', target: fr.target || 'high' };
+  if (p === 'windup') return (fr.special || fr.kind === 'signature') ? { pose: 'special' } : { pose: 'windup', info };
+  if (p === 'punch')  return { pose: 'punch', info };
+  if (p === 'stance') return { pose: 'special' };          // counter-stance boss move
+  if (p === 'recover') return { pose: 'idle' };
+  if (p === 'dodgeL' || p === 'dodgeR' || p === 'duck') return { pose: 'duck' };
+  if (p === 'hurt')  return { pose: 'hurt' };
+  if (p === 'stun')  return { pose: 'stagger' };
+  if (p === 'down' || p === 'ko') return { pose: 'down' };
+  if (p === 'guard') return { pose: 'guard' };
+  return { pose: 'idle' };
 }

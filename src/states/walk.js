@@ -1,10 +1,11 @@
 // "Walk to the board" flair (3-5s): the two fighters stroll from the ring
 // over to the chess table in the corner before the chess half begins.
 
-import { MATCH, PAL } from '../config.js';
-import { text, ring, chessTable, boxer, piece, pieceSprite } from '../gfx.js';
+import { MATCH, PAL, FIGHTER } from '../config.js';
+import { text, ring, chessTable, piece, pieceSprite } from '../gfx.js';
+import { drawFighter } from '../fighter.js';
 import * as audio from '../audio.js';
-import { HUE } from '../opponents.js';
+import { HUE, HERO_LOOK } from '../opponents.js';
 import { WHITE } from '../chess/board.js';
 
 export class WalkState {
@@ -14,6 +15,7 @@ export class WalkState {
     audio.playFightTheme();
     const m = game.match;
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.player) : HUE.red;
+    this.oppLook = (m.mode === 'story' && m.opponent?.look) ? m.opponent.look : { ...HERO_LOOK, hue: HUE.red };
     this.round = m.round;
     // a "coin toss" reveal of the seated colors — only at the start of a match
     this.tossT = 0;
@@ -38,7 +40,7 @@ export class WalkState {
     }
     this.t += dt / 1000;
     if (this.t >= this.dur || game.input.pressed('confirm')) {
-      game.changeState('chess');
+      game.netFlow('chess');   // online: only the authority advances; the peer follows
     }
   }
 
@@ -61,12 +63,12 @@ export class WalkState {
     const px = lerp(pStartX, pEndX, ease);
     const py = H - 78;
     const step = this.t * 9;
-    boxer(ctx, px, py, 4, HUE.player, p < 0.98 ? 'walk' : 'idle', 1, step);
+    drawFighter(ctx, px, py, FIGHTER.SIZE.walk, HERO_LOOK, p < 0.98 ? 'walk' : 'idle', 1, step);
 
     // opponent walks from far right toward the other side of the table
     const oStartX = W * 0.86, oEndX = tableX + 90;
     const ox = lerp(oStartX, oEndX, ease);
-    boxer(ctx, ox, py - 6, 4, this.oppHue, p < 0.98 ? 'walk' : 'idle', 1, step + 1.5);
+    drawFighter(ctx, ox, py, FIGHTER.SIZE.walk, this.oppLook, p < 0.98 ? 'walk' : 'idle', 1, step + 1.5);
 
     // coin-toss overlay owns the screen at match start; otherwise the walk banner
     if (this.tossT < this.tossDur) { this._drawToss(game, ctx); return; }

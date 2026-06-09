@@ -1,10 +1,11 @@
 // Match end: WIN / LOSE / DRAW screen. In story mode a win advances progress
 // and offers "Ready for the next opponent?"; a loss offers a rematch.
 
-import { PAL, SCENERY } from '../config.js';
-import { text, panel, boxer, logo } from '../gfx.js';
+import { PAL, SCENERY, FIGHTER } from '../config.js';
+import { text, panel, logo } from '../gfx.js';
+import { drawFighter } from '../fighter.js';
 import * as audio from '../audio.js';
-import { OPPONENTS, HUE } from '../opponents.js';
+import { OPPONENTS, HERO_LOOK } from '../opponents.js';
 import { tossColor } from '../chess/board.js';
 
 export class MatchEndState {
@@ -94,8 +95,8 @@ export class MatchEndState {
 
     // who
     const winnerIsPlayer = this.win;
-    const hue = this.story && !winnerIsPlayer ? (HUE[this.m.opponent.hue] || HUE.red) : HUE.player;
-    boxer(ctx, W / 2, 198, 5, hue, this.isDraw ? 'idle' : 'guard', 1, this.t * 6);
+    const winnerLook = (this.story && !winnerIsPlayer && this.m.opponent?.look) ? this.m.opponent.look : HERO_LOOK;
+    drawFighter(ctx, W / 2, 300, FIGHTER.SIZE.end, winnerLook, this.isDraw ? 'idle' : 'guard', 1, this.t * 6);
 
     // reason line
     const reasons = { checkmate: 'BY CHECKMATE', flag: 'ON THE CLOCK', ko: 'BY KNOCKOUT', material: 'ON MATERIAL', draw: 'EVEN MATERIAL' };

@@ -30,15 +30,29 @@ function geom(B){
     upperW:9*(B.shoulder||1)*0.55+6, foreW:7*(B.glove||1)*0.5+5, belly:B.belly };
 }
 
-function poseFor(g,pose,step,look){
+// pose: idle|guard|windup|punch|special|duck|hurt|stagger|down|walk
+// info (optional): { arm:'L'|'R', kind:'jab'|'hook'|'signature', target:'high'|'low' }
+function poseFor(g,pose,step,look,info){
   const shY=g.yShoulder+3, shL=CX-g.shoulderHalf*0.8, shR=CX+g.shoulderHalf*0.8;
   const chin=g.yHeadC+g.headRy*0.6, bob=Math.sin(step*0.5)*(look.bob??1.2);
+  const arm=info?.arm||'R', kind=info?.kind||'jab', high=info?.target!=='low';
+  const yHit=high?chin+6:chin+16;                          // HIGH = head line, LOW = body line
   let L={sh:[shL,shY], el:[shL-3,shY+20], gl:[CX-13,chin+12+bob]};
   let R={sh:[shR,shY], el:[shR+3,shY+20], gl:[CX+13,chin+12-bob]};
   let leanX=0, sink=0, fx=null, label=pose.toUpperCase(), expose=false;
+  // helper: cock one arm back/out (the windup tell), or extend it (the punch)
+  const guardOff=(A)=> A==='L' ? (L.gl=[CX-9,chin+2]) : (R.gl=[CX+9,chin+2]);
   if(pose==='guard'){ L.gl=[CX-9,chin+2]; R.gl=[CX+9,chin+2]; }
-  else if(pose==='jab'){ R.gl=[CX+4,chin+16]; R.el=[shR+5,shY+15]; L.gl=[CX-9,chin+2]; label='JAB'; }
-  else if(pose==='hook'){ R.gl=[CX-6,chin-6]; R.el=[shR+10,shY+12]; L.gl=[CX-9,chin+2]; leanX=4; label='HOOK'; }
+  else if(pose==='windup'){
+    label='WINDUP'; guardOff(arm==='L'?'R':'L');
+    if(kind==='hook'){ if(arm==='L'){ L.gl=[CX-17,shY+10]; L.el=[shL-10,shY+12]; } else { R.gl=[CX+17,shY+10]; R.el=[shR+10,shY+12]; } leanX = arm==='L'?-2:2; }
+    else { if(arm==='L'){ L.gl=[CX-15,yHit-4]; } else { R.gl=[CX+15,yHit-4]; } } // jab/signature: pull straight back
+  }
+  else if(pose==='punch'){
+    label=kind==='hook'?'HOOK':'JAB'; guardOff(arm==='L'?'R':'L');
+    if(kind==='hook'){ if(arm==='L'){ L.gl=[CX+6,chin-6]; L.el=[shL-10,shY+12]; } else { R.gl=[CX-6,chin-6]; R.el=[shR+10,shY+12]; } leanX = arm==='L'?-4:4; }
+    else { if(arm==='L'){ L.gl=[CX-4,yHit]; L.el=[shL-5,shY+15]; } else { R.gl=[CX+4,yHit]; R.el=[shR+5,shY+15]; } }
+  }
   else if(pose==='special'){
     const sp=look.special||{}; label=sp.name||'SPECIAL'; fx=sp.fx; const f=sp.frame;
     const HI=g.yHeadC-g.headRy-6;
@@ -52,6 +66,11 @@ function poseFor(g,pose,step,look){
     else if(f==='counter'){ L.gl=[CX-9,g.yWaist]; R.gl=[CX+9,g.yWaist]; L.el=[shL-3,shY+16]; R.el=[shR+3,shY+16]; sink=2; }
     else if(f==='uppercut'){ R.gl=[CX+4,g.yWaist+6]; R.el=[shR+4,shY+20]; L.gl=[CX-9,chin]; sink=3; }
   }
+  else if(pose==='duck'){ sink=8; L.gl=[CX-9,chin+4]; R.gl=[CX+9,chin+4]; label='DUCK'; }
+  else if(pose==='hurt'){ leanX=2; L.gl=[CX-11,chin+10]; R.gl=[CX+11,chin+10]; label='HURT'; }
+  else if(pose==='stagger'){ leanX=-2; L.gl=[CX-13,chin+14]; R.gl=[CX+13,chin+14]; label='STAGGER'; }
+  else if(pose==='down'){ label='DOWN'; }   // down handled specially in render (Task 4)
+  else if(pose==='walk'){ const sw=Math.sin(step)*3; L.gl=[CX-12,chin+10+sw]; R.gl=[CX+12,chin+10-sw]; label='WALK'; }
   return {L,R,leanX,sink,fx,label,expose};
 }
 function drawArm(ctx,a,limbCol,glove,g){

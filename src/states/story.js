@@ -12,9 +12,10 @@
 //   idx >  progress -> LOCKED  (silhouette, not selectable yet)
 
 import { PAL } from '../config.js';
-import { text, textWidth, panel, portrait } from '../gfx.js';
+import { text, textWidth, panel } from '../gfx.js';
+import { drawPortrait } from '../fighter.js';
 import * as audio from '../audio.js';
-import { OPPONENTS, HUE } from '../opponents.js';
+import { OPPONENTS } from '../opponents.js';
 import { tossColor } from '../chess/board.js';
 
 // 5x2 grid of portrait buttons + a virtual RESET focus target after the grid.
@@ -179,7 +180,7 @@ export class StoryState {
     if (sel) border = PAL.orange;
     panel(ctx, r.x, r.y, r.w, r.h, { fill: PAL.ink, border, border2: PAL.ink });
 
-    portrait(ctx, r.x, r.y, r.w, r.h, HUE[o.hue] || HUE.player, { silhouette: !s.beaten, t: t + idx });
+    drawPortrait(ctx, r.x, r.y, r.w, r.h, o.look, { silhouette: !s.beaten, t: t + idx });
 
     // ladder-number badge
     text(ctx, '#' + (idx + 1), r.x + 4, r.y + 4, { scale: 1, color: s.beaten ? PAL.white : PAL.textDim, shadow: PAL.ink });

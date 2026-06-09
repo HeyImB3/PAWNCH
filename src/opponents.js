@@ -98,16 +98,6 @@ const ROSTER = [
     special: { name: 'CHECKMATE BLOW', type: 'checkmate', dmgBase: 24, dmgScale: 30, tgBase: 820, tgScale: 280, cooldownMs: 4200 } },
 ];
 
-export const OPPONENTS = ROSTER.map((o, i) => ({
-  id: i,
-  index: i,
-  name: o.name,
-  elo: o.elo,
-  tag: o.tag,
-  hue: o.hue,
-  boxing: boxingFromDifficulty(o.d, o.special),
-}));
-
 export const HUE = {
   orange: { body: '#ff7a18', trim: '#c14d00', skin: '#f2b07a' },
   green:  { body: '#39d98a', trim: '#1f7a4d', skin: '#e8a878' },
@@ -121,3 +111,58 @@ export const HUE = {
   champ:  { body: '#ff7a18', trim: '#2b6cff', skin: '#f2c090' },
   player: { body: '#2b6cff', trim: '#13357f', skin: '#f2b07a' },
 };
+
+// Per-fighter visual `look` (consumed by src/fighter.js). Build fields are
+// proportion multipliers on the neutral skeleton (default 1). `chest` is the
+// build width; `emblem` is the chest MOTIF (distinct keys — do not merge).
+const LOOKS = {
+  0:{ hgt:0.84, head:1.12, shoulder:0.84, chest:1.0, waist:1.2, hip:1.12, glove:1.28, belly:1, bob:1.6,
+      headgear:'pawnDomeShort', emblem:'pawnGlyph',
+      special:{name:'PAWN STORM',frame:'bothLow',fx:'pips'}, face:{brows:'hopeful',mouth:'grin',cheekDab:true} },
+  1:{ hgt:0.93, shoulder:0.9, waist:0.85,
+      headgear:'pawnDomeTall', sash:{dir:'LR'},
+      special:{name:'GAMBIT JAB',frame:'oneLoadedHigh',fx:'spark'}, face:{brows:'cocked',mouth:'smirk'} },
+  2:{ hgt:0.95, shoulder:1.12, chest:1.08, waist:1.0,
+      headgear:'rookChimney', emblem:'brick',
+      special:{name:'ROOK ROLL',frame:'bothLow',fx:'streak'}, face:{brows:'angryV',mouth:'grin',hairCol:'#7a0c18'} },
+  3:{ hgt:0.97, shoulder:0.9, waist:0.82, chest:1.0,
+      headgear:'knightVisor', emblem:'fork', hair:'none',
+      special:{name:'FORK HOOK',frame:'bothHighFeint',fx:'spark'}, face:{brows:'cocked',mouth:'smirk'} },
+  4:{ hgt:1.03, shoulder:1.05, waist:0.85,
+      headgear:'mitre', sash:{dir:'RL'},
+      special:{name:'DIAGONAL DRIVE',frame:'oneLoadedLow',fx:'diag'}, face:{brows:'flatHeavy',mouth:'flat'} },
+  5:{ hgt:1.06, shoulder:1.12, chest:1.05,
+      headgear:'queenCoronet', sash:{dir:'LR',wide:true},
+      special:{name:'QUEEN QUAKE',frame:'overhead',fx:'quake'}, face:{brows:'angryV',mouth:'lipstick',hooded:true,cheekMark:true} },
+  6:{ hgt:0.98, head:0.92, shoulder:1.5, chest:1.25, waist:0.9, thigh:1.18, bob:0.2,
+      headgear:'rookStub', emblem:'rivets',
+      special:{name:'ZUGZWANG SLAM',frame:'maul',fx:'forge'}, face:{brows:'bar',mouth:'flat',eyeCol:'#2a2a30'} },
+  7:{ hgt:1.06, shoulder:1.0, waist:0.78, bob:1.4,
+      headgear:'none', hair:'stormMane', sash:{dir:'RL',pips:3},
+      special:{name:'SAC ATTACK',frame:'crucifix',fx:'bolt'}, face:{brows:'angryV',mouth:'smirk',widowPeak:true,catchlight:true,stubble:true} },
+  8:{ hgt:1.12, shoulder:1.15, chest:1.05, waist:0.95, bob:0.25,
+      headgear:'kingCrown', hair:'sideSwept', hairCol:'#7a5836', heavyJaw:true, sash:{dir:'LR',stud:true},
+      special:{name:'ENDGAME CRUSH',frame:'counter',fx:'aura'}, face:{brows:'flatHeavy',mouth:'smirk',hooded:true,stubble:true} },
+  9:{ hgt:1.18, shoulder:1.2, chest:1.1, waist:0.9, towers:true, gloveTint:'orange',
+      headgear:'amalgam', hair:'none', emblem:'kingcross', sash:{dir:'LR',stud:true},
+      special:{name:'CHECKMATE BLOW',frame:'oneLoadedHigh',fx:'streak'}, face:{brows:'bar',mouth:'flat',glint:true} },
+};
+
+// The player (drawn back-view in a fight, front on win screens). No chess gimmick.
+export const HERO_LOOK = { hue: HUE.player, hgt:1.06, shoulder:1.05, waist:0.8,
+  headgear:'none', special:{name:'UPPERCUT',frame:'uppercut'}, face:{brows:'hopeful',mouth:'grin'} };
+
+// Fallback look for PVP/online enemies (no Story `look`): a plain red boxer.
+export const DEFAULT_LOOK = { hue: HUE.red, hgt:1.0, shoulder:1.0, waist:1.0,
+  headgear:'none', special:{name:'HAYMAKER',frame:'oneLoadedHigh',fx:'streak'}, face:{brows:'flat',mouth:'flat'} };
+
+export const OPPONENTS = ROSTER.map((o, i) => ({
+  id: i,
+  index: i,
+  name: o.name,
+  elo: o.elo,
+  tag: o.tag,
+  hue: o.hue,
+  boxing: boxingFromDifficulty(o.d, o.special),
+  look: { ...(LOOKS[i] || {}), hue: HUE[o.hue] || HUE.red },   // resolved palette for the renderer
+}));

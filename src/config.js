@@ -196,6 +196,22 @@ export const NET = {
   url: null,
 };
 
+// Procedural fighter rendering (see src/fighter.js). Sizes are buffer→screen
+// blit scales for the new human sprites. STARTING values from the "Medium" mock;
+// fine-tune against the live HUD in the polish phase.
+export const FIGHTER = {
+  SIZE: {
+    enemy:  1.12,   // opponent in a fight (front)
+    player: 1.37,   // you (back, foreground — reads bigger/closer)
+    walk:   0.78,   // walk-to-the-board intro
+    break:  0.90,   // round-break screen
+    end:    1.05,   // match-end winner
+  },
+  ENEMY_FEET_Y: 304,   // opponent feet baseline in the 512×448 boxing scene
+  PLAYER_FEET_Y: 452,  // player feet baseline (slightly off-bottom, foreground)
+  OUTLINE: '#0a0a12',  // bold dark outline color (near-black)
+};
+
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a
 // built-in CLASSIC ring. Story forces the opponent's arena; multiplayer uses the
 // player's unlocked, selected arena (see save.settings.arena). All scene tuning

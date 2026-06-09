@@ -321,3 +321,33 @@ export function drawFighter(ctx, x, y, size, look, pose='idle', facing=1, step=0
   const dx = Math.round(x - CX*size), dy = Math.round(y - FEET*size);
   ctx.drawImage(lined, dx, dy, Math.round(IW*size), Math.round(IH*size));
 }
+
+// Head-&-shoulders bust for the Story select grid. Fills the cell (x,y,w,h).
+// silhouette:true => anonymous all-dark bust (a fighter you haven't beaten).
+export function drawPortrait(ctx, x, y, w, h, look, { silhouette=false, t=0 } = {}){
+  const { lined, geom: g } = render(look, 'idle', t*3, 1, null);
+  // studio backdrop
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  const bg=ctx.createLinearGradient(x,y,x,y+h);
+  bg.addColorStop(0, silhouette ? '#1b2344' : mixHex(look.hue.body,'#0a1024',0.55));
+  bg.addColorStop(1, '#070a16'); ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+  // frame the bust: top of hat .. mid-chest, centered, filling the cell width
+  const top = g.yHeadTop - 8, bottom = g.yShoulder + 26;
+  const srcH = bottom - top, srcW = IW;
+  const scale = Math.min(w/srcW, h/srcH) * 1.15;
+  const dw = IW*scale, dh = IH*scale;
+  const dx = x + w/2 - CX*scale, dy = y + h*0.12 - top*scale;
+  if(silhouette){
+    // draw an all-dark silhouette of the bust
+    const [sil,sc]=newCv(IW,IH); sc.drawImage(lined,0,0);
+    sc.globalCompositeOperation='source-in'; sc.fillStyle='#0a1022'; sc.fillRect(0,0,IW,IH);
+    ctx.drawImage(sil, dx, dy, dw, dh);
+    ctx.fillStyle='rgba(140,165,225,0.10)'; ctx.fillRect(x,y,w,2);
+  } else {
+    ctx.drawImage(lined, dx, dy, dw, dh);
+  }
+  ctx.restore();
+}
+function mixHex(a,b,t){ const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);
+  const r=Math.round((A>>16&255)*(1-t)+(B>>16&255)*t), g=Math.round((A>>8&255)*(1-t)+(B>>8&255)*t), c=Math.round((A&255)*(1-t)+(B&255)*t);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+c).toString(16).slice(1); }

@@ -45,6 +45,11 @@ export const PAL = {
   black:      '#000000',
   gold:       '#ffd24a',
   red:        '#ff3b53',
+  // procedural boxing-glove placeholder (tutorial FIGHT tile)
+  gloveShade: '#a01020',   // right-side shadow on the red glove
+  gloveHi:    '#ff9a9a',   // upper-left highlight
+  gloveCuff:  '#ffd9c8',   // wrist cuff band
+  gloveInner: '#2a0a0e',   // the dark inside of the cuff opening
   green:      '#39d98a',
   // chess board
   boardLight: '#ffd9a8',
@@ -194,6 +199,23 @@ export const SAVE_KEY = 'pawnch.save.v1';
 // Optional online server. Leave url null to default to ws://<host>:8080 in dev.
 export const NET = {
   url: null,
+};
+
+// ---- Tutorial mode -----------------------------------------------------
+// A harmless sparring dummy for the boxing tutorial — easier than Patty
+// (d=0.05) by construction: very long telegraphs/recovery (huge openings),
+// tiny damage, never parries, no signature/special. PRACTICE_AGGRESSION is
+// dialed up only during the read-and-react lessons so it reliably feeds a
+// readable punch to block / dodge / parry.
+export const TUTORIAL = {
+  DUMMY: {
+    telegraphMs: 1000, recoverMs: 900, aggression: 0.30, comboChance: 0,
+    dodgeSkill: 0.05, guardChance: 0.15, punchDmg: 4, feintChance: 0,
+    highChance: 0.5, parrySkill: 0,
+    signature: { name: 'WIND-UP', dmg: 6, telegraphMs: 1300, chance: 0 },
+    special: null,
+  },
+  PRACTICE_AGGRESSION: 0.9,
 };
 
 // Procedural fighter rendering (see src/fighter.js). Sizes are buffer→screen

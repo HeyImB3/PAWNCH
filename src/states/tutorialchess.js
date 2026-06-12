@@ -19,7 +19,7 @@ const LINE = [
   { from: 62, to: 45, teach: { title: 'KNIGHTS', lines: ['Knights move in an L: two then one —', 'and they JUMP over anything between.', 'The only piece that can.', 'Develop your knight.'] }, reply: { from: 1, to: 18 } },
   { from: 61, to: 34, teach: { title: 'BISHOPS', lines: ['Bishops glide along diagonals,', 'as far as the path is clear.', 'Aim yours at the center.'] }, reply: { from: 5, to: 26 } },
   { from: 60, to: 62, teach: { title: 'THE KING / CASTLING', lines: ['The king steps ONE square any direction.', 'Castling is its special move: the king', 'slides two toward the rook and the rook', 'hops to its other side — king tucked safe.'] }, reply: { from: 6, to: 21 } },
-  { from: 61, to: 60, teach: { title: 'ROOKS', lines: ['Rooks slide in straight lines —', 'along ranks and files.', 'Swing your rook to the open file.'] }, reply: { from: 11, to: 19 } },
+  { from: 61, to: 60, teach: { title: 'ROOKS', lines: ['Rooks slide in straight lines —', 'along ranks and files. (Yours hopped', 'beside the king when you castled.)', 'Swing it to the open file.'] }, reply: { from: 11, to: 19 } },
   { from: 59, to: 52, teach: { title: 'THE QUEEN', lines: ['The strongest piece: she moves like a', 'rook AND a bishop — any distance, straight', 'or diagonal. Bring her into play.'] }, reply: { from: 9, to: 25 } },
   { from: 34, to: 25, teach: { title: 'CAPTURING', lines: ['Land on an enemy piece to capture it.', 'Your opponent just blundered a pawn —', 'take it and go a pawn ahead!'] }, reply: null },
 ];
@@ -45,6 +45,7 @@ export class TutorialChessState {
   _beginStep() {
     const step = LINE[this.idx];
     if (!step) { this._finish(); return; }
+    this.cursor = step.from;                        // home the cursor on the piece to move
     if (step.teach) { this.teach.queue([step.teach]); this.phase = 'teach'; }
     else this.phase = 'play';
   }
@@ -121,8 +122,9 @@ export class TutorialChessState {
     this.anim = null;
     if (this.phase === 'anim') {
       const step = LINE[this.idx];
-      if (step.reply) { const rmv = this._findMove(step.reply.from, step.reply.to); this._startAnim(game, rmv, 'reply'); }
-      else { this.idx++; this._beginStep(); }
+      const rmv = step.reply ? this._findMove(step.reply.from, step.reply.to) : null;
+      if (rmv) { this._startAnim(game, rmv, 'reply'); }
+      else { this.idx++; this._beginStep(); }      // no reply (or unexpectedly none) -> next step
     } else {                                        // 'reply' done
       this.idx++; this._beginStep();
     }

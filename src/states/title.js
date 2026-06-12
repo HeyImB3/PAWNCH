@@ -14,6 +14,7 @@ export class TitleState {
     this.items = [];
     if (game.hasSavedMatch()) this.items.push({ id: 'continue', label: 'CONTINUE' });
     this.items.push(
+      { id: 'tutorial', label: 'TUTORIAL' },
       { id: 'story', label: 'STORY MODE' },
       { id: 'multiplayer', label: 'MULTIPLAYER' },
       { id: 'settings', label: 'SETTINGS' },

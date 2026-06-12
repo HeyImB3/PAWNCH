@@ -21,6 +21,8 @@ const LESSONS = [
   { teach: { title: "YOU'RE READY", lines: ['Spar freely — try a STAR punch (a hook', 'after a parry earns you a star).', 'Press ESC when you are done.'] }, await: null, setup: 'free' },
 ];
 
+const HP_FLOOR = 15;   // tutorial safety: neither fighter can be KO'd (a KO would freeze the lesson flow)
+
 export class TutorialBoxState {
   enter(game) {
     this.game = game; this.t = 0; this.li = 0;
@@ -40,7 +42,7 @@ export class TutorialBoxState {
         onBlock: (side) => { if (side === 'player') this.flags.block = true; },
         onDodge: (side) => { if (side === 'player') { this.flags.dodge = true; audio.sfx.dodge(); } },
         onParry: (side) => { if (side === 'player') { this.flags.parry = true; audio.sfx.parry(); game.fx.doFlash(PAL.blueLite, 0.4); game.doFreeze(120); game.fx.burst(game.W / 2, game.H - 130, PAL.gold, 16, 3); } },
-        onHit: (side, dmg) => { audio.sfx.hit(); const x = game.W / 2, y = side === 'player' ? game.H - 130 : 200; game.fx.burst(x, y, side === 'player' ? PAL.red : PAL.gold, 11, 3); game.doFreeze(28); },
+        onHit: (side, dmg) => { audio.sfx.hit(); const x = game.W / 2, y = side === 'player' ? game.H - 130 : 200; game.fx.burst(x, y, side === 'player' ? PAL.red : PAL.gold, 11, 3); game.doFreeze(28); this.match.player.hp = Math.max(this.match.player.hp, HP_FLOOR); this.match.enemy.hp = Math.max(this.match.enemy.hp, HP_FLOOR); },
       },
       onKO: () => {},                     // no stakes
       onTime: () => {},
@@ -83,8 +85,8 @@ export class TutorialBoxState {
     this.match.update(dt, game.input);
     // safety floor: the dummy can never down the player, and the player can never
     // end the tutorial by KO'ing the dummy — keeps the session purely lesson-driven.
-    this.match.player.hp = Math.max(this.match.player.hp, 15);
-    this.match.enemy.hp = Math.max(this.match.enemy.hp, 15);
+    this.match.player.hp = Math.max(this.match.player.hp, HP_FLOOR);
+    this.match.enemy.hp = Math.max(this.match.enemy.hp, HP_FLOOR);
 
     if (this.phase === 'await') {
       const L = LESSONS[this.li];

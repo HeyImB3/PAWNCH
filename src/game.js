@@ -29,6 +29,7 @@ import { MultiplayerState } from './states/multiplayer.js';
 import { PauseOverlay } from './states/pause.js';
 import { TutorialChessState } from './states/tutorialchess.js';
 import { TutorialBoxState } from './states/tutorialbox.js';
+import { TutorialState } from './states/tutorial.js';
 
 const STATES = {
   title: TitleState,
@@ -42,6 +43,7 @@ const STATES = {
   matchend: MatchEndState,
   tutorialChess: TutorialChessState,
   tutorialBox: TutorialBoxState,
+  tutorial: TutorialState,
 };
 
 export class Game {

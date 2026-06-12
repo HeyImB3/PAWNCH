@@ -76,9 +76,16 @@ export class MultiplayerState {
     // shared inboxes used by chess/boxing states for relayed events
     game.match.netInboxChess = [];
     game.match.netInboxBox = [];
+    game.match.netInboxPhase = [];   // authoritative flow transitions, drained in Game.update
     game.match.netStatus = null;     // null | {msg, color} -> drawn as a banner
+    // ONE authoritative timeline: the WHITE client owns match-flow transitions +
+    // the clocks and broadcasts them; the peer follows. Keeps the two clients from
+    // diverging when a tab is backgrounded (rAF pauses). See Game.netFlow/resolve*.
+    game.match.netAuthority = (myColor === WHITE);
     this.net.on('move', (msg) => game.match.netInboxChess.push(msg.move));
     this.net.on('box', (msg) => game.match.netInboxBox.push(msg.action));
+    this.net.on('phase', (msg) => game.match.netInboxPhase.push(msg));
+    this.net.on('clock', (msg) => game.applyNetClock(msg));
     // connection lifecycle -> a global status banner (see Game.draw)
     const set = (msg, color) => { if (game.match) game.match.netStatus = msg ? { msg, color } : null; };
     this.net.on('opponentDisconnected', () => set('OPPONENT DROPPED — HOLDING...', '#ffd24a'));

@@ -92,5 +92,6 @@ export class NetClient {
   sendMove(move) { this._send({ t: 'move', move }); }
   sendBox(action) { this._send({ t: 'box', action }); }
   sendPhase(phase, payload) { this._send({ t: 'phase', phase, payload }); }
+  sendClock(data) { this._send({ t: 'clock', ...data }); }
   leave() { this.intentionalClose = true; this.matched = false; this._send({ t: 'leave' }); this.ws?.close(); }
 }

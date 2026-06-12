@@ -121,8 +121,15 @@ export class Game {
 
   // Called by ChessState when the chess half ends.
   // result: { decisive:bool, winner:'player'|'enemy'|null, reason }
-  resolveChess(result) {
+  // Online: only the authority (White) actually advances the match; it relays the
+  // transition and the peer applies it via netInboxPhase (see _applyNetPhase). The
+  // result is deterministic from synced state, so the peer just replays resolveChess.
+  resolveChess(result, fromNet = false) {
     const m = this.match;
+    if (m?.net && !fromNet) {
+      if (!m.netAuthority) return;                 // peer waits for the authority's relay
+      m.net.sendPhase('resolveChess', result);
+    }
     m.lastChessResult = result;
     if (result.decisive) {
       m.over = true; m.winner = result.winner; m.reason = result.reason;
@@ -152,8 +159,15 @@ export class Game {
 
   // Called by BoxingState when the boxing half ends.
   // result: { decisive:bool, winner:'player'|'enemy'|null }
-  resolveBoxing(result) {
+  // Online: authority-driven + relayed, same as resolveChess. The round/material
+  // outcome and the round-heal are deterministic (heal is fixed online — see
+  // applyRoundHeal), so the peer's replay lands on the identical state.
+  resolveBoxing(result, fromNet = false) {
     const m = this.match;
+    if (m?.net && !fromNet) {
+      if (!m.netAuthority) return;                 // peer waits for the authority's relay
+      m.net.sendPhase('resolveBoxing', result);
+    }
     if (result.decisive) {
       m.over = true; m.winner = result.winner; m.reason = 'ko';
       this.changeState('matchend');
@@ -174,19 +188,24 @@ export class Game {
   }
 
   // Heal both fighters at the start of a new round (rounds 2..10).
+  // Online uses a FIXED amount (the band's midpoint) so both clients heal
+  // identically with no extra sync — Math.random() would desync carried HP.
   applyRoundHeal() {
-    const amt = MATCH.HEAL_MIN + Math.random() * (MATCH.HEAL_MAX - MATCH.HEAL_MIN);
+    const amt = this.match?.net
+      ? (MATCH.HEAL_MIN + MATCH.HEAL_MAX) / 2
+      : MATCH.HEAL_MIN + Math.random() * (MATCH.HEAL_MAX - MATCH.HEAL_MIN);
     const heal = Math.round(100 * amt);
     this.match.hp.player = Math.min(100, this.match.hp.player + heal);
     this.match.hp.enemy = Math.min(100, this.match.hp.enemy + heal);
     return heal;
   }
 
-  // A flow transition between states (walk->chess, roundbreak->walk). Offline this
-  // is just a changeState. Online (the WIP authoritative timeline) only the
-  // authority advances and relays the transition; the peer follows. The state
-  // files call this instead of changeState so both paths share one entry point.
-  // TODO(online-sync): the broader online timeline is still WIP — see docs/ONLINE_SYNC_TODO.md.
+  // ---- online authoritative timeline ----------------------------------
+  // TODO(online-sync): KNOWN ISSUE / WIP — clients still drift (coin flip, chess
+  // moves + half timer go out of sync). Deferred 2026-06-09. See docs/ONLINE_SYNC_TODO.md.
+  // A flow transition (walk->chess, roundbreak->walk) routed through the
+  // authority. Offline: a plain changeState. Online: the peer waits for the
+  // relay; the authority changes state AND broadcasts it. Used by walk/roundbreak.
   netFlow(name, params = {}) {
     const m = this.match;
     if (m?.net) {
@@ -194,6 +213,61 @@ export class Game {
       m.net.sendPhase('state', { name, params });
     }
     this.changeState(name, params);
+  }
+
+  // Drain authoritative transitions relayed from the peer's authority (called by
+  // update on the non-authority client; the authority never receives its own).
+  _drainNetPhase() {
+    const m = this.match;
+    if (!m?.net || m.netAuthority || !m.netInboxPhase) return;
+    while (m.netInboxPhase.length) this._applyNetPhase(m.netInboxPhase.shift());
+  }
+
+  _applyNetPhase(msg) {
+    switch (msg.phase) {
+      case 'resolveChess':  this.resolveChess(this._flipResult(msg.payload), true); break;
+      case 'resolveBoxing': this.resolveBoxing(this._flipResult(msg.payload), true); break;
+      case 'state':         this.changeState(msg.payload.name, msg.payload.params); break;
+    }
+  }
+
+  // 'player'/'enemy' in a result are relative to the SENDER, so a relayed decisive
+  // result must be mirrored for us: the authority's player is our enemy. 'draw' and
+  // null (timeout / round-advance) pass through; the material-end winner is
+  // recomputed locally from the synced board, so flipping a null here is harmless.
+  _flipResult(result) {
+    if (!result) return result;
+    const w = result.winner === 'player' ? 'enemy' : result.winner === 'enemy' ? 'player' : result.winner;
+    return { ...result, winner: w };
+  }
+
+  // Authority -> peer clock snapshot. The peer snaps its display clocks to the
+  // authoritative values so a refocused (un-frozen) tab self-corrects instead of
+  // drifting. The authority ignores snapshots (it never receives its own).
+  applyNetClock(msg) {
+    const m = this.match;
+    if (!m?.net || m.netAuthority) return;
+    if (msg.clocks && this.stateName === 'chess') {
+      m.clocks.w = msg.clocks.w; m.clocks.b = msg.clocks.b;
+      if (this.state) this.state.halfTime = msg.halfLeft;
+    } else if (msg.boxLeft != null && this.stateName === 'boxing' && this.state?.match) {
+      this.state.match.timeLeft = msg.boxLeft;
+    }
+  }
+
+  // Authority: broadcast the live clocks a few times a second so the peer stays
+  // pinned to our timeline. Called from update while in chess/boxing.
+  _broadcastNetClock(dt) {
+    const m = this.match;
+    if (!m?.net || !m.netAuthority) return;
+    m._snapAccum = (m._snapAccum || 0) + dt;
+    if (m._snapAccum < 200) return;          // ~5x/sec
+    m._snapAccum = 0;
+    if (this.stateName === 'chess' && this.state) {
+      m.net.sendClock({ clocks: { w: m.clocks.w, b: m.clocks.b }, halfLeft: this.state.halfTime });
+    } else if (this.stateName === 'boxing' && this.state?.match) {
+      m.net.sendClock({ boxLeft: this.state.match.timeLeft });
+    }
   }
 
   // Hidden developer shortcut (see DEV in config.js). Holding the combo keys
@@ -307,6 +381,12 @@ export class Game {
 
     // hidden dev shortcut: hold B+3 mid-half to fast-forward to the other half
     this._devSkipUpdate(dt);
+
+    // online: apply authoritative flow transitions relayed from the peer, and (as
+    // the authority) keep broadcasting the live clocks. Done before the hit-stop
+    // early-return so the timeline stays in sync even mid freeze. No-op offline.
+    this._drainNetPhase();
+    this._broadcastNetClock(dt);
 
     // paused: the in-game pause overlay owns everything; the half is frozen
     if (this.paused) { this.pause.update(this, dt); return; }

@@ -6,6 +6,11 @@ the whole match. The game is **vanilla JavaScript (ES modules) with no build ste
 and no dependencies**. This file tells you (Claude) how to work in this repo. For
 the player-facing overview and full feature list, see [`README.md`](README.md).
 
+> ⚠️ **RELEASE BLOCKER — online multiplayer is broken.** The two clients desync
+> (coin flip, chess moves, and the half timer drift apart). It **must be fully
+> fixed and working before any Steam release.** Status, root cause, and next steps:
+> [`docs/ONLINE_SYNC_TODO.md`](docs/ONLINE_SYNC_TODO.md); code marker `TODO(online-sync)` in `src/game.js`.
+
 ## Design pillars (read before tuning any gameplay)
 
 These are *why* PAWNCH exists; the Golden Rules below enforce them. Trading one of
@@ -131,10 +136,11 @@ the change:
 ## Gotchas
 
 - **Audio is silent until the first click/keypress** (browser autoplay policy).
-- **Online multiplayer** needs the relay server, and the live HTTPS site needs a
-  **`wss://`** URL in `NET.url` (`src/config.js`) — see `docs/HOSTING.md`. The
-  boxing netcode is **beta** (local-authority relay); chess sync is deterministic
-  and solid.
+- **Online multiplayer is a known-broken RELEASE BLOCKER** — the two clients
+  desync (coin flip, chess moves, half timer). Don't trust online sync until it's
+  fixed: [`docs/ONLINE_SYNC_TODO.md`](docs/ONLINE_SYNC_TODO.md) + `TODO(online-sync)` in `src/game.js`.
+  It needs the relay server, and the live HTTPS site needs a **`wss://`** URL in
+  `NET.url` (`src/config.js`) — see `docs/HOSTING.md`.
 - **Stockfish** loads from a CDN; offline it silently falls back to the built-in
   AI — don't assume it's present.
 - Save data lives in `localStorage` under `SAVE_KEY` (`pawnch.save.v1`); bump the

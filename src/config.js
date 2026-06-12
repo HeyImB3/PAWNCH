@@ -50,6 +50,9 @@ export const PAL = {
   gloveHi:    '#ff9a9a',   // upper-left highlight
   gloveCuff:  '#ffd9c8',   // wrist cuff band
   gloveInner: '#2a0a0e',   // the dark inside of the cuff opening
+  // tutorial select-screen tile backdrops (blue chess / warm fight)
+  tutorChessBg: '#0e1430',
+  tutorFightBg: '#160e16',
   green:      '#39d98a',
   // chess board
   boardLight: '#ffd9a8',

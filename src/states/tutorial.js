@@ -11,8 +11,8 @@ export class TutorialState {
     this.t = 0;
     this.sel = 0;   // 0 = chess, 1 = fight
     this.tiles = [
-      { id: 'tutorialChess', label: 'CHESS', fill: '#0e1430', accent: PAL.blue,   accent2: PAL.blueDark },
-      { id: 'tutorialBox',   label: 'FIGHT', fill: '#160e16', accent: PAL.orange, accent2: PAL.orangeDark },
+      { id: 'tutorialChess', label: 'CHESS', fill: PAL.tutorChessBg, accent: PAL.blue,   accent2: PAL.blueDark },
+      { id: 'tutorialBox',   label: 'FIGHT', fill: PAL.tutorFightBg, accent: PAL.orange, accent2: PAL.orangeDark },
     ];
     audio.playTitleTheme();
   }

@@ -347,7 +347,7 @@ export class BoxingMatch {
     const counter = def.pose === 'recover';
     let dmg = kind === 'jab' ? BOX.PLAYER_JAB_DMG : kind === 'hook' ? BOX.PLAYER_HOOK_DMG : BOX.STAR_DMG;
     dmg *= staminaMult(att);
-    if (avoided === 'block') dmg *= (1 - BOX.BLOCK_REDUCTION);
+    if (avoided === 'block') { dmg *= (1 - BOX.BLOCK_REDUCTION); this.hitHooks.onBlock?.(def.side); }
     if (counter) { dmg *= 1.6; att.stars = Math.min(3, att.stars + 1); this.hitHooks.onCounter?.(att.side); }
     this._applyDamage(def, dmg, att);
   }
@@ -461,7 +461,7 @@ export class BoxingMatch {
             : att.kind === 'hook' ? this.params.punchDmg * 1.4
             : this.params.punchDmg;
     dmg *= staminaMult(att);
-    if (avoided === 'block') dmg *= (1 - BOX.BLOCK_REDUCTION);
+    if (avoided === 'block') { dmg *= (1 - BOX.BLOCK_REDUCTION); this.hitHooks.onBlock?.(def.side); }
     this._applyDamage(def, dmg, att);
     if (att.side === 'enemy') this._clearAtk(att);
     return false;

@@ -5,7 +5,8 @@
     "front:guard": "boxer_front_guard.png",
     "front:punchL": "boxer_front_punchL.png",
     "front:punchR": "boxer_front_punchR.png",
-    "back:idle": "boxer_back_idle.png"
+    "back:idle": "boxer_back_idle.png",
+    "glove": "glove.png"
   },
   "pieces": {
     "wp": "white_pawn.png", "wn": "white_knight.png", "wb": "white_bishop.png",

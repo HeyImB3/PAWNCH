@@ -475,6 +475,63 @@ export function piece(ctx, type, cx, cy, size, white, { t = 0, phase = 0, lift =
 
 export function withA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
 
+// 16-bit red boxing glove pointing UP, with the cuff opening (the inside)
+// visible at the bottom. Procedural placeholder for the tutorial FIGHT tile; a
+// registered sprite (assets manifest: boxers.glove) overrides it. Colors from PAL.
+const GLOVE = [
+  '......RRRR......',
+  '....RRRRRRRR....',
+  '...RRRRRRRRRR...',
+  '...RRRRRRRRRR...',
+  '..RRRRRRRRRRRR..',
+  '..RRRRRRRRRRRR..',
+  '..RRRRRRRRRRRRTT',
+  '..RRRRRRRRRRRTTT',
+  '..RRRRRRRRRRRTTT',
+  '..RRRRRRRRRRRRTT',
+  '..RRRRRRRRRRRR..',
+  '...RRRRRRRRRR...',
+  '...RRRRRRRRRR...',
+  '...WWWWWWWWWW...',
+  '...WKKKKKKKKW...',
+  '...WKKKKKKKKW...',
+  '...WWWWWWWWWW...',
+  '....WWWWWWWW....',
+];
+export function glove(ctx, cx, cy, size, { glow = 1 } = {}) {
+  const img = SPRITES.boxers.glove;                 // future sprite wins
+  if (img) {
+    const h = size, w = h * (img.width / img.height);
+    ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+    return;
+  }
+  const rows = GLOVE, ROWS = rows.length, COLS = rows[0].length;
+  const s = Math.max(1, Math.round(size / ROWS));
+  const w = COLS * s, h = ROWS * s;
+  const x = Math.round(cx - w / 2), y = Math.round(cy - h / 2);
+  if (glow > 0) {                                   // warm halo
+    const rad = size * 0.5;
+    const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, rad);
+    gr.addColorStop(0, withA(PAL.red, 0.32 * glow)); gr.addColorStop(1, withA(PAL.red, 0));
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
+  }
+  const colOf = (ch, r, c) => {
+    if (ch === 'W') return PAL.gloveCuff;
+    if (ch === 'K') return PAL.gloveInner;
+    if (c >= COLS - 4 && r < 13) return PAL.gloveShade;   // right-side shadow
+    if (c < 4 && r < 6) return PAL.gloveHi;               // upper-left highlight
+    return PAL.red;
+  };
+  // 1px ink outline
+  ctx.fillStyle = PAL.ink;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (rows[r][c] !== '.') ctx.fillRect(x + c * s - 1, y + r * s - 1, s + 2, s + 2);
+  // body
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const ch = rows[r][c]; if (ch === '.') continue;
+    ctx.fillStyle = colOf(ch, r, c);
+    ctx.fillRect(x + c * s, y + r * s, s, s);
+  }
+}
 
 // ---- particle / fx system ---------------------------------------------
 export class FX {

@@ -9,9 +9,12 @@
 #   top row    = ORANGE "star/sun" pieces -> the WHITE side  (wp..wk)
 #   bottom row = BLUE "galaxy" pieces      -> the DARK side   (bp..bk)
 # plus a title + a left-aligned label above each row (excluded by row/col
-# detection). Per piece we flood-fill the white background inward from the cell
-# border (keeping the piece + the colored part of its baked glow), keep the
-# largest blob (drops detached floating sparkles), feather the edge, and
+# detection). Per piece we flood-fill inward from the cell border through every
+# "soft" pixel — both the white background AND the pale peach/lavender GLOW CLOUD
+# baked behind each piece — stopping only at the piece's dark outline / vivid
+# fills. That strips the circular glow so just the solid piece body remains (the
+# game layers its own animated sparks on top; see PIECE_FX in config.js). We then
+# keep the largest blob (drops detached floating sparkles), feather the edge, and
 # tight-crop. The in-game renderer rescales each sprite to a per-type target
 # HEIGHT (PIECE_TYPE_H in gfx.js), so tight per-piece crops are exactly right.
 import sys, os
@@ -29,6 +32,14 @@ NOTWHITE = 170     # min(r,g,b) <  this => "content" (for band detection)
 PADX = 26          # horizontal margin around a detected piece column
 PADY = 18          # vertical margin around a piece row (clamped off the labels)
 MINW = 120         # a real piece column is at least this wide (drops sparkle specks)
+
+# Glow removal — tell the SOFT pixels (white bg + the pale baked glow) apart from
+# the SOLID piece. A pixel is "soft" (floodable) unless it is either dark (an
+# outline / deep fill) or vividly saturated (the orange/blue body). The pale
+# peach/lavender glow is neither, so it floods away from the border; the piece's
+# dark outline walls the flood out of its bright inner cores, which survive.
+DARK_T = 112       # min(r,g,b) <  this  => dark outline / deep fill  => SOLID
+SAT_T  = 0.42      # saturation >= this  => vivid piece fill           => SOLID
 
 
 def bands(proj, thr, minlen):
@@ -67,14 +78,20 @@ def detect(im):
 
 
 def knockout(cell):
-    """RGBA of just the piece: white background -> transparent, largest blob."""
+    """RGBA of just the piece BODY: flood the white background AND the soft baked
+    glow to transparent (from the border, stopping at the piece's outline / vivid
+    fills), then keep the largest blob."""
     cell = cell.convert('RGB'); W, H = cell.size; px = cell.load()
     bg = bytearray(W * H); dq = deque()
-    def light(x, y):
-        r, g, b = px[x, y]; return min(r, g, b) >= LIGHT_T
+    def soft(x, y):
+        r, g, b = px[x, y]
+        mn = min(r, g, b); mx = max(r, g, b)
+        if mn < DARK_T: return False                  # dark outline / deep fill => solid
+        sat = 0 if mx == 0 else (mx - mn) / mx
+        return sat < SAT_T                            # pale (white OR glow) => floodable
     def seed(x, y):
         i = y * W + x
-        if not bg[i] and light(x, y): bg[i] = 1; dq.append((x, y))
+        if not bg[i] and soft(x, y): bg[i] = 1; dq.append((x, y))
     for x in range(W): seed(x, 0); seed(x, H - 1)
     for y in range(H): seed(0, y); seed(W - 1, y)
     while dq:
@@ -82,7 +99,7 @@ def knockout(cell):
         for nx, ny in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)):
             if 0 <= nx < W and 0 <= ny < H:
                 i = ny * W + nx
-                if not bg[i] and light(nx, ny): bg[i] = 1; dq.append((nx, ny))
+                if not bg[i] and soft(nx, ny): bg[i] = 1; dq.append((nx, ny))
     # foreground = not background-flooded; keep the largest connected blob
     seen = bytearray(W * H); best, best_n = [], 0
     for sy in range(H):
@@ -99,9 +116,9 @@ def knockout(cell):
             if len(comp) > best_n: best, best_n = comp, len(comp)
     alpha = Image.new('L', (W, H), 0); ap = alpha.load()
     for (x, y) in best: ap[x, y] = 255
-    # No dilate: the white background was already flood-removed, so every kept
-    # pixel is colored (piece/glow) — growing the mask would only re-introduce a
-    # white rim. A light blur just feathers the binary edge.
+    # No dilate: the background + glow were already flood-removed, so every kept
+    # pixel is solid piece — growing the mask would only re-introduce a soft rim.
+    # A light blur just feathers the binary edge.
     alpha = alpha.filter(ImageFilter.GaussianBlur(0.8))
     out = cell.convert('RGBA'); out.putalpha(alpha)
     bb = alpha.getbbox()

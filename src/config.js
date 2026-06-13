@@ -112,13 +112,17 @@ export const AURA = {
 // maps a piece color -> an animation `kind` (drawn in gfx.js `pieceAura`), a
 // halo color, and `haloA` (base back-glow alpha, pre-pulse).
 //   CELESTIAL (default): white = "sun" (warm), dark = "galaxy/supernova" (cool).
-//     Alphas are kept low so the engine aura COMPLEMENTS the art's baked glow.
+//     haloA is 0 — the sprites are now cropped tight to the piece body (no baked
+//     glow cloud), and we deliberately skip the soft silhouette halo so nothing
+//     draws a circle/glow behind the piece. The `kind` still runs, so the moving
+//     sparks/embers/motes ("the magic") play on top. `halo` color is unused while
+//     haloA is 0 but kept for reference / the procedural fallback.
 //   ARCANE (unlockable): the original purple swirl (dark) + celestial twinkle
 //     (white) — full strength, since those cleaned sprites carry no baked aura.
 export const PIECE_FX = {
   celestial: {
-    white: { kind: 'sun',    halo: PAL.sunGlow,    haloA: 0.10 },
-    dark:  { kind: 'galaxy', halo: PAL.galaxyGlow, haloA: 0.12 },
+    white: { kind: 'sun',    halo: PAL.sunGlow,    haloA: 0 },
+    dark:  { kind: 'galaxy', halo: PAL.galaxyGlow, haloA: 0 },
   },
   arcane: {
     white: { kind: 'glints', halo: PAL.auraLite,   haloA: AURA.whiteAlpha },

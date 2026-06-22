@@ -42,6 +42,7 @@ function makeFighter(side) {
     recoverOverride: null,// per-attack recover window (specials), else null = default
     stars: 0,
     flash: 0,             // hit flash timer
+    strikeFx: 0,          // ms left to SHOW the punch frame after a real strike (render only)
     parryT: 0,            // ms left in the active perfect-parry window (>0 = armed)
     parryLockT: 0,        // ms left before a new parry window may open (rate-limit)
     starFx: 0,            // star-punch glow timer
@@ -112,6 +113,7 @@ export class BoxingMatch {
   // ---- fighter timers --------------------------------------------------
   _tickFighter(fr, dt) {
     if (fr.flash > 0) fr.flash -= dt;
+    if (fr.strikeFx > 0) fr.strikeFx -= dt;
     if (fr.starFx > 0) fr.starFx -= dt;
     if (fr.comboTimer > 0) { fr.comboTimer -= dt; if (fr.comboTimer <= 0) fr.combo = 0; }
 
@@ -454,6 +456,7 @@ export class BoxingMatch {
     const def = att.side === 'enemy' ? this.player : this.enemy;
     if (att.side === 'enemy' && this.ai.feint) { this.ai.feint = false; this._clearAtk(att); return false; }
     if (this._tryParry(att, def)) return true;     // parried -> _resolvePose staggers the attacker
+    if (att.side === 'enemy') att.strikeFx = BOX.STRIKE_SHOW_MS;  // real throw committed -> show the punch frame
     const avoided = this._defended(att, def);
     if (avoided === 'dodge') { this.hitHooks.onDodge?.(def.side); this._clearAtk(att); return false; }
     let dmg = att.dmgOverride != null ? att.dmgOverride

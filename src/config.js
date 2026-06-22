@@ -132,6 +132,7 @@ export const PIECE_FX = {
 
 // Boxing feel (Punch-Out-inspired). Times in ms unless noted.
 export const BOX = {
+  STRIKE_SHOW_MS: 150,   // how long an enemy's punch frame stays visible after a real strike (render only)
   MAX_HP: 100,
   PLAYER_JAB_DMG: 6,
   PLAYER_HOOK_DMG: 13,
@@ -239,6 +240,10 @@ export const FIGHTER = {
   ENEMY_FEET_Y: 304,   // opponent feet baseline in the 512×448 boxing scene
   PLAYER_FEET_Y: 452,  // player feet baseline (slightly off-bottom, foreground)
   OUTLINE: '#0a0a12',  // bold dark outline color (near-black)
+  // Sprite "stay on your toes" idle bob — a subtle weave applied to authored sprite
+  // frames during neutral poses (idle/guard/walk) so they're never static. Procedural
+  // fighters already animate; this revives motion for the sprite path. Tune freely.
+  BOB: { swayX: 2.4, swayFreq: 0.55, bounceY: 2.0, bounceFreq: 1.05 },
 };
 
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a

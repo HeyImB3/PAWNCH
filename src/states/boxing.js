@@ -557,6 +557,7 @@ function lighten(hex, t) {
 function mapPose(fr) {
   const p = fr.pose;
   const info = { arm: fr.arm || 'R', kind: fr.kind || 'jab', target: fr.target || 'high' };
+  if (fr.strikeFx > 0) return { pose: 'punch', info };   // hold the punch frame briefly after a real strike lands
   if (p === 'windup') return (fr.special || fr.kind === 'signature') ? { pose: 'special' } : { pose: 'windup', info };
   if (p === 'punch')  return { pose: 'punch', info };
   if (p === 'stance') return { pose: 'special' };          // counter-stance boss move

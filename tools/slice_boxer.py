@@ -90,7 +90,7 @@ def place(body, pose):
     if pose == "down":                       # wide/short: clamp by width
         scale = min(scale, (CW * 0.95) / w)
     nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
-    body = body.resize((nw, nh), Image.NEAREST)
+    body = body.resize((nw, nh), Image.LANCZOS)
     canvas = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     canvas.alpha_composite(body, (CX - nw // 2, FEET - nh))
     return canvas

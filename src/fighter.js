@@ -334,7 +334,17 @@ export function drawFighter(ctx, x, y, size, look, pose='idle', facing=1, step=0
   const dx = Math.round(x - CX*size), dy = Math.round(y - FEET*size);
   const dw = Math.round(IW*size), dh = Math.round(IH*size);
   const img = look?.sprite ? boxerSprite(look.sprite, boxerKey(facing, pose, info)) : null;
-  if (img) { ctx.drawImage(img, dx, dy, dw, dh); return; }    // authored sprite (geometry matches IW/IH/CX/FEET)
+  if (img) {
+    // subtle "on your toes" weave during neutral poses so the sprite is never static
+    let bx = 0, by = 0;
+    if (pose === 'idle' || pose === 'guard' || pose === 'walk') {
+      const B = FIGHTER.BOB;
+      bx = Math.sin(step * B.swayFreq) * B.swayX;
+      by = Math.sin(step * B.bounceFreq) * B.bounceY;
+    }
+    ctx.drawImage(img, dx + Math.round(bx * size), dy + Math.round(by * size), dw, dh);  // authored sprite (geometry matches IW/IH/CX/FEET)
+    return;
+  }
   const { lined } = render(look, pose, step, facing, info);   // procedural fallback
   ctx.drawImage(lined, dx, dy, dw, dh);
 }

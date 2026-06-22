@@ -22,7 +22,7 @@ WHITE_T = 196           # min(r,g,b) >= this AND low saturation => background
 SAT_T = 0.18            # saturation >= this => keep (colored body even if light)
 # Expected bbox height as a fraction of a standing fighter (tune from the montage).
 POSE_H = {p: 1.0 for p in POSE_ORDER}
-POSE_H.update({"special": 1.22, "duck": 0.80, "down": 0.42})
+POSE_H.update({"special": 1.22, "duck": 0.80, "down": 0.60})
 
 def knockout(im):
     """RGBA of just the body: flood the near-white background to transparent from
@@ -44,6 +44,26 @@ def knockout(im):
             if 0 <= nx < W and 0 <= ny < H:
                 i = ny * W + nx
                 if not bg[i] and soft(nx, ny): bg[i] = 1; dq.append((nx, ny))
+    # Remove ENCLOSED background pockets: soft (white) regions the border flood
+    # couldn't reach (e.g. the gap trapped between raised arms) and stray white
+    # specks in concavities. Components >= ENCLOSED_MIN are dropped; tiny white
+    # details (eye glints, teeth) stay.
+    ENCLOSED_MIN = 24
+    pseen = bytearray(W * H)
+    for sy in range(H):
+        for sx in range(W):
+            i0 = sy * W + sx
+            if bg[i0] or pseen[i0] or not soft(sx, sy): continue
+            comp, st, pseen[i0] = [(sx, sy)], [(sx, sy)], 1
+            while st:
+                x, y = st.pop()
+                for nx, ny in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)):
+                    if 0 <= nx < W and 0 <= ny < H:
+                        j = ny * W + nx
+                        if not bg[j] and not pseen[j] and soft(nx, ny):
+                            pseen[j] = 1; st.append((nx, ny)); comp.append((nx, ny))
+            if len(comp) >= ENCLOSED_MIN:
+                for (x, y) in comp: bg[y * W + x] = 1
     seen = bytearray(W * H); best, best_n = [], 0
     for sy in range(H):
         for sx in range(W):

@@ -24,6 +24,12 @@ const N = OPPONENTS.length;
 const RESET = N;                     // cursor sentinel for the NEW GAME button
 const ROWS = Math.ceil(N / COLS);
 
+// DEV-ONLY: on localhost, fully unlock Story Mode so we can jump into any fight to
+// review enemy sprites while building them. The shipped game (a real host) keeps the
+// normal one-at-a-time unlock. This NEVER writes to the save, so real progress is safe.
+const DEV_UNLOCK = typeof location !== 'undefined' &&
+  ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+
 // progress is the ONLY state that drives the screen — keep it a sane integer
 // even if the save was tampered with, so the first fight is always startable.
 function clampProgress(v) {
@@ -49,7 +55,7 @@ const within = (r, mx, my) => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r
 export class StoryState {
   enter(game, params = {}) {
     this.t = 0;
-    this.progress = clampProgress(game.save.storyProgress);
+    this.progress = DEV_UNLOCK ? N : clampProgress(game.save.storyProgress);
     this.allDone = this.progress >= N;
     this.reveal = Number.isInteger(params.reveal) ? params.reveal : -1;  // portrait to flash gold
     this.cursor = this.allDone ? Math.max(0, Math.min(N - 1, this.reveal))
@@ -88,7 +94,7 @@ export class StoryState {
     if (sel === 0) {                       // YES — wipe campaign progress
       game.save.storyProgress = 0;
       game.persist();
-      this.progress = 0; this.allDone = false; this.reveal = -1; this.cursor = 0; this._col = 0;
+      this.progress = DEV_UNLOCK ? N : 0; this.allDone = DEV_UNLOCK; this.reveal = -1; this.cursor = 0; this._col = 0;
     }
     this.confirmReset = false;
   }

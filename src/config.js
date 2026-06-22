@@ -132,7 +132,10 @@ export const PIECE_FX = {
 
 // Boxing feel (Punch-Out-inspired). Times in ms unless noted.
 export const BOX = {
-  STRIKE_SHOW_MS: 150,   // how long an enemy's punch frame stays visible after a real strike (render only)
+  // A landed enemy strike SNAPS to its punch frame and HOLDS it (PUNCH_HOLD_MS) so the
+  // existing hit-stop freeze (see boxing state onHit) freezes the *punch* at impact,
+  // not an idle frame. This is what makes the hit read as a real, connecting punch.
+  PUNCH_HOLD_MS: 90,
   MAX_HP: 100,
   PLAYER_JAB_DMG: 6,
   PLAYER_HOOK_DMG: 13,
@@ -243,7 +246,7 @@ export const FIGHTER = {
   // Sprite "stay on your toes" idle bob — a subtle weave applied to authored sprite
   // frames during neutral poses (idle/guard/walk) so they're never static. Procedural
   // fighters already animate; this revives motion for the sprite path. Tune freely.
-  BOB: { swayX: 2.4, swayFreq: 0.55, bounceY: 2.0, bounceFreq: 1.05 },
+  BOB: { swayX: 2.4, swayFreq: 0.78, bounceY: 2.8, bounceFreq: 1.62 },
 };
 
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a

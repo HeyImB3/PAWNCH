@@ -42,7 +42,6 @@ function makeFighter(side) {
     recoverOverride: null,// per-attack recover window (specials), else null = default
     stars: 0,
     flash: 0,             // hit flash timer
-    strikeFx: 0,          // ms left to SHOW the punch frame after a real strike (render only)
     parryT: 0,            // ms left in the active perfect-parry window (>0 = armed)
     parryLockT: 0,        // ms left before a new parry window may open (rate-limit)
     starFx: 0,            // star-punch glow timer
@@ -113,7 +112,6 @@ export class BoxingMatch {
   // ---- fighter timers --------------------------------------------------
   _tickFighter(fr, dt) {
     if (fr.flash > 0) fr.flash -= dt;
-    if (fr.strikeFx > 0) fr.strikeFx -= dt;
     if (fr.starFx > 0) fr.starFx -= dt;
     if (fr.comboTimer > 0) { fr.comboTimer -= dt; if (fr.comboTimer <= 0) fr.combo = 0; }
 
@@ -201,11 +199,17 @@ export class BoxingMatch {
   _resolvePose(fr) {
     const prev = fr.pose;
     if (prev === 'windup') {
+      const wasFeint = fr.side === 'enemy' && this.ai.feint;   // a fake-out: pull back, never throw
       const parried = this._strike(fr);
       if (parried) { this._stagger(fr); return; } // defender perfect-parried -> attacker is staggered
-      fr.pose = 'recover';
-      fr.poseT = this._recoverMs(fr);
-      fr.recoverOverride = null;         // consumed
+      if (wasFeint) {
+        fr.pose = 'recover'; fr.poseT = this._recoverMs(fr); fr.recoverOverride = null;
+      } else {
+        // real throw: SNAP to the connecting punch and HOLD it. Contact/damage already
+        // landed in _strike, so the hit-stop freeze (onHit) now freezes THIS punch frame
+        // at impact instead of an idle one. The opening (recover) opens after the hold.
+        fr.pose = 'punch'; fr.poseT = BOX.PUNCH_HOLD_MS;
+      }
     } else if (prev === 'punch') {
       fr.pose = 'recover';
       fr.poseT = this._recoverMs(fr);
@@ -456,7 +460,6 @@ export class BoxingMatch {
     const def = att.side === 'enemy' ? this.player : this.enemy;
     if (att.side === 'enemy' && this.ai.feint) { this.ai.feint = false; this._clearAtk(att); return false; }
     if (this._tryParry(att, def)) return true;     // parried -> _resolvePose staggers the attacker
-    if (att.side === 'enemy') att.strikeFx = BOX.STRIKE_SHOW_MS;  // real throw committed -> show the punch frame
     const avoided = this._defended(att, def);
     if (avoided === 'dodge') { this.hitHooks.onDodge?.(def.side); this._clearAtk(att); return false; }
     let dmg = att.dmgOverride != null ? att.dmgOverride

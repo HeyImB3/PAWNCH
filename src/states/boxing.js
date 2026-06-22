@@ -65,7 +65,7 @@ export class BoxingState {
           audio.sfx.hit();
           const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 200];
           game.fx.burst(x, y, side === 'player' ? PAL.red : PAL.gold, dmg > 14 ? 18 : 11, 3);
-          const fz = (kind === 'signature' || kind === 'star') ? 120 : kind === 'hook' ? 70 : 32;
+          const fz = (kind === 'signature' || kind === 'star') ? 130 : kind === 'hook' ? 90 : 50;
           game.doFreeze(fz);
           game.fx.doShake(Math.min(13, dmg));
           this.crowd = Math.min(1, this.crowd + (dmg > 15 ? 0.65 : 0.3));
@@ -557,7 +557,6 @@ function lighten(hex, t) {
 function mapPose(fr) {
   const p = fr.pose;
   const info = { arm: fr.arm || 'R', kind: fr.kind || 'jab', target: fr.target || 'high' };
-  if (fr.strikeFx > 0) return { pose: 'punch', info };   // hold the punch frame briefly after a real strike lands
   if (p === 'windup') return (fr.special || fr.kind === 'signature') ? { pose: 'special' } : { pose: 'windup', info };
   if (p === 'punch')  return { pose: 'punch', info };
   if (p === 'stance') return { pose: 'special' };          // counter-stance boss move

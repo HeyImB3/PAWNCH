@@ -30,6 +30,10 @@ tools/_mk3_probe.png
 # Python sprite-tool venv
 tools/.venv/
 
+# Raw AI generations (large; regenerable). Only the sliced frames are committed.
+assets/sprites/_src/
+tools/_*_montage.png
+
 # Claude local-only settings (keep launch.json so others can run the preview)
 .claude/settings.local.json
 

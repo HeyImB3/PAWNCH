@@ -15,11 +15,15 @@ import { PAL, AURA, PIECE_FX } from './config.js';
 // full {wp..bk} map and exactly one is active at a time (chosen via settings /
 // unlock). The active set's NAME also picks the magic theme (see SET_THEME +
 // PIECE_FX) even when its images are absent, so the procedural fallback matches.
-const SPRITES = { boxers: {}, pieceSets: {} };
+const SPRITES = { boxers: {}, boxerSets: {}, pieceSets: {} };
 let activePieceSet = 'celestial';
 const SET_THEME = { celestial: 'celestial', arcane: 'arcane' };
 
 export function registerSprite(group, key, img) { (SPRITES[group] ||= {})[key] = img; }
+// Per-fighter boxer sprite sets (mirrors pieceSets). `set` is a fighter slug
+// (e.g. 'pawnchion'); `key` is `${front|back}:${pose}` e.g. 'front:idle'.
+export function registerBoxer(set, key, img) { (SPRITES.boxerSets[set] ||= {})[key] = img; }
+export function boxerSprite(set, key) { return set ? (SPRITES.boxerSets[set] || {})[key] : undefined; }
 export function registerPiece(set, key, img) { (SPRITES.pieceSets[set] ||= {})[key] = img; }
 export function setPieceSet(name) { if (SET_THEME[name]) activePieceSet = name; return activePieceSet; }
 export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.values(SPRITES.pieceSets).reduce((n, s) => n + Object.keys(s).length, 0) > 0; }

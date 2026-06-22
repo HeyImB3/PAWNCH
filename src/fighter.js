@@ -2,7 +2,7 @@
 // fighter to an offscreen buffer, wraps it in a bold dark outline, and blits it
 // pixel-crisp. Per-fighter identity is a `look` data object (see opponents.js).
 import { PAL, FIGHTER } from './config.js';
-import { shade } from './gfx.js';
+import { shade, boxerSprite } from './gfx.js';
 
 const GOLD = PAL.gold;
 const OUT = FIGHTER.OUTLINE;
@@ -313,13 +313,30 @@ function render(look,pose,step,facing,info){
   return {lined,label:pp.label,geom:g};
 }
 
+// Map the engine's (facing,pose,info) to a boxer-set registry key.
+// facing: 1=front (opponents), -1=back (player). info: {arm:'L'|'R', kind:'jab'|'hook'|'signature'}.
+function boxerKey(facing, pose, info) {
+  const side = facing === -1 ? 'back' : 'front';
+  const arm = info?.arm === 'L' ? 'L' : 'R';
+  let k;
+  if (info?.kind === 'signature') k = 'special';
+  else if (pose === 'windup') k = 'windup' + arm;
+  else if (pose === 'punch') k = (info?.kind === 'hook' ? 'hook' : 'jab') + arm;
+  else k = pose;                       // idle,guard,special,duck,hurt,stagger,down,walk
+  return `${side}:${k}`;
+}
+
 // Public API: render `look` in `pose` and blit it pixel-crisp.
 // x = horizontal center; y = FEET baseline (sprite/hat grow upward). size = blit scale.
 // facing: 1 = front (opponents), -1 = back (player). info = { arm, kind, target } (optional).
+// Prefers an authored boxer sprite (look.sprite set); otherwise renders procedurally.
 export function drawFighter(ctx, x, y, size, look, pose='idle', facing=1, step=0, info=null){
-  const { lined } = render(look, pose, step, facing, info);
   const dx = Math.round(x - CX*size), dy = Math.round(y - FEET*size);
-  ctx.drawImage(lined, dx, dy, Math.round(IW*size), Math.round(IH*size));
+  const dw = Math.round(IW*size), dh = Math.round(IH*size);
+  const img = look?.sprite ? boxerSprite(look.sprite, boxerKey(facing, pose, info)) : null;
+  if (img) { ctx.drawImage(img, dx, dy, dw, dh); return; }    // authored sprite (geometry matches IW/IH/CX/FEET)
+  const { lined } = render(look, pose, step, facing, info);   // procedural fallback
+  ctx.drawImage(lined, dx, dy, dw, dh);
 }
 
 // Head-&-shoulders bust for the Story select grid. Fills the cell (x,y,w,h).

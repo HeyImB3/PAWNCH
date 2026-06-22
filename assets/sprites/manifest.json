@@ -2,5 +2,8 @@
   "pieceSets": {
     "celestial": "celestial",
     "arcane": "arcane"
+  },
+  "boxerSets": {
+    "pawnchion": "boxers/pawnchion"
   }
 }

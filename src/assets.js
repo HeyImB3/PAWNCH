@@ -18,9 +18,12 @@
 // Boxer pose keys: front|back : idle|guard|windupL|windupR|punchL|punchR|hurt|down|walk
 // Piece keys: (w|b)(p|n|b|r|q|k)
 
-import { registerSprite, registerPiece } from './gfx.js';
+import { registerSprite, registerPiece, registerBoxer } from './gfx.js';
 
 const PIECE_KEYS = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk'];
+const BOXER_POSE_KEYS = ['idle', 'guard', 'windupL', 'windupR', 'jabL', 'jabR',
+  'hookL', 'hookR', 'special', 'duck', 'hurt', 'stagger', 'down', 'walk'];
+const BOXER_FACINGS = ['front', 'back'];
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -52,6 +55,12 @@ export async function loadAssets(base = 'assets/sprites') {
       try { registerPiece(set, key, await loadImage(`${base}/${dir}/${key}.png`)); count++; }
       catch { /* a set may be only partially supplied; that's fine */ }
     }))));
+  // boxer sets: slug -> sub-dir of `${facing}_${pose}.png` (any missing file stays procedural)
+  await Promise.all(Object.entries(manifest.boxerSets || {}).map(([set, dir]) =>
+    Promise.all(BOXER_FACINGS.flatMap((face) => BOXER_POSE_KEYS.map(async (pose) => {
+      try { registerBoxer(set, `${face}:${pose}`, await loadImage(`${base}/${dir}/${face}_${pose}.png`)); count++; }
+      catch { /* a set may supply only some poses/facings; that's fine */ }
+    })))));
   // legacy flat "pieces" map -> the default 'celestial' set
   await Promise.all(Object.entries(manifest.pieces || {}).map(async ([key, file]) => {
     try { registerPiece('celestial', key, await loadImage(`${base}/${file}`)); count++; }

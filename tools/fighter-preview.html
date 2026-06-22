@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PAWNCH — fighter preview</title>
+<style>body{background:#0a0e1c;margin:0;font:14px monospace;color:#cdd;padding:8px}
+  canvas{image-rendering:pixelated;background:#111730;margin:6px;border:1px solid #243}
+  .cell{display:inline-block;text-align:center;color:#9ab}
+  h3{color:#fc8}</style>
+<h3>THE PAWNCHION — sprite (top) vs PLAYER procedural fallback (bottom)</h3>
+<div id="root">loading…</div>
+<script type="module">
+import { loadAssets } from '../src/assets.js';
+import { drawFighter } from '../src/fighter.js';
+import { OPPONENTS, HERO_LOOK } from '../src/opponents.js';
+
+// (pose, info) pairs exercising every boxer registry key.
+const POSES = [
+  ['idle', null], ['guard', null],
+  ['windup', { arm: 'L' }], ['windup', { arm: 'R' }],
+  ['punch', { arm: 'L', kind: 'jab' }], ['punch', { arm: 'R', kind: 'jab' }],
+  ['punch', { arm: 'L', kind: 'hook' }], ['punch', { arm: 'R', kind: 'hook' }],
+  ['special', null], ['duck', null], ['hurt', null], ['stagger', null],
+  ['down', null], ['walk', null],
+];
+const SIZE = 1.1, W = 180, H = 240;
+
+function strip(look, facing, title) {
+  const wrap = document.createElement('div');
+  const h = document.createElement('div'); h.textContent = title; h.style.color = '#fc8';
+  wrap.appendChild(h);
+  for (const [pose, info] of POSES) {
+    const c = document.createElement('div'); c.className = 'cell';
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    drawFighter(ctx, W / 2, H - 24, SIZE, look, pose, facing, 8, info);
+    const lab = document.createElement('div');
+    lab.textContent = pose + (info?.arm ? ':' + info.arm + (info.kind ? '/' + info.kind : '') : '');
+    c.appendChild(cv); c.appendChild(lab); wrap.appendChild(c);
+  }
+  return wrap;
+}
+
+// We live in tools/, so assets are one level up.
+await loadAssets('../assets/sprites');
+const root = document.getElementById('root');
+root.textContent = '';
+root.appendChild(strip(OPPONENTS[9].look, 1, 'PAWNCHION (front, sprite if present)'));
+root.appendChild(strip(HERO_LOOK, -1, 'PLAYER (back, procedural fallback)'));
+</script>

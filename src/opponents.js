@@ -148,8 +148,12 @@ const LOOKS = {
       special:{name:'CHECKMATE BLOW',frame:'oneLoadedHigh',fx:'streak'}, face:{brows:'bar',mouth:'flat',glint:true} },
 };
 
+// Fighter index -> boxer sprite-set slug (matches assets/sprites/boxers/<slug>).
+// Only fighters with authored art need an entry; the rest stay procedural.
+const SPRITE_SLUG = { 9: 'pawnchion' };
+
 // The player (drawn back-view in a fight, front on win screens). No chess gimmick.
-export const HERO_LOOK = { hue: HUE.player, hgt:1.06, shoulder:1.05, waist:0.8,
+export const HERO_LOOK = { hue: HUE.player, hgt:1.06, shoulder:1.05, waist:0.8, sprite: 'player',
   headgear:'none', special:{name:'UPPERCUT',frame:'uppercut'}, face:{brows:'hopeful',mouth:'grin'} };
 
 // Fallback look for PVP/online enemies (no Story `look`): a plain red boxer.
@@ -164,5 +168,5 @@ export const OPPONENTS = ROSTER.map((o, i) => ({
   tag: o.tag,
   hue: o.hue,
   boxing: boxingFromDifficulty(o.d, o.special),
-  look: { ...(LOOKS[i] || {}), hue: HUE[o.hue] || HUE.red },   // resolved palette for the renderer
+  look: { ...(LOOKS[i] || {}), hue: HUE[o.hue] || HUE.red, sprite: SPRITE_SLUG[i] },   // resolved palette + optional sprite set
 }));

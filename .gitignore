@@ -27,6 +27,9 @@ tools/_mk3_probe.png
 .env
 .env.local
 
+# Python sprite-tool venv
+tools/.venv/
+
 # Claude local-only settings (keep launch.json so others can run the preview)
 .claude/settings.local.json
 

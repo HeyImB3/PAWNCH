@@ -40,12 +40,13 @@ CONTINUITY = (
 # never staring straight ahead or glancing/striking off to the left or right.
 FOCUS = (
     "STAGING: he faces the viewer but he is a TOWERING giant, while his opponent - the player - "
-    "is much SMALLER and stands on the ground at the BOTTOM-CENTER of the frame, right in front "
-    "of his boots. So he TILTS HIS HEAD DOWN and his EYES LOOK DOWNWARD at that small opponent "
-    "below him: his face, gaze and entire focus are locked DOWN toward the bottom of the frame - "
-    "he is NEVER staring straight ahead and NEVER glancing or aiming off to the left or right. "
+    "is much SMALLER and stands close to the camera in the FOREGROUND at the bottom of the "
+    "screen, BELOW him and out in FRONT of him (NOT at his feet, NOT on the floor he stands on). "
+    "So he tilts his head DOWN-AND-FORWARD and his eyes look toward that small opponent in the "
+    "lower-foreground: his face, gaze and focus aim at the lower-CENTER-FRONT of the frame - "
+    "never staring straight ahead and never glancing off to the left or right. "
     "Draw ONLY the Pawnchion himself, alone in the frame - do NOT draw the small opponent, just "
-    "imply them below the bottom edge."
+    "imply them below and in front."
 )
 
 POSE_DESC = {
@@ -55,10 +56,10 @@ POSE_DESC = {
     # boots), with foreshortening - never reaching off to his left or right side.
     "windupL": "rearing back to hammer DOWN on the small opponent at his feet: his LEFT fist cocked up HIGH above his shoulder, head tilted down watching the player below, body coiled to bring the fist crashing straight DOWN - an obvious telegraph.",
     "windupR": "rearing back to hammer DOWN on the small opponent at his feet: his RIGHT fist cocked up HIGH above his shoulder, head tilted down watching the player below, body coiled to bring the fist crashing straight DOWN - an obvious telegraph.",
-    "jabL":    "firing a LEFT jab straight DOWN at the small opponent below him: his LEFT arm drives DOWNWARD toward the BOTTOM-CENTER of the frame (down toward his own boots), the fist ending low and central with dramatic foreshortening, head and eyes following it DOWN, right glove tucked at his cheek - the fist does NOT reach out to his side.",
-    "jabR":    "firing a RIGHT jab straight DOWN at the small opponent below him: his RIGHT arm drives DOWNWARD toward the BOTTOM-CENTER of the frame (down toward his own boots), the fist ending low and central with dramatic foreshortening, head and eyes following it DOWN, left glove tucked at his cheek - the fist does NOT reach out to his side.",
-    "hookL":   "swinging a LEFT hook DOWN and INWARD onto the small opponent below him: his left arm arcs down toward the bottom-center of the frame, elbow bent, torso hunching forward over the smaller target, head down - not a flat sideways swing.",
-    "hookR":   "swinging a RIGHT hook DOWN and INWARD onto the small opponent below him: his right arm arcs down toward the bottom-center of the frame, elbow bent, torso hunching forward over the smaller target, head down - not a flat sideways swing.",
+    "jabL":    "firing a LEFT jab DOWN-AND-FORWARD at the small player in the foreground: his LEFT arm punches OUT toward the camera at a moderate ~30-40 degree DOWNWARD angle, the fist reaching the lower-CENTER-FRONT of the frame and stopping at the player's HEAD height (with dramatic foreshortening) - the fist does NOT continue down to the floor or his own boots, and does NOT reach out to his side; right glove guards his cheek.",
+    "jabR":    "firing a RIGHT jab DOWN-AND-FORWARD at the small player in the foreground: his RIGHT arm punches OUT toward the camera at a moderate ~30-40 degree DOWNWARD angle, the fist reaching the lower-CENTER-FRONT of the frame and stopping at the player's HEAD height (with dramatic foreshortening) - the fist does NOT continue down to the floor or his own boots, and does NOT reach out to his side; left glove guards his cheek.",
+    "hookL":   "swinging a LEFT hook DOWN-AND-FORWARD onto the small player in the foreground: his left arm arcs OUT toward the camera and moderately downward, the fist landing at the lower-CENTER-FRONT around the player's HEAD height with foreshortening, torso hunched forward over the target - NOT a flat sideways swing and NOT chopping down at the floor.",
+    "hookR":   "swinging a RIGHT hook DOWN-AND-FORWARD onto the small player in the foreground: his right arm arcs OUT toward the camera and moderately downward, the fist landing at the lower-CENTER-FRONT around the player's HEAD height with foreshortening, torso hunched forward over the target - NOT a flat sideways swing and NOT chopping down at the floor.",
     "special": "unleashing his signature finisher - BOTH arms raised high overhead, fists clenched together for a massive overhead smash, towering and menacing.",
     "duck":    "ducking low - knees deeply bent, head dropped down between his raised gloves, crouched.",
     "hurt":    "recoiling from a hit - head snapped back and to one side, both arms flung loose, knocked off balance.",

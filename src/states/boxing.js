@@ -9,6 +9,7 @@ import { MATCH, PAL, BOX } from '../config.js';
 import { FIGHTER } from '../config.js';
 import { text, textWidth, panel, ring, barH } from '../gfx.js';
 import { drawFighter } from '../fighter.js';
+import { drawSpecialFx } from '../specialfx.js';
 import { drawScene, sceneFor } from '../scenery.js';
 import * as audio from '../audio.js';
 import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
@@ -37,6 +38,7 @@ export class BoxingState {
     this.nameT = 0;            // intro nameplate slide
     this.sigWarnT = 0;         // signature warning flash
     this.tellPopT = 0;         // attack-tell banner pop-in timer (set on each windup)
+    this.specialFxT = 0;       // strike-phase timer (s) for the boss special spectacle
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.red) : HUE.red;
     this.enemyLook = (m.mode === 'story' && m.opponent?.look) ? m.opponent.look : DEFAULT_LOOK;
     this.playerLook = HERO_LOOK;
@@ -70,6 +72,10 @@ export class BoxingState {
           game.fx.doShake(Math.min(13, dmg));
           this.crowd = Math.min(1, this.crowd + (dmg > 15 ? 0.65 : 0.3));
           if (side === 'player') game.fx.doFlash(PAL.red, 0.22);
+          // a boss SPECIAL signature landing = the big spectacle: trigger the strike FX + amplify.
+          if (side === 'player' && kind === 'signature' && this.match.enemy.special) {
+            this.specialFxT = 0.6; game.doFreeze(140); game.fx.doShake(17); game.fx.doFlash('#fff', 0.5);
+          }
         },
         onDodge: () => audio.sfx.dodge(),
         onParry: (side) => {
@@ -125,6 +131,7 @@ export class BoxingState {
     if (this.comboFlash > 0) this.comboFlash -= dt / 1000;
     if (this.sigWarnT > 0) this.sigWarnT -= dt / 1000;
     if (this.tellPopT > 0) this.tellPopT -= dt / 1000;
+    if (this.specialFxT > 0) this.specialFxT -= dt / 1000;
     this.nameT = Math.min(1, this.nameT + dt / 1000 / 0.4);
     this.crowd = Math.max(0, this.crowd - dt / 1000 * 1.2);
     audio.playFightTheme(this.m.fightTrack);
@@ -140,6 +147,13 @@ export class BoxingState {
 
     // opponent (center, facing camera)
     const ex = W / 2 + e.offset;
+    // boss SPECIAL spectacle (chess-themed): a back layer behind the fighter + a front layer over both.
+    const spSlug = this.enemyLook.sprite;
+    const spActive = (!!e.special && (e.pose === 'windup' || e.pose === 'stance')) || this.specialFxT > 0;
+    const spO = spActive ? { W, H, ex, feetY: FIGHTER.ENEMY_FEET_Y, t: this.t, accent: this.accent,
+      phase: this.specialFxT > 0 ? 'strike' : 'charge',
+      k: this.specialFxT > 0 ? Math.min(1, 1 - this.specialFxT / 0.6) : 1 } : null;
+    if (spO) drawSpecialFx(ctx, spSlug, { ...spO, layer: 'back' });
     const eFlaring = (e.special || e.kind === 'signature') && (e.pose === 'windup' || e.pose === 'stance') && Math.floor(this.t * 18) % 2 === 0;
     let eLook = this.enemyLook;
     if (e.pose === 'stun') eLook = Math.floor(this.t * 12) % 2 ? { ...this.enemyLook, hue: this.redHue } : this.enemyLook;
@@ -168,6 +182,7 @@ export class BoxingState {
     ctx.globalAlpha = 1;
     if (p.pose === 'stun') this._stunFx(ctx, pxs, FIGHTER.PLAYER_FEET_Y - 150);
 
+    if (spO) drawSpecialFx(ctx, spSlug, { ...spO, layer: 'front' });
     this._hud(game, ctx);
     this._nameplate(game, ctx);
     this._banner(game, ctx);

@@ -150,7 +150,8 @@ const LOOKS = {
 
 // Fighter index -> boxer sprite-set slug (matches assets/sprites/boxers/<slug>).
 // Only fighters with authored art need an entry; the rest stay procedural.
-const SPRITE_SLUG = { 9: 'pawnchion' };
+const SPRITE_SLUG = { 0: 'patty', 1: 'gus', 2: 'rosa', 3: 'kid', 4: 'bishop',
+  5: 'queen', 6: 'iron', 7: 'tal', 8: 'magnus', 9: 'pawnchion' };
 
 // The player (drawn back-view in a fight, front on win screens). No chess gimmick.
 export const HERO_LOOK = { hue: HUE.player, hgt:1.06, shoulder:1.05, waist:0.8, sprite: 'player',

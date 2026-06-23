@@ -18,6 +18,64 @@ IDENTITY = {
         "chess-piece crown (king, queen and rook points). On EACH shoulder he wears a "
         "matching grey stone rook-tower pauldron with crenellated battlements."
     ),
+    "patty": (
+        "PATTY PUSHWOOD, the goofy rookie first opponent: short, round and a little doughy, "
+        "wearing a smooth rounded wooden PAWN-helmet (a dome like a chess pawn's head), bright "
+        "orange trunks and matching orange gloves, a simple carved pawn glyph on his chest, a "
+        "hopeful goofy grin, big eager eyes and rosy cheeks. A lovable harmless underdog, not "
+        "intimidating at all."
+    ),
+    "gus": (
+        "GUS GAMBIT, a sly trickster pawn who loves a dodgy gambit: lean and wiry, a TALL "
+        "pointed wooden pawn-helmet, green trunks and matching green gloves with a green sash "
+        "across his chest, one cocky raised eyebrow and a smug con-man smirk, shifty eyes. He "
+        "looks like he is about to swindle you."
+    ),
+    "rosa": (
+        "ROSA ROOKRUSH, a powerhouse brawler who charges straight in like a rook: broad and "
+        "tough, a tall square crenellated stone ROOK-TOWER helmet with battlements on top, deep "
+        "red trunks and matching red gloves, a brick-wall emblem on her chest, a fierce angry "
+        "scowl and dark red hair. Built like a battering ram."
+    ),
+    "kid": (
+        "KID KNIGHTMARE, a tricky cocky young knight-boxer: athletic, wearing a steel KNIGHT "
+        "helmet shaped like a chess knight (a horse-head crest and visor), blue trunks and "
+        "matching blue gloves, a two-pronged fork emblem on his chest, a sly confident smirk. "
+        "Quick, slippery and unpredictable."
+    ),
+    "bishop": (
+        "BISHOP BRUISER, a tall looming bishop who works the diagonals: lean and long-limbed, a "
+        "tall split BISHOP'S MITRE hat (a pointed two-part church mitre), purple trunks and "
+        "matching purple gloves with a purple sash, a calm heavy-browed flat stare, quietly "
+        "menacing. He towers over you on the diagonal."
+    ),
+    "queen": (
+        "QUEEN QUAKE, a regal and devastating queen who centralizes and swings hard: powerful "
+        "and commanding, a tall pointed QUEEN'S CORONET crown topped with orbs, magenta-pink "
+        "trunks and matching pink gloves with a wide royal sash, bold lipstick, hooded "
+        "confident eyes and a fierce regal glare. The most powerful piece, and she knows it."
+    ),
+    "iron": (
+        "IRON ENDGAME, a hulking iron brute who grinds opponents down: ENORMOUS shoulders and a "
+        "massive barrel chest (the biggest, widest, most muscular fighter), a riveted iron "
+        "rook-stub cap, cold grey steel armour-plated trunks and matching grey gloves, iron "
+        "rivets across his chest, a blank flat unstoppable stare, battle-scarred. An immovable "
+        "grinding machine."
+    ),
+    "tal": (
+        "TAL TEMPEST, a wild sacrificial attacker - an affectionate caricature homage to the "
+        "chess legend Mikhail Tal, 'the Magician of Riga': intense piercing dark eyes under "
+        "heavy dark eyebrows, a sharp widow's-peak hairline of dark wavy hair, a sly dangerous "
+        "smirk, a slim build, teal trunks and matching teal gloves with a sash. He looks like "
+        "he will sacrifice everything to attack - hypnotic, reckless and brilliant."
+    ),
+    "magnus": (
+        "MAGNUS MAXIMUS, the near-perfect champion-king - an affectionate caricature homage to "
+        "world chess champion Magnus Carlsen: a strong heavy jaw, intense focused eyes under a "
+        "flat brow, short side-swept light-brown hair, a calm cold confident unbothered "
+        "expression, an athletic build, a gold KING'S CROWN, and gold-and-white trunks with "
+        "matching gloves. Quietly untouchable and calculating."
+    ),
 }
 
 STYLE = (

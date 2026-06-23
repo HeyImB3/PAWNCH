@@ -4,6 +4,7 @@
     "arcane": "arcane"
   },
   "boxerSets": {
+    "patty": "boxers/patty",
     "pawnchion": "boxers/pawnchion"
   }
 }

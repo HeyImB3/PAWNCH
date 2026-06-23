@@ -109,9 +109,14 @@ def run(slug):
         frame.save(os.path.join(out_dir, "front_%s.png" % pose))
         tiles.append((pose, frame))
         print("front_%s.png (%dx%d, body %dpx)" % (pose, frame.size[0], frame.size[1], body.size[1]))
+    _montage(tiles, slug)
+    print("wrote %d frames + tools/_%s_montage.png" % (len(tiles), slug))
+
+
+def _montage(tiles, slug):
     cols = 7; rows = (len(tiles) + cols - 1) // cols
     mont = Image.new("RGBA", (CW * cols, CH * rows), (0, 0, 0, 0))
-    for i, (pose, f) in enumerate(tiles):
+    for i, (key, f) in enumerate(tiles):
         bg = Image.new("RGBA", (CW, CH)); bp = bg.load()
         for yy in range(CH):
             for xx in range(CW):
@@ -120,7 +125,26 @@ def run(slug):
         bg.alpha_composite(f)
         mont.paste(bg, ((i % cols) * CW, (i // cols) * CH))
     mont.save(os.path.join("tools", "_%s_montage.png" % slug))
+
+
+def run_player(slug="player"):
+    """Slice the player's facing-prefixed raws (back_<pose>.png / front_<pose>.png)."""
+    raw = os.path.join("assets", "sprites", "_src", slug)
+    out_dir = os.path.join("assets", "sprites", "boxers", slug)
+    os.makedirs(out_dir, exist_ok=True)
+    keys = sorted(os.path.splitext(f)[0] for f in os.listdir(raw)
+                  if f.endswith(".png") and not f.startswith("_"))
+    tiles = []
+    for key in keys:
+        pose = key.split("_", 1)[1] if "_" in key else key   # 'back_jabL' -> 'jabL'
+        body = knockout(Image.open(os.path.join(raw, key + ".png")))
+        frame = place(body, pose)
+        frame.save(os.path.join(out_dir, key + ".png"))
+        tiles.append((key, frame))
+        print("%s.png (%dx%d, body %dpx)" % (key, frame.size[0], frame.size[1], body.size[1]))
+    _montage(tiles, slug)
     print("wrote %d frames + tools/_%s_montage.png" % (len(tiles), slug))
 
 if __name__ == "__main__":
-    run(sys.argv[1] if len(sys.argv) > 1 else "pawnchion")
+    slug = sys.argv[1] if len(sys.argv) > 1 else "pawnchion"
+    (run_player if slug == "player" else run)(slug)

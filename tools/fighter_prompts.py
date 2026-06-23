@@ -138,6 +138,65 @@ def pose_prompt(slug, pose):
             f"{FOCUS} {STYLE} {CONTINUITY}")
 
 
+# ---- THE PLAYER (hero) -------------------------------------------------------
+# A scrappy chess underdog ("Little Mac but better"). Drawn from BEHIND in fights
+# (back to camera, punching UP/AWAY at the bigger opponent above) and from the
+# FRONT on win / round-break / walk-in screens.
+IDENTITY["player"] = (
+    "THE PLAYER, the scrappy underdog hero of a chess-boxing game: a young, lean but tough and "
+    "athletic boxer with short dark hair, a white headband, a determined fearless look and fire "
+    "in his eyes. He wears bright BLUE boxing trunks and matching blue boxing gloves with white "
+    "trim, and a small white chess-PAWN emblem on his waistband - a humble pawn with the heart "
+    "of a champion who out-thinks and out-fights giants. Heroic and cool, an underdog you root "
+    "for, never cocky."
+)
+
+PLAYER_BACK = (
+    "Shown from BEHIND, his back to the camera in the lower foreground - we see the back of his "
+    "head and headband, his shoulders and back, his blue trunks and the backs of his gloves, NOT "
+    "his face. His opponent is a much LARGER fighter standing ABOVE and ahead of him near the top "
+    "of the screen, so his guard and punches drive UP and AWAY from the camera toward that bigger "
+    "opponent above."
+)
+
+PLAYER_BACK_POSE = {
+    "idle":    "bouncing lightly on his toes in a boxing stance, both gloves up.",
+    "guard":   "in a tight guard, both gloves up protecting his head.",
+    "windupL": "cocking his LEFT arm back low to load a punch.",
+    "windupR": "cocking his RIGHT arm back low to load a punch.",
+    "jabL":    "firing a LEFT jab UP and AWAY at the bigger opponent above - left arm extended upward and forward.",
+    "jabR":    "firing a RIGHT jab UP and AWAY at the bigger opponent above - right arm extended upward and forward.",
+    "hookL":   "throwing a LEFT hook up toward the opponent above, torso twisting.",
+    "hookR":   "throwing a RIGHT hook up toward the opponent above, torso twisting.",
+    "special": "leaping up with a huge heroic UPPERCUT finisher - one fist driving straight UP toward the opponent above, rising onto his toes.",
+    "duck":    "ducking low, crouched, gloves up.",
+    "hurt":    "snapped backward, recoiling from a hit, arms flailing.",
+    "stagger": "wobbling and dazed, off balance.",
+    "down":    "knocked down, slumped on the canvas.",
+    "walk":    "striding forward away from the camera toward the ring.",
+}
+
+PLAYER_FRONT_POSE = {
+    "idle":    "facing the viewer in a confident boxing stance, gloves up, a determined grin.",
+    "guard":   "facing the viewer in a tight guard, both gloves at his face.",
+    "walk":    "walking toward the viewer, mid-stride, gloves up, determined.",
+    "special": "a triumphant victory pose facing the viewer, one fist raised high, grinning.",
+}
+
+def player_anchor_prompt():
+    return (f"{IDENTITY['player']} He stands facing the viewer in a confident boxing stance, full "
+            f"body from head to feet, gloves up. {STYLE}")
+
+def player_pose_prompt(pose, facing):
+    if facing == "back":
+        style = STYLE.replace("facing the viewer, ", "")   # he's back-to-camera
+        return (f"The SAME character from the reference image: {IDENTITY['player']} {PLAYER_BACK} "
+                f"He is {PLAYER_BACK_POSE[pose]} Make the body language exaggerated and clear. "
+                f"{style} {CONTINUITY}")
+    return (f"The SAME character from the reference image: {IDENTITY['player']} He is "
+            f"{PLAYER_FRONT_POSE.get(pose, PLAYER_FRONT_POSE['idle'])} {STYLE} {CONTINUITY}")
+
+
 if __name__ == "__main__":
     import sys
     slug = sys.argv[1] if len(sys.argv) > 1 else "pawnchion"

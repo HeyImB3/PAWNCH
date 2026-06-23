@@ -23,6 +23,12 @@ SAT_T = 0.18            # saturation >= this => keep (colored body even if light
 # Expected bbox height as a fraction of a standing fighter (tune from the montage).
 POSE_H = {p: 1.0 for p in POSE_ORDER}
 POSE_H.update({"special": 1.22, "duck": 0.80, "down": 0.60})
+# Per-fighter standing body height (px on the 216-tall canvas) so silhouettes differ
+# in-game: Patty is a pudgeball, Bishop towers, Iron is a monster. Default TARGET_BODY_H.
+BODY_H = {
+    "patty": 112, "gus": 150, "rosa": 150, "kid": 146, "bishop": 182,
+    "queen": 164, "iron": 186, "tal": 150, "magnus": 156, "pawnchion": 172,
+}
 
 def knockout(im):
     """RGBA of just the body: flood the near-white background to transparent from
@@ -84,12 +90,16 @@ def knockout(im):
     bb = alpha.getbbox()
     return out.crop(bb) if bb else out
 
-def place(body, pose):
+def place(body, pose, body_h=TARGET_BODY_H):
     w, h = body.size
-    scale = (TARGET_BODY_H * POSE_H.get(pose, 1.0)) / h
-    if pose == "down":                       # wide/short: clamp by width
+    scale = (body_h * POSE_H.get(pose, 1.0)) / h
+    scale = min(scale, (CW * 0.98) / w)      # never wider than the canvas (wide fighters fit)
+    if pose == "down":
         scale = min(scale, (CW * 0.95) / w)
     nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
+    if nh > CH - 2:                          # never taller than the canvas
+        scale *= (CH - 2) / nh
+        nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
     body = body.resize((nw, nh), Image.LANCZOS)
     canvas = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     canvas.alpha_composite(body, (CX - nw // 2, FEET - nh))
@@ -105,7 +115,7 @@ def run(slug):
         if not os.path.exists(src):
             print("MISSING", src); continue
         body = knockout(Image.open(src))
-        frame = place(body, pose)
+        frame = place(body, pose, BODY_H.get(slug, TARGET_BODY_H))
         frame.save(os.path.join(out_dir, "front_%s.png" % pose))
         tiles.append((pose, frame))
         print("front_%s.png (%dx%d, body %dpx)" % (pose, frame.size[0], frame.size[1], body.size[1]))
@@ -138,7 +148,7 @@ def run_player(slug="player"):
     for key in keys:
         pose = key.split("_", 1)[1] if "_" in key else key   # 'back_jabL' -> 'jabL'
         body = knockout(Image.open(os.path.join(raw, key + ".png")))
-        frame = place(body, pose)
+        frame = place(body, pose, BODY_H.get(slug, TARGET_BODY_H))
         frame.save(os.path.join(out_dir, key + ".png"))
         tiles.append((key, frame))
         print("%s.png (%dx%d, body %dpx)" % (key, frame.size[0], frame.size[1], body.size[1]))

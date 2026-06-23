@@ -18,63 +18,73 @@ IDENTITY = {
         "chess-piece crown (king, queen and rook points). On EACH shoulder he wears a "
         "matching grey stone rook-tower pauldron with crenellated battlements."
     ),
+    # Each fighter is a DISTINCT character first (body type, silhouette, personality,
+    # costume) - clearly a boxer (gloves on, in the ring) but never the same scheme.
+    # Chess theme is EMBODIED + one signature nod, not a uniform chess-piece hat.
     "patty": (
-        "PATTY PUSHWOOD, the goofy rookie first opponent: short, round and a little doughy, "
-        "wearing a smooth rounded wooden PAWN-helmet (a dome like a chess pawn's head), bright "
-        "orange trunks and matching orange gloves, a simple carved pawn glyph on his chest, a "
-        "hopeful goofy grin, big eager eyes and rosy cheeks. A lovable harmless underdog, not "
-        "intimidating at all."
+        "PATTY PUSHWOOD, the goofy harmless rookie and gentlest first opponent: the SHORTEST and "
+        "ROUNDEST fighter in the whole game - a soft doughy little PAWN-SHAPED pudgeball with a "
+        "round belly, stubby little arms and legs, a goofy hopeful grin, big innocent eyes and "
+        "rosy cheeks. His body and trunks have a warm wood-grain look (a literal 'wood-pusher'). "
+        "Bright orange boxing gloves that look too big for his tiny arms. A lovable dope, totally "
+        "unintimidating."
     ),
     "gus": (
-        "GUS GAMBIT, a sly trickster pawn who loves a dodgy gambit: lean and wiry, a TALL "
-        "pointed wooden pawn-helmet, green trunks and matching green gloves with a green sash "
-        "across his chest, one cocky raised eyebrow and a smug con-man smirk, shifty eyes. He "
-        "looks like he is about to swindle you."
+        "GUS GAMBIT, a sly riverboat-gambler con-man who fakes and sacrifices: lean and slouchy "
+        "with a smug card-sharp grin, a thin pencil mustache, slicked-back hair, a green dealer's "
+        "visor and green sleeve garters on his bare arms, and green boxing gloves. He looks like "
+        "a hustler about to cheat you - shifty eyes, a sneaky sideways lean. He works angles and "
+        "feints, never a straight fight. NO helmet."
     ),
     "rosa": (
-        "ROSA ROOKRUSH, a powerhouse brawler who charges straight in like a rook: broad and "
-        "tough, a tall square crenellated stone ROOK-TOWER helmet with battlements on top, deep "
-        "red trunks and matching red gloves, a brick-wall emblem on her chest, a fierce angry "
-        "scowl and dark red hair. Built like a battering ram."
+        "ROSA ROOKRUSH, an unstoppable charging bruiser built like a FORTRESS: the WIDEST, most "
+        "square and blocky fighter in the game - a huge rectangular tank of a woman with enormous "
+        "boulder shoulders and a body textured like grey castle stone and red brick, tiny eyes, a "
+        "furious grin and fiery red hair. Big red boxing gloves like wrecking balls. Her body IS "
+        "the rook-tower; she charges in straight lines and flattens everything. NO helmet."
     ),
     "kid": (
-        "KID KNIGHTMARE, a tricky cocky young knight-boxer: athletic, wearing a steel KNIGHT "
-        "helmet shaped like a chess knight (a horse-head crest and visor), blue trunks and "
-        "matching blue gloves, a two-pronged fork emblem on his chest, a sly confident smirk. "
-        "Quick, slippery and unpredictable."
+        "KID KNIGHTMARE, a flashy acrobatic young trickster: lean, springy and athletic with a "
+        "cocky smirk and a spiky horse-mane MOHAWK (a knight's horse). He wears a sleeveless blue "
+        "jacket and blue boxing gloves, and his SIGNATURE is a glowing two-pronged FORK - a fork "
+        "emblem on his chest and little fork-shaped electric sparks crackling around his gloves. "
+        "He bounces and break-dances, tricky and unpredictable."
     ),
     "bishop": (
-        "BISHOP BRUISER, a tall looming bishop who works the diagonals: lean and long-limbed, a "
-        "tall split BISHOP'S MITRE hat (a pointed two-part church mitre), purple trunks and "
-        "matching purple gloves with a purple sash, a calm heavy-browed flat stare, quietly "
-        "menacing. He towers over you on the diagonal."
+        "BISHOP BRUISER, a towering creepy zealot-preacher: the TALLEST and LANKIEST fighter by "
+        "far - gaunt and impossibly long-limbed with a thin pale face, sunken fervent eyes and a "
+        "sermonizing sneer. He wears a high white clerical collar and a long dark cassock-robe "
+        "open over his purple trunks, with purple boxing gloves on his long reaching arms. He "
+        "looms and lectures and works cruel diagonals with his huge reach. NO mitre hat."
     ),
     "queen": (
-        "QUEEN QUAKE, a regal and devastating queen who centralizes and swings hard: powerful "
-        "and commanding, a tall pointed QUEEN'S CORONET crown topped with orbs, magenta-pink "
-        "trunks and matching pink gloves with a wide royal sash, bold lipstick, hooded "
-        "confident eyes and a fierce regal glare. The most powerful piece, and she knows it."
+        "QUEEN QUAKE, a flamboyant glamorous powerhouse DIVA: tall, voluptuous and commanding "
+        "with enormous dramatic pink bouffant hair, heavy glam makeup, big dangling jewelry, a "
+        "haughty theatrical sneer, and a sequined magenta-pink leotard and trunks. Pink boxing "
+        "gloves. She is pure showbiz spectacle - she stomps and the whole ring QUAKES. The most "
+        "theatrical, over-the-top fighter. Her giant hair IS her crown - NO coronet hat."
     ),
     "iron": (
-        "IRON ENDGAME, a hulking iron brute who grinds opponents down: ENORMOUS shoulders and a "
-        "massive barrel chest (the biggest, widest, most muscular fighter), a riveted iron "
-        "rook-stub cap, cold grey steel armour-plated trunks and matching grey gloves, iron "
-        "rivets across his chest, a blank flat unstoppable stare, battle-scarred. An immovable "
-        "grinding machine."
+        "IRON ENDGAME, a cold relentless GRINDING MACHINE: a hulking steampunk iron ROBOT boxer "
+        "built of riveted iron plates, exposed brass gears and hissing pistons, with a blank iron "
+        "visor face lit by a single cold glowing horizontal eye-slit, and heavy iron-block fists "
+        "for gloves. No skin, no expression - an unfeeling endgame automaton that grinds "
+        "opponents to dust. The biggest, heaviest, most inhuman fighter in the game."
     ),
     "tal": (
-        "TAL TEMPEST, a wild sacrificial attacker - an affectionate caricature homage to the "
-        "chess legend Mikhail Tal, 'the Magician of Riga': intense piercing dark eyes under "
-        "heavy dark eyebrows, a sharp widow's-peak hairline of dark wavy hair, a sly dangerous "
-        "smirk, a slim build, teal trunks and matching teal gloves with a sash. He looks like "
-        "he will sacrifice everything to attack - hypnotic, reckless and brilliant."
+        "TAL TEMPEST, a wild hypnotic MAD-GENIUS - an affectionate caricature of chess legend "
+        "Mikhail Tal: lean and twitchy with intense piercing dark eyes under heavy black "
+        "eyebrows, a wild unruly dark mop of hair, and a manic dangerous grin. A swirling "
+        "hypnotic energy and crackling storm-sparks whirl around him; teal boxing gloves and a "
+        "teal sash. He sacrifices everything in a reckless brilliant frenzy. NO crown, NO helmet."
     ),
     "magnus": (
-        "MAGNUS MAXIMUS, the near-perfect champion-king - an affectionate caricature homage to "
-        "world chess champion Magnus Carlsen: a strong heavy jaw, intense focused eyes under a "
-        "flat brow, short side-swept light-brown hair, a calm cold confident unbothered "
-        "expression, an athletic build, a gold KING'S CROWN, and gold-and-white trunks with "
-        "matching gloves. Quietly untouchable and calculating."
+        "MAGNUS MAXIMUS, an ice-cold flawless PRODIGY - an affectionate caricature of world "
+        "champion Magnus Carlsen: athletic and composed with a strong jaw, short side-swept "
+        "light-brown hair, calm intense focused eyes and a cool unbothered half-smirk. He stands "
+        "relaxed and supremely confident with minimal flash, in clean gold-trimmed white trunks "
+        "and white-and-gold boxing gloves. Calculating and untouchable - the calm before the "
+        "checkmate. Understated, NO big crown."
     ),
 }
 
@@ -87,24 +97,23 @@ STYLE = (
 )
 
 CONTINUITY = (
-    "CRITICAL CONTINUITY: keep him EXACTLY identical to the reference image - same face, "
-    "same gold chess-piece crown, same orange-and-blue costume, same proportions and the "
-    "same body size. He must ALWAYS have BOTH rook-tower pauldrons, one on each shoulder, "
-    "equal in size and symmetric - never drop, hide, or shrink either pauldron."
+    "CRITICAL CONTINUITY: keep this fighter EXACTLY identical to the reference image - the same "
+    "face, hair, costume, colors, build and signature details, and the same body size. Do NOT "
+    "add or remove costume elements between frames, and do NOT add a crown, a chess-piece hat, "
+    "or shoulder armour unless the reference already has one."
 )
 
 # Staging: the player is a SMALL opponent at the bottom-center of the screen. The enemy
 # towers over them, so his head, eyes and punches all aim DOWN toward that lower target -
 # never staring straight ahead or glancing/striking off to the left or right.
 FOCUS = (
-    "STAGING: he faces the viewer but he is a TOWERING giant, while his opponent - the player - "
-    "is much SMALLER and stands close to the camera in the FOREGROUND at the bottom of the "
-    "screen, BELOW him and out in FRONT of him (NOT at his feet, NOT on the floor he stands on). "
-    "So he tilts his head DOWN-AND-FORWARD and his eyes look toward that small opponent in the "
-    "lower-foreground: his face, gaze and focus aim at the lower-CENTER-FRONT of the frame - "
-    "never staring straight ahead and never glancing off to the left or right. "
-    "Draw ONLY the Pawnchion himself, alone in the frame - do NOT draw the small opponent, just "
-    "imply them below and in front."
+    "STAGING: the opponent (the player) stands close to the camera in the FOREGROUND at the "
+    "bottom of the screen, BELOW and out in FRONT of this fighter (not at his feet, not on the "
+    "floor he stands on). So he tilts his head DOWN-AND-FORWARD and his eyes and punches aim "
+    "toward that opponent in the lower-CENTER-FRONT of the frame - never staring straight ahead "
+    "and never aiming off to the left or right. "
+    "Draw ONLY this single fighter, alone in the frame - do NOT draw the opponent, just imply "
+    "them below and in front."
 )
 
 POSE_DESC = {
@@ -127,9 +136,7 @@ POSE_DESC = {
 }
 
 def anchor_prompt(slug):
-    return (f"{IDENTITY[slug]} He is {POSE_DESC['idle']} {FOCUS} {STYLE} "
-            "He must clearly show BOTH matching rook-tower shoulder pauldrons, one on each "
-            "shoulder, equal in size and symmetric.")
+    return f"{IDENTITY[slug]} He is {POSE_DESC['idle']} {FOCUS} {STYLE}"
 
 def pose_prompt(slug, pose):
     return (f"Keep the SAME character, costume and crown from the reference image, but "

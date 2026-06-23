@@ -65,6 +65,17 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   from a CDN, falls back to the built-in AI, with a humanized think time).
 - **Boxing sim** in `src/boxing.js` (`BoxingMatch`) — Punch-Out-style read-and-react:
   telegraphed tells, perfect-parry staggers, best-of-3 knockdowns, get-up minigame.
+- **Authored fighter sprites** (optional; override `fighter.js`'s procedural boxer):
+  per-fighter **`boxerSets`** under `assets/sprites/boxers/<slug>/` (`front_<pose>.png`;
+  player also `back_*`), mirroring chess `pieceSets`. `drawFighter` blits a registered
+  sprite when `look.sprite` is set (via the `boxerKey` pose resolver), else falls back to
+  procedural (Golden Rule 5). `FIGHTER.BOB` gives sprite fighters an idle weave; a landed
+  enemy strike snaps to a held `punch` frame (`BOX.PUNCH_HOLD_MS`) so the hit-stop
+  (`game.doFreeze`, ≤140ms) freezes the *punch*, not an idle frame.
+- **Boss special spectacle** in **`src/specialfx.js`** — per-fighter chess-themed FX keyed
+  by sprite slug (back layer: arena dim + giant ghost piece + lit board; front: shockwave +
+  piece scatter + name stamp), drawn by the boxing state during a special. The template
+  every boss plugs into; built first for `pawnchion`.
 
 ## Golden rules (don't break these)
 
@@ -107,6 +118,15 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   `boxingFromDifficulty()`, which compresses everyone after Patty into a high band
   (`FLOOR`) and scales `parrySkill` — so a new mid-roster fighter should still feel
   genuinely hard (see Golden Rule 8). ELO climbs ~+200/step, capped at 2000.
+- **Build/refresh a fighter's sprite set** → the **Gemini pipeline** in `tools/` (needs
+  `GEMINI_API_KEY` in gitignored `.env`, with **API billing enabled** — the free tier is 0
+  for image gen). `gen_fighter.py <slug>` makes an idle **`_anchor`** to lock identity, then
+  generates each pose conditioned on it (`--ref`); `slice_boxer.py <slug>` knocks out the
+  white bg, removes enclosed white pockets, **LANCZOS**-downscales to the procedural canvas
+  (150×216, feet@190, center@75), and writes `assets/sprites/boxers/<slug>/`. Register it:
+  `manifest.json` `boxerSets` + a `SPRITE_SLUG` entry in `opponents.js`, plus
+  `registerSpecialFx(slug, …)` in `specialfx.js` for the boss move. Art-direction is in
+  `tools/fighter_prompts.py`; raw `_src/` generations are gitignored (regenerable).
 - **Add a new screen / mode** → use **`/new-state`** (scaffolds the class and
   registers it in `game.js`).
 - **Change how a fight feels** → `BOX` in `src/config.js` — incl. `BOX.PARRY` (the
@@ -145,6 +165,17 @@ the change:
   AI — don't assume it's present.
 - Save data lives in `localStorage` under `SAVE_KEY` (`pawnch.save.v1`); bump the
   key if you change the save shape.
+- **No Node/npm on the dev machine** — the game is served by Python: `tools/devserver.py
+  [port]` (default 5174, no-cache). `node --check` is unavailable, so verify JS by loading
+  the page. Story Mode is **dev-unlocked on `localhost`** (`DEV_UNLOCK` in `story.js`) so you
+  can fight any opponent to review sprites; the shipped game keeps normal unlock and the save
+  is untouched. Pose QA harness: `tools/fighter-preview.html`. Sprite tools live in `tools/.venv`.
+- **AI image-gen continuity drifts** (gloves recolor, shoulder pauldrons vanish) — audit
+  EVERY regeneration, especially after re-rolling the `_anchor`. Generate the flat-KO `down`
+  pose WITHOUT the anchor (an upright anchor forces him vertical). Roster staging: enemies
+  tower over the player (bottom-of-screen foreground), so heads/eyes/punches aim
+  DOWN-AND-FORWARD at the player's head — never straight ahead, sideways, or at the floor. The
+  Read tool shows PNG transparency as white — judge cutouts via the slicer's checkerboard montage.
 
 ## Pre-approved commands
 

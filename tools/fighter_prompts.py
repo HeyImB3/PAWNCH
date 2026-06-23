@@ -54,9 +54,12 @@ IDENTITY = {
     "bishop": (
         "BISHOP BRUISER, a towering creepy zealot-preacher: the TALLEST and LANKIEST fighter by "
         "far - gaunt and impossibly long-limbed with a thin pale face, sunken fervent eyes and a "
-        "sermonizing sneer. He wears a high white clerical collar and a long dark cassock-robe "
-        "open over his purple trunks, with purple boxing gloves on his long reaching arms. He "
-        "looms and lectures and works cruel diagonals with his huge reach. NO mitre hat."
+        "sermonizing sneer. He wears a tall white-and-gold bishop's MITRE - the pointed, "
+        "subtly-cleft liturgical hat, ivory-white with a gold trim band around the base and a "
+        "single bold gold cross on the front - plus a high white clerical collar and a long dark "
+        "cassock-robe open over his purple trunks, with purple boxing gloves on his long reaching "
+        "arms. He looms and lectures and works cruel diagonals with his huge reach. The mitre is "
+        "his ONE signature nod (his chess-piece embodiment); no other crown or headgear."
     ),
     "queen": (
         "QUEEN QUAKE, a flamboyant glamorous powerhouse DIVA: tall, voluptuous and commanding "

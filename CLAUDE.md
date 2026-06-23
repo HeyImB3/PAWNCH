@@ -111,6 +111,19 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
    `parrySkill`) and the chess-skip cap (`MATCH.NO_MOVE_HP_CAP`) exist for exactly
    this. The ONE sanctioned mash is the get-up minigame (`BOX.GET_UP` — mash to beat
    the count); don't "fix" that one as if it were the bad kind.
+10. **Art is held to a stream-release, professional bar — no "glued-on" work.** Every
+    visual change must look like it was *always part of the same sprite*, never pasted
+    on top. That means: match the sprite's own rendering — **soft, LANCZOS-feathered
+    edges** (author detail at high res, then downscale — never a hard 1px cel outline
+    on a painterly sprite), **one consistent light direction**, hue-shifted color
+    **ramps** (not flat bands, no pure-black/# white), and a **contact / cast shadow**
+    where a new element meets the body so it sits *on* it. Reach for the **highest-power
+    tool available** and all relevant craft knowledge (the Gemini engine for in-style
+    re-renders when billing is on — see `fighter-art`; the Aseprite/`pixel-mcp` pro
+    tools + the `pixel-art-professional` skill for hand work). **Always design →
+    preview on a checkerboard/magenta bg → verify the on-disk result before calling it
+    done** (the Read tool renders transparency as white and lies). "Good enough" pixel
+    art is a regression here.
 
 ## Common tasks
 

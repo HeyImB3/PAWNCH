@@ -74,8 +74,9 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   (`game.doFreeze`, ≤140ms) freezes the *punch*, not an idle frame.
 - **Boss special spectacle** in **`src/specialfx.js`** — per-fighter chess-themed FX keyed
   by sprite slug (back layer: arena dim + giant ghost piece + lit board; front: shockwave +
-  piece scatter + name stamp), drawn by the boxing state during a special. The template
-  every boss plugs into; built first for `pawnchion`.
+  piece scatter + name stamp), drawn by the boxing state during a special. `registerSpecialFx(slug,…)`
+  per fighter — all 10 are registered, each themed to their move (Rosa's charging rook, Iron's
+  gears, Tal's hypnotic storm, …).
 
 ## Golden rules (don't break these)
 
@@ -127,6 +128,11 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   `manifest.json` `boxerSets` + a `SPRITE_SLUG` entry in `opponents.js`, plus
   `registerSpecialFx(slug, …)` in `specialfx.js` for the boss move. Art-direction is in
   `tools/fighter_prompts.py`; raw `_src/` generations are gitignored (regenerable).
+  Per-fighter silhouette size lives in `slice_boxer.py` `BODY_H` (Patty small, Iron huge).
+  Likeness fighters (Magnus/Tal) seed the anchor from a real photo via `--anchor-ref`
+  (`gemini_image.py` handles webp/jpg). The PLAYER is built by **`gen_player.py`**: a front
+  anchor → `back_<pose>` fight frames (back-to-camera, punches drive UP) + a few `front_`
+  frames for win/round-break/walk-in.
 - **Add a new screen / mode** → use **`/new-state`** (scaffolds the class and
   registers it in `game.js`).
 - **Change how a fight feels** → `BOX` in `src/config.js` — incl. `BOX.PARRY` (the
@@ -176,6 +182,11 @@ the change:
   tower over the player (bottom-of-screen foreground), so heads/eyes/punches aim
   DOWN-AND-FORWARD at the player's head — never straight ahead, sideways, or at the floor. The
   Read tool shows PNG transparency as white — judge cutouts via the slicer's checkerboard montage.
+- **Keep SHARED prompt scaffolding generic.** `fighter_prompts.py`'s `anchor_prompt`/`CONTINUITY`
+  apply to EVERY fighter — never bake one character's features into them (a stray hardcoded "gold
+  crown + rook-tower pauldrons" once forced the whole roster into the same cookie-cutter scheme).
+  Per-character look belongs in that fighter's `IDENTITY` only; each fighter is a DISTINCT body
+  type / silhouette / personality with the chess theme embodied + one signature nod.
 
 ## Pre-approved commands
 

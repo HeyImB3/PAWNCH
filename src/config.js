@@ -133,9 +133,11 @@ export const PIECE_FX = {
 // Boxing feel (Punch-Out-inspired). Times in ms unless noted.
 export const BOX = {
   // A landed enemy strike SNAPS to its punch frame and HOLDS it (PUNCH_HOLD_MS) so the
-  // existing hit-stop freeze (see boxing state onHit) freezes the *punch* at impact,
-  // not an idle frame. This is what makes the hit read as a real, connecting punch.
-  PUNCH_HOLD_MS: 90,
+  // existing hit-stop freeze (onHit) freezes the *punch* at impact, not an idle frame.
+  // Kept short (Feel D): the freeze already holds the frame, so this barely delays the
+  // enemy's recover/cadence and the fight stays as brutal as before. Final difficulty is
+  // a playtested dial — see boxingFromDifficulty() FLOOR / parrySkill in opponents.js.
+  PUNCH_HOLD_MS: 45,
   MAX_HP: 100,
   PLAYER_JAB_DMG: 6,
   PLAYER_HOOK_DMG: 13,

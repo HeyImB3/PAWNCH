@@ -72,13 +72,19 @@ export class BoxingState {
           game.fx.doShake(Math.min(13, dmg));
           this.crowd = Math.min(1, this.crowd + (dmg > 15 ? 0.65 : 0.3));
           if (side === 'player') game.fx.doFlash(PAL.red, 0.22);
+          if (dmg > 12) game.fx.ring(x, y, side === 'player' ? PAL.red : '#ffffff');   // impact pop (Feel B)
+          if (side === 'enemy' && dmg > 14) game.fx.doFlash('#ffffff', 0.12);           // crunch when YOU land a big one
           // a boss SPECIAL signature landing = the big spectacle: trigger the strike FX + amplify.
           if (side === 'player' && this.match.enemy.special) {
             this.specialFxT = 0.6;     // every special type fires its spectacle
             if (kind === 'signature') { game.doFreeze(140); game.fx.doShake(17); game.fx.doFlash('#fff', 0.5); }
           }
         },
-        onDodge: () => audio.sfx.dodge(),
+        onDodge: (side) => {   // a quick whoosh of dust on a slip (Feel C)
+          audio.sfx.dodge();
+          const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 200];
+          game.fx.burst(x, y, '#cdd6ff', 7, 2.4, 13);
+        },
         onParry: (side) => {
           // a clean parry: star twinkle, a bright flash, a beat of hit-stop, and a
           // gold star burst over the parrier — they just earned a free opening.
@@ -89,7 +95,7 @@ export class BoxingState {
           const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 150];
           game.fx.burst(x, y, PAL.gold, 16, 3); game.fx.ring(x, y, PAL.gold);
         },
-        onCounter: () => { audio.sfx.check(); game.fx.doFlash(PAL.gold, 0.3); game.doFreeze(90); },
+        onCounter: () => { audio.sfx.check(); game.fx.doFlash(PAL.gold, 0.38); game.fx.doShake(11); game.doFreeze(120); },   // crunchier counter (Feel B)
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
         onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; },

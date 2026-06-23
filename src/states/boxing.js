@@ -73,8 +73,9 @@ export class BoxingState {
           this.crowd = Math.min(1, this.crowd + (dmg > 15 ? 0.65 : 0.3));
           if (side === 'player') game.fx.doFlash(PAL.red, 0.22);
           // a boss SPECIAL signature landing = the big spectacle: trigger the strike FX + amplify.
-          if (side === 'player' && kind === 'signature' && this.match.enemy.special) {
-            this.specialFxT = 0.6; game.doFreeze(140); game.fx.doShake(17); game.fx.doFlash('#fff', 0.5);
+          if (side === 'player' && this.match.enemy.special) {
+            this.specialFxT = 0.6;     // every special type fires its spectacle
+            if (kind === 'signature') { game.doFreeze(140); game.fx.doShake(17); game.fx.doFlash('#fff', 0.5); }
           }
         },
         onDodge: () => audio.sfx.dodge(),

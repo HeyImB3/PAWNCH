@@ -46,9 +46,10 @@ IDENTITY = {
     "kid": (
         "KID KNIGHTMARE, a flashy acrobatic young trickster: lean, springy and athletic with a "
         "cocky smirk and a spiky horse-mane MOHAWK (a knight's horse). He wears a sleeveless blue "
-        "jacket and blue boxing gloves, and his SIGNATURE is a glowing two-pronged FORK - a fork "
-        "emblem on his chest and little fork-shaped electric sparks crackling around his gloves. "
-        "He bounces and break-dances, tricky and unpredictable."
+        "jacket and blue boxing gloves. His unmistakable SIGNATURE is a glowing electric-yellow "
+        "two-pronged FORK: a big bright two-pronged fork symbol blazes across his chest, and "
+        "crackling fork-shaped yellow lightning arcs visibly around BOTH of his gloves. The fork "
+        "motif is bold and obvious. He bounces and break-dances, tricky and unpredictable."
     ),
     "bishop": (
         "BISHOP BRUISER, a towering creepy zealot-preacher: the TALLEST and LANKIEST fighter by "

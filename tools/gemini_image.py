@@ -25,9 +25,12 @@ def load_key():
 def generate(prompt, out_path, model=DEFAULT_MODEL, refs=None):
     key = load_key()
     parts = [{"text": prompt}]
+    MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp', '.gif': 'image/gif'}
     for r in (refs or []):
+        mt = MIME.get(os.path.splitext(r)[1].lower(), 'image/png')
         with open(r, "rb") as f:
-            parts.append({"inlineData": {"mimeType": "image/png",
+            parts.append({"inlineData": {"mimeType": mt,
                           "data": base64.b64encode(f.read()).decode()}})
     body = {"contents": [{"parts": parts}],
             "generationConfig": {"responseModalities": ["IMAGE"]}}

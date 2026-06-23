@@ -11,6 +11,8 @@
     "bishop": "boxers/bishop",
     "queen": "boxers/queen",
     "iron": "boxers/iron",
+    "tal": "boxers/tal",
+    "magnus": "boxers/magnus",
     "pawnchion": "boxers/pawnchion"
   }
 }

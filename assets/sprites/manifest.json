@@ -5,6 +5,8 @@
   },
   "boxerSets": {
     "patty": "boxers/patty",
+    "gus": "boxers/gus",
+    "rosa": "boxers/rosa",
     "pawnchion": "boxers/pawnchion"
   }
 }

@@ -32,7 +32,8 @@ tools/.venv/
 
 # Raw AI generations (large; regenerable). Only the sliced frames are committed.
 assets/sprites/_src/
-tools/_*_montage.png
+# Throwaway QA artifacts from the sprite tools (montages, audit/contact sheets, lineups…)
+tools/_*.png
 
 # Claude local-only settings (keep launch.json so others can run the preview)
 .claude/settings.local.json

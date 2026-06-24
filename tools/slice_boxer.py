@@ -51,10 +51,14 @@ def knockout(im):
                 i = ny * W + nx
                 if not bg[i] and soft(nx, ny): bg[i] = 1; dq.append((nx, ny))
     # Remove ENCLOSED background pockets: soft (white) regions the border flood
-    # couldn't reach (e.g. the gap trapped between raised arms) and stray white
-    # specks in concavities. Components >= ENCLOSED_MIN are dropped; tiny white
-    # details (eye glints, teeth) stay.
+    # couldn't reach. The tricky part: the gap trapped between raised arms IS
+    # background (drop it), but white CLOTHING (trunks, boots, trim) and the white
+    # eye-shine are also enclosed white -- and must be KEPT. Size alone can't tell
+    # them apart, so a large pocket is only dropped when it looks like trapped
+    # background: bright/uniform white AND bordered by body (not dark). Shaded
+    # white (clothing has folds) and dark-bordered white (eye-shine) are kept.
     ENCLOSED_MIN = 24
+    BRIGHT = 244            # min(r,g,b) >= this == pure bright (background-like)
     pseen = bytearray(W * H)
     for sy in range(H):
         for sx in range(W):
@@ -68,8 +72,16 @@ def knockout(im):
                         j = ny * W + nx
                         if not bg[j] and not pseen[j] and soft(nx, ny):
                             pseen[j] = 1; st.append((nx, ny)); comp.append((nx, ny))
-            if len(comp) >= ENCLOSED_MIN:
+            if len(comp) < ENCLOSED_MIN:
+                continue                                  # glints/teeth/specks -> keep
+            # Trapped background is PURE/uniform bright white; clothing is SHADED
+            # (folds, off-white, darker tones). Drop only the pure ones. (Border
+            # darkness is NOT used: a bg gap between dark-robed arms is dark-bordered
+            # too -- and real eye-shine is always small, so it's size-exempt above.)
+            bright = sum(1 for (x, y) in comp if min(px[x, y]) >= BRIGHT)
+            if bright / len(comp) >= 0.90:                # pure white -> trapped bg -> drop
                 for (x, y) in comp: bg[y * W + x] = 1
+            # else: shaded -> clothing/detail -> KEEP
     seen = bytearray(W * H); best, best_n = [], 0
     for sy in range(H):
         for sx in range(W):

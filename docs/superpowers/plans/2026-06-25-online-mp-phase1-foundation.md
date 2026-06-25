@@ -876,4 +876,26 @@ Then confirm the live game is unaffected (this plan only added `SIM` to `config.
 
 - It does not move `BoxingMatch`, the chess clock, or round flow into the sim. That extraction — implementing the real `makeState(seed)` / `step(state, input)` against `src/boxing.js`, the chess clock, and the walk/round-flow timeline, then driving the renderer from sim state via `FixedStep` — is Phase 1 Part B, and it will be verified with this harness (`checkDeterministic` over a recorded full-match input log).
 - No networking (Phase 2), rollback (Phase 3), rating service (Phase 4), or Steam wrapper (Phase 5).
-```
+
+## Carry-forward to Part B (from the final whole-branch review)
+
+These are **entry criteria / guardrails for Phase 1 Part B**, not defects in Part A (the Part A branch was reviewed *Ready to merge: Yes*, 31/31 headless):
+
+1. **Keep the sim's import surface to `config` + sim-internal only.** The headless runner
+   (`tools/test/run-headless.js`) loads modules by stripping `import`/`export` and
+   concatenating — it does **not** resolve external symbols. The current sim modules import
+   only `config.js` and sibling `src/sim/*`, so they load. The moment a sim module imports a
+   non-sim, non-config dependency (`gfx`, `audio`, DOM, …), the headless eval throws an
+   undefined reference. Part B extracts `BoxingMatch`/chess-clock/round-flow into the sim, so
+   make "a `src/sim/*` file may import only `config.js` and other `src/sim/*`" an explicit sim
+   boundary rule (good determinism hygiene *and* it preserves headless testability). If a few
+   externals are truly unavoidable, teach the runner a tiny stub/registry for them.
+2. **Add a dev-only guard in `hash.js` `canon()` when real state lands.** Today `canon`
+   collides `undefined`/function → `{"a":undefined}` and `NaN`/`Infinity` → `null` (a
+   documented precondition, no runtime check). Once real match state flows through `hashState`,
+   add a dev-gated assert that throws on `undefined`/`NaN`/`Infinity`/function so an accidental
+   non-serializable field fails loud in tests instead of silently weakening desync detection.
+3. **Optional hardening (Minor, non-blocking):** `FixedStep.advance` returns negative `ticks`
+   on a negative `dt` (can't happen with a monotonic clock, but a `Math.max(0, …)` or a
+   `dt >= 0` note closes the contract); and the manual "KEEP IN SYNC" between `index.html` and
+   `run-headless.js` could later be replaced by a single shared manifest as the suite grows.

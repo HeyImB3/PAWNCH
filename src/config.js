@@ -24,6 +24,15 @@ export const MATCH = {
   WALK_SECONDS: 2.6,   // walk-to-the-board flair (snappy, not awkward)
 };
 
+// Deterministic simulation timing. The whole online/offline match advances on
+// this fixed tick (decoupled from the display refresh rate) so two lockstep
+// clients stay bit-identical. See docs/superpowers/specs/2026-06-25-online-multiplayer-design.md.
+export const SIM = {
+  TICK_HZ: 60,
+  TICK_MS: 1000 / 60,
+  MAX_CATCHUP_TICKS: 8,   // most catch-up ticks to run in one frame (spiral-of-death clamp)
+};
+
 // 16-bit-ish palette. Orange + blue lead; everything else supports.
 export const PAL = {
   // brand

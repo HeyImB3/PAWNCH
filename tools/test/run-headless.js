@@ -40,10 +40,12 @@ var FRAMEWORK = [
 // test files. KEEP IN SYNC with tools/test/index.html's import list.
 var MODULES = [
   'src/sim/rng.js',
+  'src/sim/hash.js',
 ];
 var TESTS = [
   'tools/test/runner.test.js',
   'src/sim/rng.test.js',
+  'src/sim/hash.test.js',
 ];
 
 var EPILOGUE = [

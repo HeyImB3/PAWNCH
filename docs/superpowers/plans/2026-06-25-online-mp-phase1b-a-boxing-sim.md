@@ -784,3 +784,11 @@ Confirm the live game is unaffected (this plan only ADDS `src/sim/box.js` + test
 - It does NOT rewire `states/boxing.js` onto `src/sim/box.js`, delete `src/boxing.js`, or wire the loop-level fixed-step + edge-input adapter. That integration needs the `FixedStep` loop wiring and belongs to **Phase 1B-C**, which flips the live game onto the deterministic sims and removes the old code.
 - It does NOT touch the chess clock/half (**Phase 1B-B**) or the flow/walk/round-break timeline (**Phase 1B-C**).
 - No networking (Phase 2), rollback (Phase 3), rating server (Phase 4), or Steam wrapper (Phase 5). Rollback will reuse `snapshotBox` (and a future `restoreBox`) added here.
+
+## Carry-forward to 1B-C / rollback (from the 1B-A whole-branch review)
+
+The branch reviewed *Ready to merge: Yes* (38/38, faithful deterministic port). These are entry criteria for the phases that integrate it:
+
+1. **Edge-input adapter MUST latch-and-consume (highest value).** `box.js`'s input handling assumes `pressed(action)` is true for exactly ONE tick. When 1B-C steps the sim N times per frame via `FixedStep`, the edge-triggered `pressed` from a single keypress must be delivered to exactly one sub-tick and then presented as `false` to the rest — otherwise one keypress can become multiple punches on a multi-sub-tick frame. Build the adapter to latch each press, hand it to one tick, and clear it. **Add a regression test:** hold a single `jabR` edge across 4 sub-ticks → assert exactly one punch / one damage application.
+2. **`restoreBox` for rollback (Phase 3) needs more than the snapshot.** `snapshotBox` intentionally omits `opts` (`mode`/`seconds`/`seed`), `params`, and `hitHooks` (immutable or side-effects). `restoreBox(snapshot, opts)` must take `mode`/`params`/`hooks` from the live match, not the snapshot. Consider snapshotting `seed` so a replay is reproducible from a snapshot alone. Add a `restore(snapshot(m))` → N-ticks → hash-match round-trip test when it lands.
+3. **Minor hardening (non-blocking):** `box.test.js` top-level helper names (`AGG`, `DUMMY`, …) share the headless concat scope — a `box_` prefix would harden against future collisions; and `opts.seed >>> 0 || 1` maps seed 0 → 1 (seed 0 and 1 play identically) — worth a caller-facing comment.

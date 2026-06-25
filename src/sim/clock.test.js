@@ -30,10 +30,14 @@ test('alpha is the leftover fraction in [0,1)', () => {
   assert(Math.abs(alpha - 0.5) < 1e-9, 'alpha should be ~0.5, got ' + alpha);
 });
 
-test('catch-up is clamped (no spiral of death)', () => {
+test('catch-up is clamped (no spiral of death), remainder preserved', () => {
   const fs = new FixedStep(TICK, 8);
-  const { ticks } = fs.advance(TICK * 100); // huge stall, e.g. backgrounded tab
-  assertEqual(ticks, 8);
+  const { ticks, alpha } = fs.advance(TICK * 100.9); // huge stall, e.g. backgrounded tab
+  assertEqual(ticks, 8);                             // backlog dropped to the clamp
+  assert(alpha >= 0 && alpha < 1, 'alpha stays in [0,1): ' + alpha);
+  // drain-before-clamp: acc is reduced by the FULL backlog, so only the true
+  // sub-tick remainder (~0.9) is carried — not (100.9 - 8).
+  assert(Math.abs(alpha - 0.9) < 1e-9, 'sub-tick remainder preserved: ' + alpha);
 });
 
 test('reset clears the accumulator', () => {

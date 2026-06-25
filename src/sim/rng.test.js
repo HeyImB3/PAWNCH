@@ -54,3 +54,9 @@ test('seed 0 is handled (never a dead generator)', () => {
   const v = rngFloat(newRng(0));
   assert(v >= 0 && v < 1, 'seed 0 still yields a valid float: ' + v);
 });
+
+test('pinned output guards against a silent algorithm swap', () => {
+  // Two builds seeded identically must produce identical streams across clients.
+  // Pin a known mulberry32 output so swapping the algorithm can't pass unnoticed.
+  assertEqual(rngFloat(newRng(12345)), 0.9797282677609473);
+});

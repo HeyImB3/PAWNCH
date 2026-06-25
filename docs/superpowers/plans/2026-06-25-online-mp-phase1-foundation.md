@@ -4,7 +4,7 @@
 
 **Goal:** Build and unit-test the deterministic primitives every later online-multiplayer phase depends on — a seeded PRNG, a stable state hash, a fixed-timestep clock, and a replay/desync harness — plus the in-browser test runner the repo currently lacks.
 
-**Architecture:** Add a new `src/sim/` module of pure, dependency-free, serializable ES modules. None of them touch the DOM, `Date.now`, `Math.random`, or wall-clock time, so they are fully deterministic and unit-testable. Because there is no Node on the dev machine, tests run in the browser via a minimal runner (`tools/test/`) served by the existing Python dev server; the test files are pure ESM so the same suites could later run under Node if a runner is added. This plan changes **no existing file except `src/config.js`** (one additive `SIM` block) — it is purely additive substrate, so it cannot regress the live game.
+**Architecture:** Add a new `src/sim/` module of pure, dependency-free, serializable ES modules. None of them touch the DOM, `Date.now`, `Math.random`, or wall-clock time, so they are fully deterministic and unit-testable. There is no Node on the dev machine, so the suite is **dual-runtime**: a browser page (`tools/test/index.html`) for a human eyeball, and a headless runner (`tools/test/run-headless.js`) executed by macOS JavaScriptCore via `osascript -l JavaScript`, which gives a shell-detectable pass/fail and a non-zero exit code on failure (the spec's "headless" harness). The headless runner reads each ESM source, strips `import`/`export`, and evals it — so there is one set of pure-ESM source files and both runtimes consume them. **Headless `osascript` is the verification of record for every task.** This plan changes **no existing file except `src/config.js`** (one additive `SIM` block) — it is purely additive substrate, so it cannot regress the live game.
 
 **Tech Stack:** Vanilla JavaScript ES modules, no build step, no dependencies. Python dev server (`tools/devserver.py`) for serving. Browser (Chromium) as the test runtime.
 
@@ -13,7 +13,7 @@
 These apply to every task. Copied from `CLAUDE.md` Golden Rules and the design spec (`docs/superpowers/specs/2026-06-25-online-multiplayer-design.md`).
 
 - **No build step, no dependencies, no framework.** Vanilla ES modules only.
-- **No Node/npm on the dev machine.** Verify everything by loading a page in the browser; there is no `node`, `npm`, `pytest`, or `node --check`.
+- **No Node/npm on the dev machine.** There is no `node`, `npm`, `pytest`, or `node --check`. The verification of record is the **headless** runner: `osascript -l JavaScript tools/test/run-headless.js "$PWD"` (macOS JavaScriptCore), which prints `[TESTS] N passed, 0 failed` and exits non-zero on any failure. The browser page (`tools/test/index.html`) is the optional human cross-check.
 - **Tune from `src/config.js`.** New tuning constants (the tick rate) go in a `SIM` block there — no magic numbers scattered in code.
 - **Sim code is deterministic by construction.** Never use `Math.random`, `Date.now`, `performance.now`, `new Date()`, or wall-clock `dt` inside `src/sim/`. Randomness comes only from the seeded PRNG in `src/sim/rng.js`. Sim state holds only finite numbers, strings, booleans, null, arrays, and plain objects (no `NaN`/`Infinity`, no closures, no DOM refs) so it stays serializable and hashable.
 - **Match the surrounding style** — small focused modules with short explanatory comments, the way neighboring `src/*.js` files read.
@@ -30,8 +30,9 @@ These apply to every task. Copied from `CLAUDE.md` Golden Rules and the design s
 New files (all additive):
 
 - `tools/test/runner.js` — minimal in-browser test runner: `suite`, `test`, `assert*` helpers, and `run()` which renders results to the page, sets `document.title`, logs `[TESTS] …`, and exposes `window.__TESTS__ = { passed, failed, total }`.
-- `tools/test/index.html` — the test page; imports the runner + every `*.test.js` and calls `run()`. Served at `http://localhost:5174/tools/test/`.
-- `tools/test/runner.test.js` — meta-tests proving the assertion helpers behave.
+- `tools/test/index.html` — the browser test page; imports the runner + every `*.test.js` and calls `run()`. Served at `http://localhost:5174/tools/test/`.
+- `tools/test/run-headless.js` — headless runner for `osascript -l JavaScript`. Holds the same assertion API as classic-script globals, a `MODULES`/`TESTS` manifest (kept in sync with `index.html`'s imports), and a `run(argv)` that loads every source, runs all tests, prints `[TESTS] …`, and throws (non-zero exit) on any failure.
+- `tools/test/runner.test.js` — meta-tests proving the assertion helpers behave (run by both runtimes).
 - `src/sim/rng.js` — deterministic, serializable seeded PRNG (mulberry32). Sole source of sim randomness.
 - `src/sim/rng.test.js` — PRNG tests.
 - `src/sim/hash.js` — stable 32-bit state hash (canonical serialization + FNV-1a) for desync detection.
@@ -179,17 +180,99 @@ test('assertThrows passes when fn throws', () => {
 });
 ```
 
-- [ ] **Step 4: Run the page and verify green**
+- [ ] **Step 4: Write the headless runner**
 
-Run the dev server (if not already running): `python3 tools/devserver.py` (serves on `http://localhost:5174`, no-cache).
-Open `http://localhost:5174/tools/test/` in the browser.
-Expected: the tab title shows `✓ 5 passed, 0 failed`, the page lists five green `PASS` lines, and the console logs `[TESTS] 5 passed, 0 failed`. (`window.__TESTS__` is `{passed:5, failed:0, total:5}`.)
+Create `tools/test/run-headless.js`:
 
-- [ ] **Step 5: Commit**
+```js
+'use strict';
+// Headless test runner for macOS JavaScriptCore:
+//   osascript -l JavaScript tools/test/run-headless.js "$PWD"
+// Runs the same *.test.js suites as tools/test/index.html with no browser and
+// no Node, so the suite has a shell-detectable pass/fail and exit code.
+// JavaScriptCore runs classic scripts, so every ESM source has its import lines
+// and leading `export ` removed and is concatenated into ONE script that is
+// eval'd in a single scope — this keeps cross-file `const`/`class` bindings
+// (e.g. SIM, FixedStep) visible to each other, which separate evals do not.
+// Exit 0 = all passed; non-zero = a failure (named in the output).
+ObjC.import('Foundation');
+
+function read(root, rel) {
+  var s = $.NSString.stringWithContentsOfFileEncodingError(root + '/' + rel, $.NSUTF8StringEncoding, null);
+  var js = ObjC.unwrap(s);
+  if (typeof js !== 'string') throw new Error('cannot read ' + rel);
+  return js;
+}
+
+function strip(src) {
+  return src
+    .replace(/^\s*import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/mg, '')
+    .replace(/^\s*import\s*['"][^'"]+['"];?\s*$/mg, '')
+    .replace(/^export\s+/mg, '');
+}
+
+// The assert API (mirrors tools/test/runner.js), as a source prefix so it shares
+// the single eval scope with the loaded tests.
+var FRAMEWORK = [
+  "var __tests = [], __suite = '';",
+  "function suite(n){ __suite = n; }",
+  "function test(n,f){ __tests.push({ n:(__suite?__suite+' \\u203a ':'')+n, f:f }); }",
+  "function assert(c,m){ if(!c) throw new Error(m||'assertion failed'); }",
+  "function assertEqual(a,e,m){ if(a!==e) throw new Error((m||'not equal')+': expected '+e+', got '+a); }",
+  "function assertDeepEqual(a,e,m){ if(JSON.stringify(a)!==JSON.stringify(e)) throw new Error((m||'not deep-equal')+': expected '+JSON.stringify(e)+', got '+JSON.stringify(a)); }",
+  "function assertThrows(f,m){ var t=false; try{f();}catch(e){t=true;} if(!t) throw new Error(m||'expected function to throw'); }",
+].join('\n');
+
+// Load order: config + dependency-free modules first, then dependents, then the
+// test files. KEEP IN SYNC with tools/test/index.html's import list.
+var MODULES = [];
+var TESTS = [
+  'tools/test/runner.test.js',
+];
+
+var EPILOGUE = [
+  "var __p=0,__f=0,__fails=[];",
+  "__tests.forEach(function(t){ try{ t.f(); __p++; }catch(e){ __f++; __fails.push(t.n+' \\u2014 '+(e&&e.message?e.message:e)); } });",
+  "console.log('[TESTS] '+__p+' passed, '+__f+' failed');",
+  "__fails.forEach(function(x){ console.log('  FAIL '+x); });",
+  "if(__f>0) throw new Error(__f+' test(s) failed');",
+].join('\n');
+
+function run(argv) {
+  var root = (argv && argv[0]) || ObjC.unwrap($.NSFileManager.defaultManager.currentDirectoryPath);
+  var parts = [FRAMEWORK];
+  MODULES.forEach(function (m) { parts.push(strip(read(root, m))); });
+  TESTS.forEach(function (t) { parts.push(strip(read(root, t))); });
+  parts.push(EPILOGUE);
+  (0, eval)(parts.join('\n;\n'));
+  return '';
+}
+```
+
+- [ ] **Step 5: Run headless and verify green (verification of record)**
+
+Run from the repo root:
+
+```bash
+osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"
+```
+
+Expected output:
+
+```
+[TESTS] 5 passed, 0 failed
+exit=0
+```
+
+- [ ] **Step 6: (Optional) browser cross-check**
+
+Run the dev server if not already running: `python3 tools/devserver.py` (serves `http://localhost:5174`, no-cache). Open `http://localhost:5174/tools/test/`. Expected: tab title `✓ 5 passed, 0 failed`, five green `PASS` lines, console `[TESTS] 5 passed, 0 failed`.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add tools/test/
-git commit -m "test: add in-browser test runner for the sim suite"
+git commit -m "test: add dual-runtime (browser + headless) test runner for the sim suite"
 ```
 
 ---
@@ -267,7 +350,7 @@ test('seed 0 is handled (never a dead generator)', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Register the new files and run to verify it fails**
 
 Add the import to `tools/test/index.html` right after the `runner.test.js` import line:
 
@@ -275,8 +358,20 @@ Add the import to `tools/test/index.html` right after the `runner.test.js` impor
     import '../../src/sim/rng.test.js';
 ```
 
-Reload `http://localhost:5174/tools/test/`.
-Expected: the page does NOT reach a green summary; the console shows a module-resolution error for `./rng.js` (the file does not exist yet). This is the red state.
+In `tools/test/run-headless.js`, add `'src/sim/rng.js'` to `MODULES` and `'src/sim/rng.test.js'` to `TESTS` so they read:
+
+```js
+var MODULES = [
+  'src/sim/rng.js',
+];
+var TESTS = [
+  'tools/test/runner.test.js',
+  'src/sim/rng.test.js',
+];
+```
+
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected: it FAILS with `cannot read src/sim/rng.js` and `exit=1` (the module does not exist yet). This is the red state.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -322,13 +417,20 @@ export function rngClone(r) {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Reload `http://localhost:5174/tools/test/`.
-Expected: title shows `✓ 12 passed, 0 failed` (5 runner + 7 rng), all green.
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected:
+
+```
+[TESTS] 12 passed, 0 failed
+exit=0
+```
+
+(5 runner + 7 rng.) Optional browser cross-check: reload `http://localhost:5174/tools/test/` → title `✓ 12 passed, 0 failed`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/sim/rng.js src/sim/rng.test.js tools/test/index.html
+git add src/sim/rng.js src/sim/rng.test.js tools/test/index.html tools/test/run-headless.js
 git commit -m "feat(sim): deterministic seeded PRNG (mulberry32)"
 ```
 
@@ -397,8 +499,10 @@ Add to `tools/test/index.html` after the rng import:
     import '../../src/sim/hash.test.js';
 ```
 
-Reload the page.
-Expected: red — console shows a module-resolution error for `./hash.js`.
+In `tools/test/run-headless.js`, add `'src/sim/hash.js'` to `MODULES` and `'src/sim/hash.test.js'` to `TESTS`.
+
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected: it FAILS with `cannot read src/sim/hash.js` and `exit=1`. This is the red state.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -437,13 +541,20 @@ export function hashHex(state) {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Reload the page.
-Expected: title shows `✓ 19 passed, 0 failed` (12 prior + 7 hash), all green.
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected:
+
+```
+[TESTS] 19 passed, 0 failed
+exit=0
+```
+
+(12 prior + 7 hash.) Optional browser cross-check: title `✓ 19 passed, 0 failed`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/sim/hash.js src/sim/hash.test.js tools/test/index.html
+git add src/sim/hash.js src/sim/hash.test.js tools/test/index.html tools/test/run-headless.js
 git commit -m "feat(sim): stable FNV-1a state hash for desync detection"
 ```
 
@@ -524,8 +635,19 @@ Add to `tools/test/index.html` after the hash import:
     import '../../src/sim/clock.test.js';
 ```
 
-Reload the page.
-Expected: red — console shows a module-resolution error for `./clock.js` (and `SIM` is not yet exported from config).
+In `tools/test/run-headless.js`, add `'src/config.js'` and `'src/sim/clock.js'` to `MODULES` and `'src/sim/clock.test.js'` to `TESTS`. `config.js` must load before `clock.js` (clock reads `SIM` from it), so `MODULES` now reads in this order:
+
+```js
+var MODULES = [
+  'src/config.js',
+  'src/sim/rng.js',
+  'src/sim/hash.js',
+  'src/sim/clock.js',
+];
+```
+
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected: it FAILS with `cannot read src/sim/clock.js` and `exit=1`. This is the red state.
 
 - [ ] **Step 3: Add the `SIM` config block**
 
@@ -582,13 +704,20 @@ export class FixedStep {
 
 - [ ] **Step 5: Run to verify it passes**
 
-Reload the page.
-Expected: title shows `✓ 26 passed, 0 failed` (19 prior + 7 clock), all green.
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected:
+
+```
+[TESTS] 26 passed, 0 failed
+exit=0
+```
+
+(19 prior + 7 clock.) Optional browser cross-check: title `✓ 26 passed, 0 failed`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/sim/clock.js src/sim/clock.test.js src/config.js tools/test/index.html
+git add src/sim/clock.js src/sim/clock.test.js src/config.js tools/test/index.html tools/test/run-headless.js
 git commit -m "feat(sim): fixed-timestep clock + SIM config block"
 ```
 
@@ -662,8 +791,10 @@ Add to `tools/test/index.html` after the clock import:
     import '../../src/sim/replay.test.js';
 ```
 
-Reload the page.
-Expected: red — console shows a module-resolution error for `./replay.js`.
+In `tools/test/run-headless.js`, add `'src/sim/replay.js'` to `MODULES` (after `clock.js`; it depends on `hash.js`, already earlier) and `'src/sim/replay.test.js'` to `TESTS`.
+
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected: it FAILS with `cannot read src/sim/replay.js` and `exit=1`. This is the red state.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -708,13 +839,20 @@ export function checkDeterministic(makeState, step, seed, inputLog) {
 
 - [ ] **Step 4: Run to verify it passes**
 
-Reload the page.
-Expected: title shows `✓ 30 passed, 0 failed` (26 prior + 4 replay), all green. In particular the "harness CATCHES non-determinism" test passing confirms the desync detector actually works.
+Run headless: `osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"`
+Expected:
+
+```
+[TESTS] 30 passed, 0 failed
+exit=0
+```
+
+(26 prior + 4 replay.) The passing "harness CATCHES non-determinism" test confirms the desync detector actually works. Optional browser cross-check: title `✓ 30 passed, 0 failed`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/sim/replay.js src/sim/replay.test.js tools/test/index.html
+git add src/sim/replay.js src/sim/replay.test.js tools/test/index.html tools/test/run-headless.js
 git commit -m "feat(sim): deterministic replay/desync harness"
 ```
 
@@ -722,10 +860,15 @@ git commit -m "feat(sim): deterministic replay/desync harness"
 
 ## Verification (whole plan)
 
-With the dev server running (`python3 tools/devserver.py`), open `http://localhost:5174/tools/test/`:
-- Tab title: `✓ 30 passed, 0 failed`.
-- Console: `[TESTS] 30 passed, 0 failed`.
-- `window.__TESTS__` === `{ passed: 30, failed: 0, total: 30 }`.
+Headless (verification of record), from the repo root:
+
+```bash
+osascript -l JavaScript tools/test/run-headless.js "$PWD"; echo "exit=$?"
+```
+
+Expected: `[TESTS] 30 passed, 0 failed` and `exit=0`.
+
+Optional browser cross-check: with the dev server running (`python3 tools/devserver.py`), open `http://localhost:5174/tools/test/` — tab title `✓ 30 passed, 0 failed`, console `[TESTS] 30 passed, 0 failed`, `window.__TESTS__ === { passed: 30, failed: 0, total: 30 }`.
 
 Then confirm the live game is unaffected (this plan only added `SIM` to `config.js`): open `http://localhost:5174/`, start a Story match, and play a full round (chess → boxing → round break). No console `[PAWNCH] frame error:` lines.
 

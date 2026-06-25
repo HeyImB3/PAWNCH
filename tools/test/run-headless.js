@@ -44,6 +44,7 @@ var MODULES = [
   'src/sim/hash.js',
   'src/sim/clock.js',
   'src/sim/replay.js',
+  'src/sim/box.js',
 ];
 var TESTS = [
   'tools/test/runner.test.js',
@@ -51,6 +52,7 @@ var TESTS = [
   'src/sim/hash.test.js',
   'src/sim/clock.test.js',
   'src/sim/replay.test.js',
+  'src/sim/box.test.js',
 ];
 
 var EPILOGUE = [

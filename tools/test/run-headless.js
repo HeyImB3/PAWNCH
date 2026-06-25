@@ -43,12 +43,14 @@ var MODULES = [
   'src/sim/rng.js',
   'src/sim/hash.js',
   'src/sim/clock.js',
+  'src/sim/replay.js',
 ];
 var TESTS = [
   'tools/test/runner.test.js',
   'src/sim/rng.test.js',
   'src/sim/hash.test.js',
   'src/sim/clock.test.js',
+  'src/sim/replay.test.js',
 ];
 
 var EPILOGUE = [

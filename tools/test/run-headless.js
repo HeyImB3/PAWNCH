@@ -38,9 +38,12 @@ var FRAMEWORK = [
 
 // Load order: config + dependency-free modules first, then dependents, then the
 // test files. KEEP IN SYNC with tools/test/index.html's import list.
-var MODULES = [];
+var MODULES = [
+  'src/sim/rng.js',
+];
 var TESTS = [
   'tools/test/runner.test.js',
+  'src/sim/rng.test.js',
 ];
 
 var EPILOGUE = [

@@ -16,6 +16,8 @@ import * as audio from './audio.js';
 import { FX, bgGradient, scanlines, text, textWidth, setPieceSet } from './gfx.js';
 import { load, save } from './save.js';
 import * as Chess from './chess/board.js';
+import { FixedStep } from './sim/clock.js';
+import { captureFrame, tickView } from './sim/inputview.js';
 
 import { TitleState } from './states/title.js';
 import { SettingsState } from './states/settings.js';
@@ -75,6 +77,10 @@ export class Game {
     this.pause = null;       // PauseOverlay instance while paused
     this.devSkipHold = 0;    // ms the hidden B+3 dev-skip combo has been held
 
+    // accumulator that advances fixed-timestep (tick) states in whole SIM.TICK_MS
+    // steps, decoupled from the display refresh rate (see update()).
+    this.fixedStep = new FixedStep();
+
     this.last = performance.now();
     this._loop = this._loop.bind(this);
   }
@@ -93,6 +99,7 @@ export class Game {
     const S = STATES[name];
     this.state = new S();
     this.stateName = name;
+    this.fixedStep?.reset();   // clear any sub-tick remainder when the active state changes
     if (this.state.enter) this.state.enter(this, params);
   }
 
@@ -409,6 +416,18 @@ export class Game {
     if (this.toast) { this.toast.t -= dt; if (this.toast.t <= 0) this.toast = null; }
     // hit-stop: hold the sim for a few frames, but keep particles/fx alive
     if (this.freeze > 0) { this.freeze -= dt; this.fx.update(); return; }
+    // Fixed-timestep states (the deterministic, online-ready sims) implement
+    // tick(game, input): advance them in whole SIM.TICK_MS ticks, with edge
+    // inputs latched to exactly one tick (see inputview) so a single press can't
+    // double-fire across sub-ticks. Menus and not-yet-migrated states stay on
+    // update(dt). A state may implement BOTH (tick = sim, update = render timers).
+    if (this.state?.tick) {
+      const { ticks } = this.fixedStep.advance(dt);
+      if (ticks > 0) {
+        const frame = captureFrame(this.input, this.state.tickActions || []);
+        for (let i = 0; i < ticks; i++) this.state.tick(this, tickView(frame, i === 0));
+      }
+    }
     if (this.state?.update) this.state.update(this, dt);
     this.fx.update();
 

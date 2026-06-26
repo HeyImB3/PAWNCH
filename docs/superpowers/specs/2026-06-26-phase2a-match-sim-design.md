@@ -165,3 +165,27 @@ the online rebuild, not here.)
 - Networking / input exchange / stall / desync-hash-over-the-wire (2-B).
 - Matchmaking handshake, the shared server seed, deleting the dead net scaffolding, online flow (2-C).
 - Rollback (Phase 3) — but 2-A's `snapshotMatch`/`restoreMatch` are built to enable it.
+
+## Carry-forward to 2-A-2 / 2-A-3 (from the 2-A-1 whole-branch review)
+
+The 2-A-1 skeleton merged *Ready: Yes* (58/58, deterministic + rollback-ready). These are entry criteria
+for the next slices, captured so the cutover can't silently regress:
+
+1. **Final-round tiebreak = chess MATERIAL, not HP (2-A-2).** The skeleton stubs the drawn-final-round
+   winner by boxing HP (marked `// 2-A-2:` in `match.js`). The live game uses `Chess.material()` diff
+   (`game.js` `resolveBoxing`). 2-A-2 must land `board`/`clock`/`movedThisHalf`/`pgnMoves` in `MatchState`
+   and replace the HP tiebreak with the material check.
+2. **The chess-skip anti-cheat cap (Golden Rule) is NOT in the skeleton yet (2-A-2).** Live: a human side
+   that makes NO move during the chess half has boxing HP capped at `MATCH.NO_MOVE_HP_CAP`
+   (`game.js` `applyNoMovePenalty`). 2-A-2's `chessMove` input must flip `movedThisHalf`, and the cap must
+   be applied at the chess→boxing handoff inside `startBoxing`. Critically, the `skip` input must NOT
+   become a free way to dodge the no-move penalty or to stop the clock — `skip` advances the *walk/break*
+   flourish only; the chess half must still tick the clock and require a real move.
+3. **PvP input model (2-A-3).** `boxView` builds one Set from a single `inputs.box`, and `BoxingMatch`'s
+   P2 path reads `p2_*` actions off that same view — so the live wiring must UNION both players' box
+   actions into one `box.pressed/held` before `stepMatch` (or widen the input shape). The `{box,skip}`
+   shape extends cleanly to `{box,skip,chessMove}` — no rework needed for the chess move.
+4. **Perf (low concern):** restoring a `BoxingMatch` every boxing tick allocates per tick — negligible
+   for one live match, but the one hotspot if rollback re-simulation ever stutters. Optimize only if needed.
+5. **`enemyParams` is shared by reference** (immutable today — box.js only reads `this.params`). Rollback
+   (Phase 3) must not mutate it, or deep-clone it in `snapshotMatch` then.

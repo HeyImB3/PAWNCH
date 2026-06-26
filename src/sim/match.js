@@ -63,6 +63,8 @@ export function stepMatch(s, inputs) {
       if (box.result) { s.over = true; s.winner = box.result; s.reason = 'ko'; s.phase = 'over'; }
       else if (s.round >= MATCH.TOTAL_ROUNDS) {
         s.over = true; s.reason = 'material';
+        // 2-A-2: STUB tiebreak by HP. The live game decides a drawn FINAL round by chess
+        // MATERIAL (see game.js resolveBoxing) — replace this once the board is in MatchState.
         s.winner = s.hp.player > s.hp.enemy ? 'player' : s.hp.enemy > s.hp.player ? 'enemy' : 'draw';
         s.phase = 'over';
       } else { applyHeal(s); s.phase = 'break'; s.phaseTick = 0; }
@@ -75,6 +77,8 @@ export function stepMatch(s, inputs) {
   return s;
 }
 
+// enemyParams is shared by REFERENCE (treated as immutable — box.js only READS this.params,
+// never writes it). Deep-clone it here if any future code ever mutates a fighter's params.
 export function snapshotMatch(s) {
   return { tick: s.tick, phase: s.phase, phaseTick: s.phaseTick, rng: { ...s.rng },
     round: s.round, mode: s.mode, playerColor: s.playerColor, enemyParams: s.enemyParams,

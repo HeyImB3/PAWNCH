@@ -1,5 +1,5 @@
 import { suite, test, assert, assertEqual, assertDeepEqual } from '../../tools/test/runner.js';
-import { BoxingMatch, DEFAULT_PARAMS, snapshotBox } from './box.js';
+import { BoxingMatch, DEFAULT_PARAMS, snapshotBox, restoreBox } from './box.js';
 import { hashHex } from './hash.js';
 
 suite('box');
@@ -91,4 +91,22 @@ test('a knockdown / get-up sequence is deterministic', () => {
   const b = runHashes(123, DUMMY, hammer);
   assertDeepEqual(a.hs, b.hs);
   assert(a.m.enemy.knockdowns >= 1, 'the hammering should have caused at least one knockdown');
+});
+
+test('restoreBox round-trips a snapshot (snapshot -> restore -> snapshot is identity)', () => {
+  const m = makeMatch(5, DUMMY);
+  for (let i = 0; i < 40; i++) m.update(STEP_MS, viewFor());
+  const snap = snapshotBox(m);
+  const back = snapshotBox(restoreBox(snap, { mode: 'story', enemyParams: DUMMY, hooks: {} }));
+  assertEqual(JSON.stringify(back), JSON.stringify(snap));
+});
+
+test('a restored boxing sim re-simulates identically (rollback-ready)', () => {
+  const m = makeMatch(9, AGG);
+  for (let i = 0; i < 60; i++) m.update(STEP_MS, viewFor());
+  const snap = snapshotBox(m);
+  const a = []; for (let i = 0; i < 80; i++) { m.update(STEP_MS, viewFor()); a.push(snapshotBox(m).enemy.hp); }
+  const r = restoreBox(snap, { mode: 'story', enemyParams: AGG, hooks: {} });
+  const b = []; for (let i = 0; i < 80; i++) { r.update(STEP_MS, viewFor()); b.push(snapshotBox(r).enemy.hp); }
+  assertDeepEqual(a, b);
 });

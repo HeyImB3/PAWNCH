@@ -522,3 +522,19 @@ export function snapshotBox(m) {
     rng: { ...m.rng },
   };
 }
+
+// Rebuild a BoxingMatch from a snapshotBox + the live opts (mode/enemyParams/hooks),
+// which the snapshot intentionally omits (immutable / non-serializable). Lets the
+// match sim restore -> step -> snapshot each boxing tick, and enables rollback.
+export function restoreBox(snap, opts) {
+  const m = new BoxingMatch({ mode: opts.mode, enemyParams: opts.enemyParams, hooks: opts.hooks || {}, seed: 1 });
+  m.player = { ...snap.player };
+  m.enemy = { ...snap.enemy };
+  m.ai = { ...snap.ai, seq: snap.ai.seq.map((x) => ({ ...x })) };
+  m.timeLeft = snap.timeLeft;
+  m.over = snap.over;
+  m.result = snap.result;
+  m.maxCombo = snap.maxCombo;
+  m.rng = { ...snap.rng };
+  return m;
+}

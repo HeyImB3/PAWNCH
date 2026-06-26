@@ -22,6 +22,7 @@ export const MATCH = {
   // into later rounds.
   NO_MOVE_HP_CAP: 50,
   WALK_SECONDS: 2.6,   // walk-to-the-board flair (snappy, not awkward)
+  BREAK_SECONDS: 3.2,  // between-rounds break / heal display
 };
 
 // Deterministic simulation timing. The whole online/offline match advances on

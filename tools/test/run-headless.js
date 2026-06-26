@@ -47,6 +47,7 @@ var MODULES = [
   'src/sim/box.js',
   'src/sim/chessclock.js',
   'src/sim/inputview.js',
+  'src/sim/match.js',
 ];
 var TESTS = [
   'tools/test/runner.test.js',
@@ -57,6 +58,7 @@ var TESTS = [
   'src/sim/box.test.js',
   'src/sim/chessclock.test.js',
   'src/sim/inputview.test.js',
+  'src/sim/match.test.js',
 ];
 
 var EPILOGUE = [

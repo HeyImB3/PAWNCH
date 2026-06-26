@@ -44,6 +44,7 @@ var MODULES = [
   'src/sim/hash.js',
   'src/sim/clock.js',
   'src/sim/replay.js',
+  'src/chess/board.js',
   'src/sim/box.js',
   'src/sim/chessclock.js',
   'src/sim/inputview.js',

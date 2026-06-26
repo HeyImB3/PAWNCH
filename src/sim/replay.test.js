@@ -5,10 +5,10 @@ import { newRng, rngFloat } from './rng.js';
 suite('replay');
 
 // A tiny DETERMINISTIC fixture sim: state carries a seeded rng and an
-// accumulator; each tick adds a random step scaled by the input. Used only to
+// accumulator; each tick adds a random fxStep scaled by the input. Used only to
 // exercise the harness.
 const makeState = (seed) => ({ rng: newRng(seed), total: 0, ticks: 0 });
-const step = (s, input) => {
+const fxStep = (s, input) => {
   s.total += rngFloat(s.rng) * (input || 1);
   s.ticks += 1;
   return s;
@@ -20,19 +20,19 @@ const badStep = (s) => { s.total += Math.random(); s.ticks += 1; return s; };
 const inputs = [1, 2, 1, 3, 1, 1, 2];
 
 test('runReplay produces one hash per tick plus the initial', () => {
-  const { hashes } = runReplay(makeState, step, 42, inputs);
+  const { hashes } = runReplay(makeState, fxStep, 42, inputs);
   assertEqual(hashes.length, inputs.length + 1);
 });
 
 test('deterministic sim replays identically', () => {
-  const { ok, divergedAt } = checkDeterministic(makeState, step, 42, inputs);
+  const { ok, divergedAt } = checkDeterministic(makeState, fxStep, 42, inputs);
   assert(ok, 'expected determinism, diverged at tick ' + divergedAt);
   assertEqual(divergedAt, -1);
 });
 
 test('two runs share identical per-tick hashes', () => {
-  const a = runReplay(makeState, step, 7, inputs);
-  const b = runReplay(makeState, step, 7, inputs);
+  const a = runReplay(makeState, fxStep, 7, inputs);
+  const b = runReplay(makeState, fxStep, 7, inputs);
   assertDeepEqual(a.hashes, b.hashes);
 });
 

@@ -7,7 +7,7 @@ import { text, ring } from '../gfx.js';
 import { drawFighter } from '../fighter.js';
 import { drawScene, sceneFor } from '../scenery.js';
 import * as audio from '../audio.js';
-import { BoxingMatch } from '../boxing.js';
+import { BoxingMatch } from '../sim/box.js';
 import { HERO_LOOK, DEFAULT_LOOK, HUE } from '../opponents.js';
 import { TeachSequence } from '../teach.js';
 
@@ -37,6 +37,7 @@ export class TutorialBoxState {
       mode: 'story',
       enemyParams: TUTORIAL.DUMMY,
       seconds: 99999,                     // no time pressure
+      seed: Math.floor(Math.random() * 0x100000000),
       hooks: {
         onPunch: (side, kind) => { if (side === 'player') { if (kind === 'jab') this.flags.jab = true; else this.flags.hook = true; (kind === 'jab' ? audio.sfx.jab() : audio.sfx.hook()); } },
         onBlock: (side) => { if (side === 'player') this.flags.block = true; },

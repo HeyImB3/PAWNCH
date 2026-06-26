@@ -5,14 +5,14 @@
 // bars, the star count, a combo counter, an attack TELL during enemy windups
 // (side + HIGH/LOW + a SIGNATURE warning), and hit-stop/crowd juice.
 
-import { MATCH, PAL, BOX } from '../config.js';
+import { MATCH, PAL, BOX, SIM } from '../config.js';
 import { FIGHTER } from '../config.js';
 import { text, textWidth, panel, ring, barH } from '../gfx.js';
 import { drawFighter } from '../fighter.js';
 import { drawSpecialFx } from '../specialfx.js';
 import { drawScene, sceneFor } from '../scenery.js';
 import * as audio from '../audio.js';
-import { BoxingMatch, DEFAULT_PARAMS } from '../boxing.js';
+import { BoxingMatch, DEFAULT_PARAMS } from '../sim/box.js';
 import { OPPONENTS, HUE, HERO_LOOK, DEFAULT_LOOK } from '../opponents.js';
 import { material, WHITE } from '../chess/board.js';
 
@@ -25,6 +25,13 @@ function rampColor(t) {
   const r = GETUP_GRAD;
   return r[Math.max(0, Math.min(r.length - 1, Math.floor(t * r.length)))];
 }
+
+// Every input the boxing sim reads (P1 + P2 hotseat). The loop captures exactly
+// these once per frame and latches their edges to one sub-tick (see inputview).
+const BOX_INPUTS = [
+  'jabL', 'jabR', 'hookL', 'hookR', 'dodgeL', 'dodgeR', 'duck', 'block', 'confirm',
+  'p2_jabL', 'p2_jabR', 'p2_hookL', 'p2_hookR', 'p2_dodgeL', 'p2_dodgeR', 'p2_duck', 'p2_block', 'p2_getup',
+];
 
 export class BoxingState {
   enter(game) {
@@ -58,8 +65,9 @@ export class BoxingState {
       enemyParams: params,
       seconds: MATCH.BOXING_SECONDS,
       startHP: { player: m.hp.player, enemy: m.hp.enemy },
-      send: m.net ? (action) => m.net.sendBox(action) : null,
-      inbox: m.net ? (m.netInboxBox ||= []) : null,
+      // seed the deterministic sim. Offline uses fresh entropy per fight; online
+      // will set m.boxSeed from the shared match seed (1B-C flow / Phase 2).
+      seed: m.boxSeed != null ? m.boxSeed : Math.floor(Math.random() * 0x100000000),
       hooks: {
         onPunch: (side, kind) => { if (side === 'player') (kind === 'jab' ? audio.sfx.jab() : audio.sfx.hook()); },
         onWindup: (arm, kind, target, special) => { this.tellPopT = 0.2; if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
@@ -132,6 +140,7 @@ export class BoxingState {
   // Esc opens the pause menu — but not while a KO/timeout is resolving.
   canPause() { return !this.ended; }
 
+  // Render-only timers (cosmetic — not part of the deterministic sim).
   update(game, dt) {
     this.t += dt / 1000;
     if (this.bannerT > 0) this.bannerT -= dt / 1000;
@@ -142,7 +151,14 @@ export class BoxingState {
     this.nameT = Math.min(1, this.nameT + dt / 1000 / 0.4);
     this.crowd = Math.max(0, this.crowd - dt / 1000 * 1.2);
     audio.playFightTheme(this.m.fightTrack);
-    if (!this.ended) this.match.update(dt, game.input);
+  }
+
+  // The deterministic sim. The game loop calls this in whole SIM.TICK_MS ticks
+  // (see game.js); `input` is a per-tick view (pressed/isDown) with edge presses
+  // latched to one tick (inputview), so a single keypress can't double-fire.
+  get tickActions() { return BOX_INPUTS; }
+  tick(game, input) {
+    if (!this.ended) this.match.update(SIM.TICK_MS, input);
   }
 
   draw(game, ctx) {

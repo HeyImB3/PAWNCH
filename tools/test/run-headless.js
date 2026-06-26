@@ -45,6 +45,7 @@ var MODULES = [
   'src/sim/clock.js',
   'src/sim/replay.js',
   'src/sim/box.js',
+  'src/sim/chessclock.js',
 ];
 var TESTS = [
   'tools/test/runner.test.js',
@@ -53,6 +54,7 @@ var TESTS = [
   'src/sim/clock.test.js',
   'src/sim/replay.test.js',
   'src/sim/box.test.js',
+  'src/sim/chessclock.test.js',
 ];
 
 var EPILOGUE = [

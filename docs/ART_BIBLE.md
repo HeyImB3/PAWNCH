@@ -16,7 +16,9 @@ Spec: `docs/superpowers/specs/2026-07-20-visual-overhaul-design.md`.
 2. **One master palette.** `assets/aseprite/pawnch-master.gpl` (~51 colors,
    8 hue-shifted ramps anchored on brand orange/blue) is the ONLY color
    source. Per-scene sub-palettes are subsets/derivations of it. `spec0/1`
-   (white) are for tiny glints only — never fills.
+   (white) are for tiny glints only — never fills. One sanctioned extension:
+   the 2-color NEON pair (magenta/cyan), reserved for cyber-arena signage
+   and its key light.
 3. **Hue-shifted ramps.** Shadows cool toward blue-violet, highlights warm
    toward gold. Never straight black-or-white shading.
 4. **Cluster shading, KOF-interior style.** Model form with shaped color

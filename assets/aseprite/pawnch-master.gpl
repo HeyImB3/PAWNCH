@@ -61,3 +61,6 @@ Columns: 8
 # Speculars (tiny glints only — never fills)
 255 255 255	spec0
 232 242 255	spec1
+# Neon accents (cyber signage only)
+255  59 208	neonMagenta
+ 34 231 255	neonCyan

@@ -23,6 +23,8 @@ WOOD0, WOOD1, WOOD2, WOOD3, WOOD4, WOOD5 = (22, 13, 6), (44, 28, 13), (74, 48, 2
 GREEN0, GREEN1, GREEN2, GREEN3 = (12, 43, 30), (23, 87, 58), (57, 217, 138), (138, 240, 192)
 # Speculars (tiny glints only — never fills)
 SPEC0, SPEC1 = (255, 255, 255), (232, 242, 255)
+# Neon accents (cyber signage only — sanctioned extension, see ART_BIBLE v2)
+NEON_MAGENTA, NEON_CYAN = (255, 59, 208), (34, 231, 255)
 
 
 def n2(x, y, salt=0):

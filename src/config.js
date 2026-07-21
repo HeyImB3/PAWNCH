@@ -414,7 +414,21 @@ export const SCENERY = {
       },
       key: { color: '#b8d0ff', alpha: 0.13, wash: '#13357f', washA: 0.04 },  // hard vacuum-blue
     },
-    abyss:   { sky: ['#0a4a52', '#073238', '#04181c'], rock: '#06262b', fireCore: '#fff3c0', fireMid: '#ff8a18', fireGlow: '#ff9a3a', fireN: 3, jelly: ['#ffd0ff', '#c46aff'], jellyN: 5, bub: 'rgba(191,239,255,0.55)', bubN: 8 },
+    abyss:   {
+      sky: ['#0a4a52', '#073238', '#04181c'], rock: '#06262b', fireCore: '#fff3c0', fireMid: '#ff8a18', fireGlow: '#ff9a3a', fireN: 3, jelly: ['#ffd0ff', '#c46aff'], jellyN: 5, bub: 'rgba(191,239,255,0.55)', bubN: 8,
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        vents: [[120, 158], [390, 154]],
+        lure: [452, 78],
+        jellyN: 4, planktonN: 12,
+        causticN: 3, causticCol: '#6fa0ff',
+        whalePeriod: 67, whaleDur: 9,
+        kelpSway: 2.2, kelpHz: 0.45,
+        bubCol: 'rgba(191,239,255,0.55)', jellyCols: ['#ffd0ff', '#c46aff'],
+        lureCol: '#8af0c0', whaleCol: '#0d1226', flareCol: '#39d98a',
+      },
+      key: { color: '#6fa0ff', alpha: 0.14, wash: '#13357f', washA: 0.06 },  // drowned blue
+    },
     chesshall: { sky: ['#2a1d3a', '#1a1228', '#0e0a18'], col: '#2e2348', win: '#3a2f6a', chand: '#ffd24a', chandN: 3, table: '#4a3018', tableTop: '#6f4d29', head: '#d8c0a0', headN: 7, piece: '#f0e3c8' },
     stadium: { sky: ['#0a1430', '#13357f', '#1a4a9a'], tiers: ['#ff7a18', '#2b6cff', '#ffd24a', '#39d98a'], tierN: 3, light: '#ffffff', jumbo: '#020610', jumboFrame: '#3a4a78', conf: ['#ff7a18', '#ffd24a', '#2b6cff'], floor: '#2a3566' },
   },

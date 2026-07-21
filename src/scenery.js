@@ -743,6 +743,76 @@ function abyssScene(ctx, p) {
 }
 SCENES.abyss = { draw: abyssScene };
 
+// UNDERWATER ABYSS v2 — painted trench + living water: caustic ripples over
+// everything, jellyfish blooms, vent bubbles, the anglerfish's pulsing lure,
+// and a rare whale gliding far behind.
+SCENES.abyss.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.abyss, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // RARE: a whale glides far behind the trench
+  const wph = t % L.whalePeriod;
+  if (wph < L.whaleDur) {
+    const wx = -60 + (W + 120) * (wph / L.whaleDur), wy = 46 + Math.sin(wph * 0.7) * 6;
+    ctx.fillStyle = L.whaleCol;
+    ctx.beginPath();
+    ctx.ellipse(wx, wy, 34, 9, 0, 0, Math.PI * 2); ctx.fill();          // body
+    ctx.beginPath();
+    ctx.moveTo(wx - 32, wy); ctx.lineTo(wx - 46, wy - 7); ctx.lineTo(wx - 44, wy + 5);
+    ctx.closePath(); ctx.fill();                                        // fluke
+  }
+  // caustic light ripples playing over everything behind the ring
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < L.causticN; i++) {
+    ctx.strokeStyle = withA(L.causticCol, 0.06);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) {
+      const y = 26 + i * 44 + Math.sin(x * 0.05 + t * (1.1 + i * 0.3)) * 7 + Math.sin(x * 0.013 - t * 0.7) * 10;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // anglerfish lure: slow hypnotic pulse
+  additiveGlow(ctx, L.lure[0], L.lure[1], 9 + 3 * Math.sin(t * 1.2), L.lureCol, 0.5 + 0.2 * Math.sin(t * 2.4));
+  ctx.fillStyle = L.lureCol; ctx.fillRect(L.lure[0] - 1, L.lure[1] - 1, 2, 2);
+  // vent bubbles rising in wobbling columns
+  L.vents.forEach(([vx, vy], i) => {
+    for (let k = 0; k < 5; k++) {
+      const ph = (t * 0.5 + k * 0.2 + i * 0.37) % 1;
+      ctx.fillStyle = L.bubCol;
+      ctx.beginPath();
+      ctx.arc(vx + Math.sin(ph * 9 + k) * 4, vy - 26 - ph * 80, 1 + ph * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  // jellyfish blooms drifting upward (glow + dome + trailing tentacles)
+  for (let i = 0; i < L.jellyN; i++) {
+    const jx = ((i + 0.5) / L.jellyN) * W + Math.sin(t * 0.7 + i * 2) * 16;
+    const jy = floorTop - ((t * 9 + i * 47) % (floorTop + 24));
+    const col = L.jellyCols[i % L.jellyCols.length];
+    additiveGlow(ctx, jx, jy, 13, col, 0.35 + crowd * 0.2);
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(jx, jy, 7, 5, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = withA(col, 0.7); ctx.lineWidth = 1; ctx.beginPath();
+    for (let k = -2; k <= 2; k++) {
+      ctx.moveTo(jx + k * 2.5, jy);
+      ctx.lineTo(jx + k * 2.5 + Math.sin(t * 3 + k + i) * 2, jy + 8);
+    }
+    ctx.stroke();
+  }
+  // plankton motes
+  for (let i = 0; i < L.planktonN; i++)
+    twinkle(ctx, drift(t, 1.5 + i * 0.5, W, 8, i * 44), 20 + hash(i + 6) * 120, 1, '#bfefff', t * 1.2, i * 2.7);
+  if (layers.near) {
+    ctx.save(); ctx.translate(Math.sin(t * L.kelpHz) * L.kelpSway, 0);
+    ctx.drawImage(layers.near, 0, 0); ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.10); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // GRAND CHESS HALL (Magnus) — tall windows, columns, chandeliers, rows of boards.
 function chesshallScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.chesshall;

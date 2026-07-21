@@ -8,7 +8,8 @@
 // colors come from PAL. Zero image assets (Golden Rule 5).
 
 import { SCENERY, PAL } from './config.js';
-import { text, mix, mixA, withA, shade, lerp } from './gfx.js';
+import { text, mix, mixA, withA, shade, lerp, arenaLayers } from './gfx.js';
+import { additiveGlow, spotCone } from './lighting.js';
 
 const TAU = Math.PI * 2;
 // deterministic pseudo-random in [0,1) — stable element placement without state
@@ -88,9 +89,37 @@ function classicScene(ctx, p) {
 }
 SCENES.classic = { draw: classicScene };
 
+// CLASSIC v2 — painted truss/crowd layer + live light: breathing lamp cones,
+// drifting smoke haze, phone-light twinkles in the tiers, crowd flare wash.
+SCENES.classic.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd, accent } = p; const C = SCENERY.SCENES.classic;
+  sky(ctx, W, floorTop, ['#070a16', '#0d1226']);
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  for (const lx of C.lampXs) {                       // truss lamps: glow + cones
+    const breathe = 0.85 + 0.15 * Math.sin(t * 1.3 + lx);
+    additiveGlow(ctx, lx, C.lampY, 10, C.cone, 0.5 * breathe);
+    spotCone(ctx, { cx: lx, topY: C.lampY, floorY: floorTop, topHalfW: 5, botHalfW: 34, color: C.cone, alpha: C.coneA * breathe + crowd * 0.04 });
+  }
+  for (let i = 0; i < 2; i++)                        // smoke haze through the beams
+    additiveGlow(ctx, drift(t, 4 + i * 3, W, 60, i * 200), 34 + i * 22, 46, C.haze, 0.05);
+  for (let i = 0; i < C.phoneN; i++)                 // phone-light pinpricks
+    twinkle(ctx, hash(i) * W, floorTop * (0.45 + 0.4 * hash(i + 3)), 1, C.phone, t * C.twinkleHz, i * 1.9);
+  if (layers.near) ctx.drawImage(layers.near, 0, 0);
+  if (crowd > 0.01) { ctx.fillStyle = mixA(accent, crowd * 0.16); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // ---- public API -------------------------------------------------------------
-// draw a scene by id; unknown / not-yet-implemented ids fall back to CLASSIC
-export function drawScene(ctx, id, p) { (SCENES[id] || SCENES.classic).draw(ctx, p); }
+// draw a scene by id; unknown / not-yet-implemented ids fall back to CLASSIC.
+// A scene may define drawLayered(ctx, p, layers) — used when painted arena
+// layers (far/mid/near PNGs) are registered for it; otherwise its procedural
+// draw() runs, so the game still works with zero image assets.
+export function drawScene(ctx, id, p) {
+  const scene = SCENES[id] || SCENES.classic;
+  const layers = arenaLayers(id);
+  if (layers && scene.drawLayered) return scene.drawLayered(ctx, p, layers);
+  scene.draw(ctx, p);
+}
 
 // which arena to render for a match. Story = opponent's arena (forced);
 // multiplayer (local + online) = the player's selected, unlocked arena.

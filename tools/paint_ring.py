@@ -347,12 +347,120 @@ def paint_press():
     put(467, 25, STEEL0)
     return im
 
+# ---- CLASSIC ARENA mid layer (512x170, transparent bg) ---------------------
+# Painted truss + hanging PAWNCH banner + three crowd tiers. The code layer
+# (scenery.js classic drawLayered) adds lamp glow/cones, haze and twinkles.
+F35 = {  # minimal 3x5 font for the banner
+    'P': ['###', '#.#', '###', '#..', '#..'],
+    'A': ['###', '#.#', '###', '#.#', '#.#'],
+    'W': ['#.#', '#.#', '#.#', '###', '#.#'],
+    'N': ['#.#', '###', '###', '#.#', '#.#'],
+    'C': ['###', '#..', '#..', '#..', '###'],
+    'H': ['#.#', '#.#', '###', '#.#', '#.#'],
+}
+
+def paint_arena_classic_mid():
+    EMBER1, EMBER3 = (87, 21, 40), (193, 77, 0)
+    im = Image.new('RGBA', (512, 170), (0, 0, 0, 0))
+    p = im.load()
+    def put(x, y, c):
+        if 0 <= x < 512 and 0 <= y < 170:
+            p[x, y] = (*c, 255)
+    # ---- light truss: two beams + X-braces + bolts ----
+    for y0 in (6, 16):
+        for x in range(56, 457):
+            put(x, y0, INK2); put(x, y0 + 1, INK2)
+            if x % 24 == 0:
+                put(x, y0 + 2, STEEL1)                  # bolt heads
+    for bx in range(56, 409, 48):                       # X-braces between beams
+        for k in range(10):
+            put(bx + k * 4, 8 + k, INK2)
+            put(bx + 40 - k * 4, 8 + k, INK2)
+    # lamp housings hanging under the lower beam (clear of the banner)
+    for lx in (88, 152, 360, 424):
+        for y in range(18, 26):
+            for x in range(lx - 4, lx + 5):
+                put(x, y, GOLD0 if x in (lx - 4, lx + 4) or y in (18, 25) else GOLD1)
+    # ---- hanging PAWNCH banner (center-top, kept DIM — fighters own contrast)
+    RED0 = (64, 16, 30)
+    bx0, bx1, by0, by1 = 200, 312, 20, 48
+    for y in range(by0, by1):
+        for x in range(bx0, bx1):
+            c = EMBER1
+            if x < bx0 + 2 or x >= bx1 - 2 or y >= by1 - 2 or y < by0 + 2:
+                c = RED0                                # dark border
+            elif (x - bx0) % 22 < 2:
+                c = RED0                                # drape fold shadow
+            put(x, y, c)
+    for x in range(bx0 + 6, bx1 - 5, 10):               # hanging wires to the truss
+        put(x, 18, STEEL1); put(x, 19, STEEL1)
+    # PAWNCH lettering, 3x5 font at scale 3, centered, muted gold
+    word = 'PAWNCH'
+    sc = 3
+    total = len(word) * (3 * sc + sc) - sc
+    lx0 = (bx0 + bx1) // 2 - total // 2
+    ly0 = (by0 + by1) // 2 - (5 * sc) // 2
+    for li, ch in enumerate(word):
+        rows = F35[ch]
+        ox = lx0 + li * (3 * sc + sc)
+        for ry, row in enumerate(rows):
+            for rx, cell in enumerate(row):
+                if cell == '#':
+                    for yy in range(sc):
+                        for xx in range(sc):
+                            col = GOLD1 if ry < 4 or yy < sc - 1 else GOLD0
+                            put(ox + rx * sc + xx, ly0 + ry * sc + yy, col)
+    # ---- three crowd tiers, stepped back-to-front (deeper = darker) --------
+    # (ty0, ty1, head pitch, head radius, base color, head color)
+    tiers = [
+        (64, 96, 6, 2, INK0, INK1),
+        (100, 132, 8, 3, INK1, INK2),
+        (136, 170, 11, 5, INK1, INK2),
+    ]
+    # opaque shadow steps between tiers (no transparent gaps)
+    for y in list(range(96, 100)) + list(range(132, 136)):
+        for x in range(512):
+            put(x, y, INK0)
+    for ti, (ty0, ty1, pitch, hr, base, headc) in enumerate(tiers):
+        front = ti == 2
+        for y in range(ty0, ty1):
+            for x in range(512):
+                if 168 <= x <= 176 or 336 <= x <= 344:  # aisles
+                    put(x, y, INK0)
+                    continue
+                c = base
+                if ti == 1 and n2(x, y, 33) < 0.08:
+                    c = INK0                            # mid-tier speckle
+                put(x, y, c)
+        # dashed rail along the tier front
+        for x in range(0, 512, 3):
+            put(x, ty0, BLUE1)
+        # rows of heads along the tier
+        for row_y in range(ty0 + 6, ty1 - 2, hr * 2 + 3):
+            for hx in range(4, 512, pitch):
+                jit = int(n2(hx, row_y, 31) * 3) - 1
+                cx, cy = hx + jit, row_y + int(n2(hx, row_y, 32) * 3)
+                dark = cx < 40 or cx > 472
+                col = base if dark else headc
+                for yy in range(-hr, hr + 1):
+                    for xx in range(-hr + 1, hr):
+                        if xx * xx + yy * yy <= hr * hr:
+                            put(cx + xx, cy + yy, col)
+                for yy in range(hr - 1, hr + 3):        # shoulders
+                    for xx in range(-hr - 1, hr + 2):
+                        put(cx + xx, cy + yy, col)
+                # front tier: faint crown highlight so heads read at 1x
+                if front and not dark and n2(hx, row_y, 34) < 0.35:
+                    put(cx - 1, cy - hr, STEEL0); put(cx, cy - hr, STEEL0)
+    return im
+
 PIECES = {
     'mat': (paint_mat, 'mat.png'),
     'post': (paint_post, 'post.png'),
     'pad': (paint_pad, 'pad.png'),
     'stool': (paint_stool, 'stool.png'),
     'press': (paint_press, 'press.png'),
+    'classic-mid': (paint_arena_classic_mid, '../arenas/classic/mid.png'),
 }
 
 def main():
@@ -361,7 +469,8 @@ def main():
     for name, (fn, fname) in PIECES.items():
         if which not in ('all', name):
             continue
-        out = os.path.join(OUT_DIR, fname)
+        out = os.path.normpath(os.path.join(OUT_DIR, fname))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
         fn().save(out)
         print(f'painted {name} -> {out}')
 

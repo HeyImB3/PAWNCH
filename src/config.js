@@ -295,6 +295,10 @@ export const SCENERY = {
   // per-scene palettes + density/speed knobs. Colors are scene-specific (NOT brand
   // palette) so they live here, namespaced, instead of in PAL.
   SCENES: {
+    // CLASSIC v2 (layered): painted truss/crowd layer + volumetric lamp cones,
+    // drifting haze, phone-light twinkles. Used only when arenas/classic/mid.png
+    // is registered; the zero-asset fallback keeps the original classicScene.
+    classic: { lampXs: [88, 152, 360, 424], lampY: 24, cone: '#cdd6ff', coneA: 0.10, haze: '#3a4a78', phone: '#b8d0ff', phoneN: 22, twinkleHz: 2 },
     beach:   { sky: ['#7ad0ff', '#bfe9ff', '#ffd9a0', '#f2c27a'], sun: '#fff6cf', sunGlow: '#ffd24a', sea: '#3aa7e0', seaHi: '#7fd0ef', sand: '#e7c486', palm: '#3a2410', leaf: '#2f9b54', crowd: '#3a2a1a', crowdN: 22, palms: 2 },
     woods:   { sky: ['#0d1f15', '#06120c', '#040a06'], trunk: '#0c1c14', trunkN: 5, fireCore: '#fff6c0', fireMid: '#ff9a18', fireGlow: '#ffb24a', candleN: 6, fly: '#bfff7a', flyN: 7, crowd: '#0a140e', crowdN: 14 },
     cyber:   { sky: ['#13062a', '#1a0830', '#070414'], bld: '#0a0618', bldN: 6, neon: ['#ff3bd0', '#22e7ff', '#ffe14a', '#7a5cff'], crowd: '#7a9bff', crowdN: 30, rain: 'rgba(150,200,255,0.10)' },

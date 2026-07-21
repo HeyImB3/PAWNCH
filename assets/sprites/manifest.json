@@ -6,7 +6,9 @@
     "stool": "ring/stool.png",
     "press": "ring/press.png"
   },
-  "arenas": {},
+  "arenas": {
+    "classic": "arenas/classic"
+  },
   "pieceSets": {
     "celestial": "celestial",
     "arcane": "arcane"

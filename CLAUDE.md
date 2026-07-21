@@ -197,9 +197,12 @@ verified by running the game:
   (chess → boxing → round break) → a win is detected.
 - **Ring / arena / lighting art**: `tools/arena-preview.html` on the dev server —
   scene picker, crowd slider, IMPACT / KNOCKDOWN / DECALS controls, plus headless-QA
-  URL params (`?bare=1` zero-asset path, `?down=1`, `?crowd=NN`, `?scene=id`).
-  Judge transparent PNGs only via `tools/check_alpha.py` (the Read tool renders
-  alpha as white and lies).
+  URL params (`?bare=1` zero-asset path, `?down=1`, `?crowd=NN`, `?scene=id`,
+  `?tell=1` mock attack-banner readability, `?fxlow=1` LOW FX mode, `?perf=1`
+  frame-time overlay — also in `tools/chess-preview.html` and the portrait grid
+  `tools/portrait-preview.html`). Judge transparent PNGs only via
+  `tools/check_alpha.py` (the Read tool renders alpha as white and lies).
+  The Settings VIDEO tab has an **FX** row (FULL/LOW) gating the heavy passes.
 
 ## Gotchas
 

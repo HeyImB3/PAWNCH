@@ -434,6 +434,63 @@ function dreamScene(ctx, p) {
 }
 SCENES.dream = { draw: dreamScene };
 
+// DREAM WORLD v2 — painted pastel dream + living light: hue-cycling wash,
+// aurora shimmer, stardust falls, shooting stars, a floating knight bust,
+// and the rare counting sheep. The whole mid layer drifts — it's a dream.
+SCENES.dream.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.dream, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // hue-cycling dream wash over the sky (rotating through three tints)
+  const hk = (t * L.hueHz) % 1, hi = Math.floor(hk * L.hueCycle.length);
+  const hcol = L.hueCycle[hi % L.hueCycle.length];
+  ctx.fillStyle = mixA(hcol, L.hueA * (0.5 + 0.5 * Math.sin(hk * Math.PI * 2 * L.hueCycle.length)));
+  ctx.fillRect(0, 0, W, floorTop);
+  // aurora shimmer: slow drifting light blobs over the painted ribbons
+  for (let i = 0; i < 3; i++) {
+    const ax = drift(t, 6 + i * 3, W, 40, i * 150);
+    additiveGlow(ctx, ax, (L.auroraY[0] + L.auroraY[1]) / 2, 30, i % 2 ? '#8af0c0' : '#b8d0ff', 0.07);
+  }
+  // stardust falling off the floating islands
+  L.falls.forEach(([fx2, fy2], i) => {
+    for (let k = 0; k < 5; k++) {
+      const fy3 = fy2 + ((t * 14 + k * 9 + i * 5) % 34);
+      twinkle(ctx, fx2 + Math.sin(t + k) * 3, fy3, 1, '#ffe7a8', t * 2, k * 1.3 + i);
+    }
+  });
+  // shooting star: brief diagonal streak on a t-schedule
+  const sph = t % L.shootPeriod;
+  if (sph < L.shootDur) {
+    const cyc = Math.floor(t / L.shootPeriod);
+    const sx = 60 + hash(cyc) * (W - 160) + sph * 120, sy = 10 + hash(cyc + 2) * 30 + sph * 46;
+    ctx.strokeStyle = 'rgba(255,246,216,' + (1 - sph / L.shootDur).toFixed(3) + ')';
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - 14, sy - 6); ctx.stroke();
+  }
+  // the whole mid layer floats (bust, stairway, spectres — it's a dream)
+  ctx.save();
+  ctx.translate(0, Math.sin(t * L.bustHz * Math.PI * 2) * L.bustBob);
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  ctx.restore();
+  // RARE: the counting sheep bounces across
+  const shp = t % L.sheepPeriod;
+  if (shp < L.sheepDur) {
+    const sx = -12 + (W + 24) * (shp / L.sheepDur);
+    const sy = L.sheepY - Math.abs(Math.sin(shp * Math.PI * 4)) * 18;
+    ctx.fillStyle = '#e8f2ff';                              // fluffy body
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.arc(sx - 4, sy + 1, 3, 0, Math.PI * 2); ctx.arc(sx + 4, sy + 1, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#26304f';                              // face + legs
+    ctx.fillRect((sx + 5) | 0, (sy - 3) | 0, 3, 3);
+    ctx.fillRect((sx - 3) | 0, (sy + 4) | 0, 1, 2); ctx.fillRect((sx + 2) | 0, (sy + 4) | 0, 1, 2);
+  }
+  if (layers.near) {
+    ctx.save();
+    ctx.translate(Math.sin(t * L.wispHz) * L.wispSway, 0);
+    ctx.drawImage(layers.near, 0, 0);
+    ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.12); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // MOUNTAIN TEMPLE (Bishop Bruiser) — twilight peaks, pillared shrine, monks, flags.
 function templeScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.temple;

@@ -355,7 +355,20 @@ export const SCENERY = {
       },
       key: { color: '#ff3bd0', alpha: 0.15, wash: '#7a5cff', washA: 0.05 },  // magenta rim, violet grade
     },
-    dream:   { sky: ['#5a2a8a', '#b85cc0', '#ffb0d6', '#8fd0ff'], cloud: 'rgba(255,255,255,0.6)', shape: 'rgba(255,255,255,0.5)', ghost: 'rgba(255,255,255,0.45)', ghostN: 5, star: '#ffffff', starN: 10 },
+    dream:   {
+      sky: ['#5a2a8a', '#b85cc0', '#ffb0d6', '#8fd0ff'], cloud: 'rgba(255,255,255,0.6)', shape: 'rgba(255,255,255,0.5)', ghost: 'rgba(255,255,255,0.45)', ghostN: 5, star: '#ffffff', starN: 10,
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        bust: [388, 72], bustBob: 3, bustHz: 0.4,
+        falls: [[120, 96], [300, 84]],
+        auroraY: [18, 44],
+        hueCycle: ['#7a5cff', '#ff8a96', '#39d98a'], hueA: 0.05, hueHz: 0.08,
+        shootPeriod: 9, shootDur: 0.7,
+        sheepPeriod: 53, sheepDur: 5, sheepY: 120,
+        wispSway: 1.5, wispHz: 0.5, flareCol: '#b8d0ff',
+      },
+      key: { color: '#ff8a96', alpha: 0.12, wash: '#7a5cff', washA: 0.04 },  // soft pink rim, violet grade
+    },
     temple:  { sky: ['#caa0ff', '#9a5cff', '#5a3a8a'], peak: '#4a2f7a', peak2: '#3a2566', stone: '#3a2566', stoneHi: '#52397f', roof: '#2a1a4a', flag: ['#ff7a18', '#ffd24a'], cloud: 'rgba(255,255,255,0.5)', monk: '#1e1232', monkN: 16 },
     castle:  { sky: ['#8fd0ff', '#bfe6ff', '#e8f4ff'], cloud: '#ffffff', cloudN: 4, keep: '#9aa6c8', tower: '#8a96b8', roof: '#ff3b53', banner: '#ff7a18', crowd: '#2a2040', crowdN: 18, bird: '#22324f' },
     space:   { core: '#1a1040', edge: '#020108', star: '#ffffff', starN: 22, planet: ['#7a9bff', '#2b4cc0', '#16236a'], ring: 'rgba(111,160,255,0.5)', neb: '#7a5cff', gallery: '#0e1a3a', ast: '#cfe0ff', astN: 6 },

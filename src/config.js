@@ -398,7 +398,22 @@ export const SCENERY = {
       },
       key: { color: '#fff6d8', alpha: 0.10, wash: '#b8d0ff', washA: 0.03 },  // airy daylight
     },
-    space:   { core: '#1a1040', edge: '#020108', star: '#ffffff', starN: 22, planet: ['#7a9bff', '#2b4cc0', '#16236a'], ring: 'rgba(111,160,255,0.5)', neb: '#7a5cff', gallery: '#0e1a3a', ast: '#cfe0ff', astN: 6 },
+    space:   {
+      core: '#1a1040', edge: '#020108', star: '#ffffff', starN: 22, planet: ['#7a9bff', '#2b4cc0', '#16236a'], ring: 'rgba(111,160,255,0.5)', neb: '#7a5cff', gallery: '#0e1a3a', ast: '#cfe0ff', astN: 6,
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        gears: [[40, 54, 14, 1], [40, 96, 10, -1.6]],       // [x, y, spoke radius, spin speed]
+        pistons: [[468, 40, 30, 1.1], [486, 52, 24, 1.7]],  // [x, top, slot h, speed]
+        beacons: [[120, 14], [392, 14]],
+        lamps: [180, 260, 340],
+        floaters: [[150, 108], [350, 100]],
+        debrisN: 5, twinkN: 10,
+        cometPeriod: 43, cometDur: 2.2,
+        gearCol: '#5a6fa0', rodCol: '#8ea0cf', beaconCol: '#ff3b53',
+        lampCol: '#ffd24a', puffCol: '#b8d0ff', cometCol: '#e8f2ff', flareCol: '#ff3b53',
+      },
+      key: { color: '#b8d0ff', alpha: 0.13, wash: '#13357f', washA: 0.04 },  // hard vacuum-blue
+    },
     abyss:   { sky: ['#0a4a52', '#073238', '#04181c'], rock: '#06262b', fireCore: '#fff3c0', fireMid: '#ff8a18', fireGlow: '#ff9a3a', fireN: 3, jelly: ['#ffd0ff', '#c46aff'], jellyN: 5, bub: 'rgba(191,239,255,0.55)', bubN: 8 },
     chesshall: { sky: ['#2a1d3a', '#1a1228', '#0e0a18'], col: '#2e2348', win: '#3a2f6a', chand: '#ffd24a', chandN: 3, table: '#4a3018', tableTop: '#6f4d29', head: '#d8c0a0', headN: 7, piece: '#f0e3c8' },
     stadium: { sky: ['#0a1430', '#13357f', '#1a4a9a'], tiers: ['#ff7a18', '#2b6cff', '#ffd24a', '#39d98a'], tierN: 3, light: '#ffffff', jumbo: '#020610', jumboFrame: '#3a4a78', conf: ['#ff7a18', '#ffd24a', '#2b6cff'], floor: '#2a3566' },

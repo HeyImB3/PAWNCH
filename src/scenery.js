@@ -656,6 +656,65 @@ function spaceScene(ctx, p) {
 }
 SCENES.space = { draw: spaceScene };
 
+// DEEP SPACE v2 — painted orbital platform + living machinery: spoke wheels
+// rotate in the painted gear housings, pistons pump, beacons strobe red on
+// crowd surges (knockdowns), thrusters puff, a comet crosses.
+SCENES.space.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.space, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  for (let i = 0; i < L.twinkN; i++)                     // twinkling stars
+    twinkle(ctx, hash(i + 20) * W, hash(i + 30) * floorTop * 0.8, 1, C.star, t * 1.5, i * 1.9);
+  // RARE: a comet crosses behind the platform
+  const kph = t % L.cometPeriod;
+  if (kph < L.cometDur) {
+    const kx = W + 10 - (W + 60) * (kph / L.cometDur), ky = 20 + kph * 16;
+    for (let s = 0; s < 10; s++) {
+      ctx.fillStyle = withA(L.cometCol, 0.7 - s * 0.07);
+      ctx.fillRect((kx + s * 3) | 0, (ky - s * 1.2) | 0, 2, 1);
+    }
+    additiveGlow(ctx, kx, ky, 8, L.cometCol, 0.5);
+  }
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // ROTATING GEARS: code spoke-wheels inside the painted ring housings
+  L.gears.forEach(([gx, gy, gr, spd]) => {
+    const a = t * spd;
+    ctx.strokeStyle = L.gearCol; ctx.lineWidth = 2;
+    for (let s = 0; s < 4; s++) {
+      const sa = a + s * Math.PI / 2;
+      ctx.beginPath(); ctx.moveTo(gx, gy);
+      ctx.lineTo(gx + Math.cos(sa) * gr, gy + Math.sin(sa) * gr); ctx.stroke();
+    }
+    ctx.fillStyle = L.rodCol; ctx.fillRect(gx - 2, gy - 2, 4, 4);   // hub
+  });
+  // SLIDING PISTONS: rods pumping in the painted slots
+  L.pistons.forEach(([px2, top, sh, spd]) => {
+    const k = (Math.sin(t * spd) + 1) / 2;
+    const ry = top + k * (sh - 8);
+    ctx.fillStyle = L.rodCol; ctx.fillRect(px2, ry | 0, 4, 8);
+    ctx.fillStyle = '#e8f2ff'; ctx.fillRect(px2, ry | 0, 4, 1);
+  });
+  // beacons + work lamps; on crowd surges the beacons STROBE red
+  const strobe = crowd > 0.3 && Math.floor(t * 6) % 2 === 0;
+  L.beacons.forEach(([bx2, by2]) =>
+    additiveGlow(ctx, bx2, by2, strobe ? 26 : 12, L.beaconCol, strobe ? 0.6 : 0.22 + 0.08 * Math.sin(t * 2 + bx2)));
+  if (strobe) { ctx.fillStyle = 'rgba(255,59,83,0.08)'; ctx.fillRect(0, 0, W, floorTop); }
+  L.lamps.forEach((lx2) => additiveGlow(ctx, lx2, 24, 10, L.lampCol, 0.3));
+  // floating astronauts: thruster puffs sell the drift
+  L.floaters.forEach(([ax2, ay2], i) => {
+    const ph = (t * 0.7 + i * 0.5) % 1;
+    if (ph < 0.3) additiveGlow(ctx, ax2 - 5, ay2 + 6, 5 + ph * 10, L.puffCol, 0.3 * (1 - ph / 0.3));
+  });
+  // drifting debris flecks
+  for (let i = 0; i < L.debrisN; i++) {
+    const dx2 = drift(t, 2 + i, W, 10, i * 100), dy2 = 30 + hash(i + 8) * 80;
+    ctx.fillStyle = '#5a6fa0';
+    ctx.fillRect(dx2 | 0, (dy2 + Math.sin(t * 0.5 + i) * 3) | 0, 2, 1 + (i % 2));
+  }
+  if (layers.near) ctx.drawImage(layers.near, 0, 0);
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.08); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // UNDERWATER CAVE (Tal Tempest) — teal depths, rock walls, little fires, jellyfish, bubbles.
 function abyssScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.abyss;

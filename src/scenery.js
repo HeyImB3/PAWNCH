@@ -270,6 +270,58 @@ function woodsScene(ctx, p) {
 }
 SCENES.woods = { draw: woodsScene };
 
+// SPOOKY WOODS v2 — painted moonlit amphitheater + living light: candle pools,
+// rolling fog, fireflies, a moon shaft, and eyes that blink open in the dark.
+SCENES.woods.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.woods, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // moon glow + one broad shaft slanting down-left through the canopy
+  additiveGlow(ctx, L.moon[0], L.moon[1], L.moonGlowR, L.shaftCol, 0.4 + 0.06 * Math.sin(t * 0.9));
+  godRay(ctx, L.moon[0], L.moon[1], L.moon[0] - 120, floorTop, 8, 52, L.shaftCol, L.shaftAlpha);
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // candle flames on every painted cluster (the warm pools of light)
+  L.candles.forEach(([cx, cy], i) =>
+    flame(ctx, cx, cy - 2, 4, t, i * 1.7, C.fireCore, C.fireMid, C.fireGlow));
+  // rolling ground fog: broad drifting glows hugging the floor band
+  for (let i = 0; i < L.fogN; i++) {
+    const fx = drift(t, 3 + i * 2, W, 90, i * 170);
+    const fy = L.fogY[0] + (L.fogY[1] - L.fogY[0]) * hash(i + 2);
+    additiveGlow(ctx, fx, fy, 60, L.fogCol, 0.07);
+  }
+  // fireflies wandering between the trunks
+  for (let i = 0; i < L.flyN; i++) {
+    const fx = drift(t, 5 + i, W, 12, i * 60);
+    const fy = 60 + hash(i + 3) * 80 + Math.sin(t * 1.8 + i) * 6;
+    twinkle(ctx, fx, fy, 2, L.flyCol, t * 2, i * 2.3);
+  }
+  // RARE: pairs of eyes blink open in the dark, then vanish
+  const eph = t % L.eyesPeriod;
+  if (eph < L.eyesDur) {
+    const k = Math.sin((eph / L.eyesDur) * Math.PI);           // fade in-out
+    const cycle = Math.floor(t / L.eyesPeriod);                // new spots each time
+    for (let i = 0; i < L.eyesN; i++) {
+      const ex = 60 + hash(cycle * 7 + i) * (W - 120);
+      const ey = 40 + hash(cycle * 13 + i + 3) * 70;
+      ctx.globalAlpha = k;
+      ctx.fillStyle = L.eyesCol;
+      ctx.fillRect(ex | 0, ey | 0, 2, 2); ctx.fillRect((ex + 6) | 0, ey | 0, 2, 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+  // near branch + moss with a slow sway, then the jar candle glows on top
+  if (layers.near) {
+    ctx.save();
+    ctx.translate(Math.sin(t * L.mossHz) * L.mossSway, 0);
+    ctx.drawImage(layers.near, 0, 0);
+    ctx.restore();
+  }
+  L.jars.forEach(([jx, jy], i) => {
+    flame(ctx, jx, jy, 3, t, i * 2.6, C.fireCore, C.fireMid, C.fireGlow);
+  });
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.10); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // CYBERPUNK STREET (Rosa Rookrush) — building silhouettes, neon, rain, sidewalk crowd.
 function cyberScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.cyber;

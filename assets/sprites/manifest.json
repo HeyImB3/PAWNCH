@@ -8,7 +8,8 @@
   },
   "arenas": {
     "classic": "arenas/classic",
-    "beach": "arenas/beach"
+    "beach": "arenas/beach",
+    "woods": "arenas/woods"
   },
   "pieceSets": {
     "celestial": "celestial",

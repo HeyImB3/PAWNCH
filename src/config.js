@@ -325,7 +325,22 @@ export const SCENERY = {
       },
       key: { color: '#ffd24a', alpha: 0.20, wash: '#ff9a3a', washA: 0.05 },  // golden-hour key light
     },
-    woods:   { sky: ['#0d1f15', '#06120c', '#040a06'], trunk: '#0c1c14', trunkN: 5, fireCore: '#fff6c0', fireMid: '#ff9a18', fireGlow: '#ffb24a', candleN: 6, fly: '#bfff7a', flyN: 7, crowd: '#0a140e', crowdN: 14 },
+    woods:   {
+      sky: ['#0d1f15', '#06120c', '#040a06'], trunk: '#0c1c14', trunkN: 5, fireCore: '#fff6c0', fireMid: '#ff9a18', fireGlow: '#ffb24a', candleN: 6, fly: '#bfff7a', flyN: 7, crowd: '#0a140e', crowdN: 14,
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        moon: [392, 30], moonGlowR: 26,
+        candles: [[70, 118], [128, 132], [196, 140], [316, 140], [384, 132], [442, 118], [60, 90], [452, 90]],
+        jars: [[110, 34], [300, 40]],       // hanging candle-jar glow points
+        fogY: [128, 166], fogN: 3, fogCol: '#26304f',
+        flyN: 9, flyCol: '#8af0c0',
+        eyesPeriod: 23, eyesDur: 2.2, eyesN: 3, eyesCol: '#39d98a',
+        shaftAlpha: 0.07, shaftCol: '#cdd6ff',
+        mossSway: 1.0, mossHz: 0.5,
+        flareCol: '#39d98a',
+      },
+      key: { color: '#8ea0cf', alpha: 0.14, wash: '#17573a', washA: 0.035 },  // cold moon rim, faint forest grade
+    },
     cyber:   { sky: ['#13062a', '#1a0830', '#070414'], bld: '#0a0618', bldN: 6, neon: ['#ff3bd0', '#22e7ff', '#ffe14a', '#7a5cff'], crowd: '#7a9bff', crowdN: 30, rain: 'rgba(150,200,255,0.10)' },
     dream:   { sky: ['#5a2a8a', '#b85cc0', '#ffb0d6', '#8fd0ff'], cloud: 'rgba(255,255,255,0.6)', shape: 'rgba(255,255,255,0.5)', ghost: 'rgba(255,255,255,0.45)', ghostN: 5, star: '#ffffff', starN: 10 },
     temple:  { sky: ['#caa0ff', '#9a5cff', '#5a3a8a'], peak: '#4a2f7a', peak2: '#3a2566', stone: '#3a2566', stoneHi: '#52397f', roof: '#2a1a4a', flag: ['#ff7a18', '#ffd24a'], cloud: 'rgba(255,255,255,0.5)', monk: '#1e1232', monkN: 16 },

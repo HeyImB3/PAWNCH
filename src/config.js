@@ -445,6 +445,23 @@ export const SCENERY = {
       },
       key: { color: '#ffe7a8', alpha: 0.12, wash: '#c9962a', washA: 0.03 },  // candlelit gala
     },
-    stadium: { sky: ['#0a1430', '#13357f', '#1a4a9a'], tiers: ['#ff7a18', '#2b6cff', '#ffd24a', '#39d98a'], tierN: 3, light: '#ffffff', jumbo: '#020610', jumboFrame: '#3a4a78', conf: ['#ff7a18', '#ffd24a', '#2b6cff'], floor: '#2a3566' },
+    stadium: {
+      sky: ['#0a1430', '#13357f', '#1a4a9a'], tiers: ['#ff7a18', '#2b6cff', '#ffd24a', '#39d98a'], tierN: 3, light: '#ffffff', jumbo: '#020610', jumboFrame: '#3a4a78', conf: ['#ff7a18', '#ffd24a', '#2b6cff'], floor: '#2a3566',
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        screen: { x: 216, y: 16, w: 80, h: 32 },
+        pyro: [[140, 152], [372, 152]],
+        lights: [[70, 6], [442, 6]],
+        tiers: [[58, 88], [92, 122], [126, 156]],
+        waveSpeed: 90, waveW: 70,                      // px/sec, band width
+        confN: 16, blimpPeriod: 71, blimpDur: 12,
+        flagSway: 1.8, flagHz: 0.8,
+        marquee: ['#ff7a18', '#ffd24a', '#2b6cff', '#39d98a'],
+        pyroCore: '#fff6c0', pyroMid: '#ff9a18', pyroGlow: '#ffb24a',
+        beamCol: '#cdd6ff', blimpCol: '#26304f', flareCol: '#ff7a18',
+        confCols: ['#ff7a18', '#ffd24a', '#2b6cff', '#39d98a', '#e8f2ff'],
+      },
+      key: { color: '#fff6d8', alpha: 0.10, wash: '#ff7a18', washA: 0.03 },  // arena floodlight
+    },
   },
 };

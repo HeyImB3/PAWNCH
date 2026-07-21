@@ -16,7 +16,8 @@
     "castle": "arenas/castle",
     "space": "arenas/space",
     "abyss": "arenas/abyss",
-    "chesshall": "arenas/chesshall"
+    "chesshall": "arenas/chesshall",
+    "stadium": "arenas/stadium"
   },
   "pieceSets": {
     "celestial": "celestial",

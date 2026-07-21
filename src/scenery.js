@@ -926,3 +926,70 @@ function stadiumScene(ctx, p) {
   ctx.fillStyle = C.floor; ctx.fillRect(0, floorTop - 18, W, 18);
 }
 SCENES.stadium = { draw: stadiumScene };
+
+// MEGA STADIUM v2 — painted championship bowl + living spectacle: the WAVE
+// sweeps the crowd tiers as a traveling brightness band, searchlights sweep,
+// the LIVE jumbotron shows the round, pyro erupts on surges, a blimp cruises.
+SCENES.stadium.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd, round } = p;
+  const C = SCENERY.SCENES.stadium, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // RARE: the blimp cruises the sky sliver with blinking lights
+  const bph = t % L.blimpPeriod;
+  if (bph < L.blimpDur) {
+    const bx = -40 + (W + 80) * (bph / L.blimpDur), by = 8;
+    ctx.fillStyle = L.blimpCol;
+    ctx.beginPath(); ctx.ellipse(bx, by, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect((bx - 4) | 0, by + 5, 8, 3);                          // gondola
+    if (Math.floor(t * 3) % 2) { ctx.fillStyle = '#ff3b53'; ctx.fillRect(bx | 0, by - 7, 1, 1); }
+  }
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // THE WAVE: a traveling brightness band sweeping the painted crowd tiers
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  L.tiers.forEach(([ty0, ty1], ti) => {
+    const span = W + L.waveW * 2;
+    const x0 = ((t * L.waveSpeed + ti * 60) % span) - L.waveW;
+    const g = ctx.createLinearGradient(x0 - L.waveW, 0, x0 + L.waveW, 0);
+    g.addColorStop(0, 'rgba(255,246,216,0)');
+    g.addColorStop(0.5, 'rgba(255,246,216,' + (0.14 + crowd * 0.10).toFixed(2) + ')');
+    g.addColorStop(1, 'rgba(255,246,216,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x0 - L.waveW, ty0, L.waveW * 2, ty1 - ty0);
+  });
+  ctx.restore();
+  // sweeping searchlights from the roof pivots
+  L.lights.forEach(([lx, ly], i) => {
+    const sweep = Math.sin(t * 0.6 + i * 2.4) * 120;
+    spotCone(ctx, { cx: lx + sweep * 0.4, topY: ly, floorY: floorTop, topHalfW: 4, botHalfW: 30, color: L.beamCol, alpha: 0.08 + crowd * 0.04 });
+    additiveGlow(ctx, lx, ly, 8, L.beamCol, 0.4);
+  });
+  // THE LIVE JUMBOTRON: round number when known, marquee chase always
+  const S = L.screen;
+  const mi = Math.floor(t * 6) % L.marquee.length;
+  ctx.strokeStyle = L.marquee[mi]; ctx.lineWidth = 2;
+  ctx.strokeRect(S.x - 2, S.y - 2, S.w + 4, S.h + 4);                  // chasing border
+  if (round != null) {
+    text(ctx, 'ROUND', S.x + S.w / 2, S.y + 4, { scale: 1, color: L.marquee[(mi + 1) % 4], align: 'center' });
+    text(ctx, String(round), S.x + S.w / 2, S.y + 15, { scale: 2, color: '#fff6d8', align: 'center' });
+  } else {
+    text(ctx, 'PAWNCH', S.x + S.w / 2, S.y + 12, { scale: 1, color: L.marquee[mi], align: 'center' });
+  }
+  additiveGlow(ctx, S.x + S.w / 2, S.y + S.h / 2, 34, L.marquee[mi], 0.10);
+  // pyro columns on crowd surges
+  if (crowd > 0.5) {
+    L.pyro.forEach(([px2, py2], i) =>
+      flame(ctx, px2, py2 - 8, 7 + crowd * 4, t, i * 1.3, L.pyroCore, L.pyroMid, L.pyroGlow));
+  }
+  // confetti rain (denser with the crowd)
+  const confN = Math.floor(L.confN * (0.5 + crowd));
+  for (let i = 0; i < confN; i++) {
+    const cx2 = hash(i + 40) * W, cy2 = (t * 34 + i * 31) % floorTop;
+    ctx.fillStyle = L.confCols[i % L.confCols.length];
+    ctx.fillRect(cx2 | 0, cy2 | 0, 2, 3);
+  }
+  if (layers.near) {
+    ctx.save(); ctx.translate(Math.sin(t * L.flagHz) * L.flagSway, 0);
+    ctx.drawImage(layers.near, 0, 0); ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.12); ctx.fillRect(0, 0, W, floorTop); }
+};

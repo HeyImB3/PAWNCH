@@ -5,6 +5,7 @@
 import { MATCH, PAL, CHESS, PANEL } from '../config.js';
 import { text, textWidth, panel, piece as drawPiece, uiSprite, mix, withA } from '../gfx.js';
 import { additiveGlow } from '../lighting.js';
+import { PortraitFace, damageTier } from '../portrait.js';
 import * as audio from '../audio.js';
 import * as Chess from '../chess/board.js';
 import { bestMove } from '../chess/engine.js';
@@ -82,6 +83,11 @@ export class ChessState {
     this.flagText = null;
 
     this.oppHue = m.mode === 'story' ? (HUE[m.opponent.hue] || HUE.red) : HUE.red;
+    // living portrait faces (V5): mood follows material, reactions on events
+    this.faces = {
+      enemy: new PortraitFace({ slug: m.mode === 'story' ? m.opponent.look?.sprite : null, hue: this.oppHue }),
+      player: new PortraitFace({ slug: 'player', hue: HUE.player }),
+    };
     audio.playFightTheme(this.m.fightTrack);
   }
 
@@ -130,6 +136,13 @@ export class ChessState {
     if (this.tickerSlide > 0) this.tickerSlide -= dt;
     const pgnLen = (this.m.pgnMoves || []).length;
     if (pgnLen > this.tickerLen) { this.tickerLen = pgnLen; this.tickerSlide = PANEL.TICKER_SLIDE_MS; }
+    // portrait moods follow the material story
+    const matNow = Chess.material(this.m.chess.board);
+    const myMatNow = this.m.playerColor === Chess.WHITE ? matNow.diff : -matNow.diff;
+    this.faces.player.setMaterial(myMatNow);
+    this.faces.enemy.setMaterial(-myMatNow);
+    this.faces.player.update(dt);
+    this.faces.enemy.update(dt);
     audio.playFightTheme(this.m.fightTrack);
 
     if (this.phase === 'ended') return;
@@ -385,7 +398,13 @@ export class ChessState {
 
     const st = Chess.status(m.chess);
     const justMovedColor = this.preState.turn;
-    if (Chess.inCheck(m.chess) && st === 'ongoing') { audio.sfx.check(); game.fx.doFlash(PAL.red, 0.25); }
+    // portrait reactions: captures thrill the captor and sting the victim;
+    // checks shock the checked side; promotions earn a smug flash
+    const moverFace = justMovedColor === m.playerColor ? this.faces.player : this.faces.enemy;
+    const otherFace = justMovedColor === m.playerColor ? this.faces.enemy : this.faces.player;
+    if (a.capture) { moverFace.react('joy'); otherFace.react('anger'); }
+    if (a.mv.promo) moverFace.react('smug');
+    if (Chess.inCheck(m.chess) && st === 'ongoing') { audio.sfx.check(); game.fx.doFlash(PAL.red, 0.25); otherFace.react('shock'); }
 
     if (st === 'checkmate') {
       // side to move is mated -> the mover wins
@@ -729,11 +748,9 @@ export class ChessState {
     const m = this.m;
     const hue = side === 'enemy' ? this.oppHue.body : PAL.blue;
     const cx = x + 22, cy = y + 22;
-    ctx.fillStyle = mix(hue, '#000000', 0.55);
-    ctx.beginPath(); ctx.arc(cx, cy - 6, 8, 0, Math.PI * 2); ctx.fill();       // head
-    ctx.beginPath();
-    ctx.moveTo(cx - 15, y + 43); ctx.quadraticCurveTo(cx, y + 20, cx + 15, y + 43);
-    ctx.closePath(); ctx.fill();                                               // shoulders
+    // the living face (fallback bust handled inside PortraitFace)
+    const dmg = (m.damage ||= { player: 0, enemy: 0 })[side] || 0;
+    this.faces[side].draw(ctx, x, y, { tier: damageTier(dmg) });
     ctx.strokeStyle = withA(hue, 0.7); ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, 43, 43);                                  // accent frame
     // check alarm: red pulsing frame on the CHECKED side's portrait

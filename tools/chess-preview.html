@@ -33,6 +33,7 @@ const match = {
   chess, round: 3, hp: { player: 62, enemy: 78 },
   clocks: { w: params.has('low') ? 8000 : 174000, b: 231000 },
   pgnMoves: pgn, fightTrack: 0, movedThisHalf: {},
+  damage: params.has('dmg') ? { player: 380, enemy: 150 } : { player: 0, enemy: 0 },
 };
 const game = { W: 512, H: 448, match, save: {}, input, fx: new FX(),
   doFreeze() {}, resolveChess() {}, changeState() {}, netFlow() {} };

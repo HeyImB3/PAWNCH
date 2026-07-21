@@ -10,6 +10,7 @@ import { FIGHTER } from '../config.js';
 import { text, textWidth, panel, barH } from '../gfx.js';
 import { RingView } from '../ring.js';
 import { reflect, spotlightMoment, Flashbulbs, withRim, tintWash } from '../lighting.js';
+import { PortraitFace, damageTier } from '../portrait.js';
 import { LIGHT, SCENERY, PORTRAIT } from '../config.js';
 import { drawFighter } from '../fighter.js';
 import { drawSpecialFx } from '../specialfx.js';
@@ -55,6 +56,7 @@ export class BoxingState {
     this.accent = this.oppHue.body;
     this.sceneId = sceneFor(m, game.save);   // story: opponent arena; pvp: player's pick
     this.keyLight = SCENERY.SCENES[this.sceneId]?.key || null;  // scene's key light (rim + wash)
+    this.introFace = new PortraitFace({ slug: m.mode === 'story' ? m.opponent?.look?.sprite : null, hue: this.oppHue });
     this.ringView = new RingView({ floorTop: 170 });  // fresh mat each boxing half
     this.flash = new Flashbulbs();
     this.spotK = 0;            // knockdown-spotlight ease (0..1)
@@ -597,6 +599,9 @@ export class BoxingState {
     const y = 250;
     const x = -200 + slide * (W / 2 - 150 + 200);
     panel(ctx, x, y, 300, 56, { fill: PAL.panel, border: this.accent, border2: PAL.ink });
+    // the opponent's battle-worn face rides the tale-of-the-tape plate
+    this.introFace.update(16);
+    this.introFace.draw(ctx, x + 250, y + 6, { tier: damageTier((this.m.damage ||= { player: 0, enemy: 0 }).enemy) });
     const name = this.m.mode === 'story' ? this.m.opponent.name : 'PLAYER 2';
     text(ctx, name, x + 12, y + 8, { scale: 2, color: PAL.white, shadow: PAL.ink });
     if (this.m.mode === 'story') {

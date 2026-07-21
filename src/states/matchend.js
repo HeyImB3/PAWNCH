@@ -5,8 +5,9 @@ import { PAL, SCENERY, FIGHTER } from '../config.js';
 import { text, panel, logo } from '../gfx.js';
 import { drawFighter } from '../fighter.js';
 import * as audio from '../audio.js';
-import { OPPONENTS, HERO_LOOK } from '../opponents.js';
+import { OPPONENTS, HERO_LOOK, HUE } from '../opponents.js';
 import { tossColor } from '../chess/board.js';
+import { PortraitFace, damageTier } from '../portrait.js';
 
 export class MatchEndState {
   enter(game) {
@@ -16,6 +17,17 @@ export class MatchEndState {
     this.isDraw = this.m.winner === 'draw';
     this.story = this.m.mode === 'story';
     this.sel = 0;
+    // the final faces: winner beams (gap-toothed if they took a beating),
+    // loser hangs their head — battle damage tells the whole match's story
+    const oppHue = this.story ? (HUE[this.m.opponent?.hue] || HUE.red) : HUE.red;
+    this.faces = {
+      player: new PortraitFace({ slug: 'player', hue: HUE.player }),
+      enemy: new PortraitFace({ slug: this.story ? this.m.opponent?.look?.sprite : null, hue: oppHue }),
+    };
+    if (!this.isDraw) {
+      this.faces[this.win ? 'player' : 'enemy'].force('beaming');
+      this.faces[this.win ? 'enemy' : 'player'].force('dejected');
+    }
 
     if (this.story && this.win) {
       // advance progress (don't exceed roster length). `advanced` is false when
@@ -92,6 +104,12 @@ export class MatchEndState {
 
     const bob = Math.sin(this.t * 4) * 4;
     text(ctx, big, W / 2, 60 + bob, { scale: 6, color: col, align: 'center', shadow: PAL.ink });
+
+    // the final faces flanking the verdict (damage tiers = the match's scars)
+    const dmg = (this.m.damage ||= { player: 0, enemy: 0 });
+    this.faces.player.update(16); this.faces.enemy.update(16);
+    this.faces.player.draw(ctx, W / 2 - 120, 44, { tier: damageTier(dmg.player) });
+    this.faces.enemy.draw(ctx, W / 2 + 76, 44, { tier: damageTier(dmg.enemy) });
 
     // who
     const winnerIsPlayer = this.win;

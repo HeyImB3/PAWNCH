@@ -226,9 +226,9 @@ def paint_near():
                 put(int(x + px_ * s), int(y + py_ * s), INK0)
             # leaflets every 2 steps, shrinking toward the tip, swept back
             if i % 2 == 0 and i > 3:
-                llen = max(2, int(wid * 2.6 * (1 - k)))
+                llen = max(2, int(wid * 2.6 * (1 - k)) + 2)
                 for side in (-1, 1):
-                    if n2(i, side, 63 + ox) < 0.12:
+                    if n2(i, side, 63 + ox) < 0.06:
                         continue                  # missing leaflet (ragged)
                     for j in range(llen):
                         jx = x + (px_ * side + ux * 0.55) * j
@@ -262,6 +262,7 @@ def paint_near():
         (-4, 2, 1.8, 0.42, 96, 5), (2, -2, 1.5, 0.62, 88, 5), (10, 6, 1.2, 0.34, 80, 4),
         (-2, 14, 1.9, 0.22, 82, 4), (20, -2, 0.9, 0.55, 62, 4), (32, 2, 0.6, 0.48, 48, 3),
         (6, 20, 1.4, 0.5, 70, 4), (26, 12, 1.0, 0.4, 58, 3), (-2, 28, 1.6, 0.12, 60, 3),
+        (14, -4, 1.7, 0.72, 74, 4), (0, 8, 2.1, 0.32, 88, 4), (38, 6, 0.75, 0.6, 52, 3),
     ]:
         frond(ox, oy, ddx, ddy, ln, wd)
     # hanging coconuts under the left canopy
@@ -278,6 +279,7 @@ def paint_near():
         (515, 0, -1.7, 0.4, 92, 5), (508, -3, -1.4, 0.6, 82, 5), (502, 8, -1.1, 0.3, 74, 4),
         (512, 16, -1.8, 0.18, 76, 4), (492, 0, -0.8, 0.52, 56, 3),
         (506, 22, -1.5, 0.35, 66, 4), (486, 8, -1.0, 0.28, 52, 3),
+        (500, -4, -1.6, 0.66, 70, 4), (511, 26, -2.0, 0.24, 72, 3),
     ]:
         frond(ox, oy, ddx, ddy, ln, wd)
     return im

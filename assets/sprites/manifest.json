@@ -12,7 +12,8 @@
     "woods": "arenas/woods",
     "cyber": "arenas/cyber",
     "dream": "arenas/dream",
-    "temple": "arenas/temple"
+    "temple": "arenas/temple",
+    "castle": "arenas/castle"
   },
   "pieceSets": {
     "celestial": "celestial",

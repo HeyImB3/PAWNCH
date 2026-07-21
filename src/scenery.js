@@ -585,6 +585,56 @@ function castleScene(ctx, p) {
 }
 SCENES.castle = { draw: castleScene };
 
+// SKY CASTLE v2 — painted daylight majesty + living air: waterfall foam and
+// mist, trumpet flourishes on crowd surges, drifting petals, a winged flyby.
+SCENES.castle.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.castle, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  for (let i = 0; i < L.cloudDriftN; i++)                // near cloud-drift glows
+    additiveGlow(ctx, drift(t, 5 + i * 3, W, 70, i * 140), 30 + i * 18, 46, '#e8f2ff', 0.08);
+  // RARE: a winged silhouette glides past behind the keep
+  const fph = t % L.flyPeriod;
+  if (fph < L.flyDur) {
+    const fx = W + 20 - (W + 40) * (fph / L.flyDur), fy = 40 + Math.sin(fph * 1.5) * 8;
+    const flap = Math.sin(t * 5) * 5;
+    ctx.strokeStyle = L.flyCol; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(fx - 10, fy - flap); ctx.lineTo(fx, fy); ctx.lineTo(fx + 10, fy - flap);
+    ctx.stroke();
+    ctx.fillStyle = L.flyCol; ctx.fillRect((fx - 2) | 0, fy | 0, 5, 2);  // body
+  }
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // waterfall: falling foam dashes + drifting mist at the base
+  for (let k = 0; k < 9; k++) {
+    const ph = (t * 1.4 + k * 0.11) % 1;
+    const fy2 = L.fall.y0 + (L.fall.y1 - L.fall.y0) * ph;
+    ctx.fillStyle = 'rgba(232,242,255,' + (0.5 + 0.3 * hash(k)).toFixed(2) + ')';
+    ctx.fillRect((L.fall.x - 6 + hash(k) * 12) | 0, fy2 | 0, 2, 4 + hash(k + 3) * 4);
+  }
+  additiveGlow(ctx, L.mist[0], L.mist[1], 18 + 3 * Math.sin(t * 1.7), L.mistCol, 0.22);
+  // trumpeters flourish when the crowd surges (knockdowns / big hits)
+  if (crowd > 0.35) {
+    L.trumpeters.forEach(([tx, ty], i) => {
+      additiveGlow(ctx, tx, ty - 6, 10, L.glintCol, 0.5 * crowd);
+      for (let s = 0; s < 3; s++)
+        twinkle(ctx, tx + (i ? -1 : 1) * (6 + s * 5), ty - 10 - s * 4, 1, L.glintCol, t * 6, s * 1.2);
+    });
+  }
+  // petals drifting on the wind
+  for (let i = 0; i < L.petalN; i++) {
+    const px2 = drift(t, 9 + i * 2, W, 14, i * 80);
+    const py2 = 30 + hash(i + 4) * 100 + Math.sin(t * 1.6 + i * 1.3) * 9;
+    ctx.fillStyle = L.petalCol;
+    ctx.fillRect(px2 | 0, py2 | 0, 2, 1 + (Math.floor(t * 3 + i) % 2));
+  }
+  if (layers.near) {
+    ctx.save(); ctx.translate(Math.sin(t * L.bannerHz) * L.bannerSway, 0);
+    ctx.drawImage(layers.near, 0, 0); ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.10); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // DEEP SPACE (Iron Endgame) — starfield, ringed planet, nebula, astronaut gallery.
 function spaceScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.space;

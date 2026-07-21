@@ -384,7 +384,20 @@ export const SCENERY = {
       },
       key: { color: '#b8d0ff', alpha: 0.12, wash: '#5563a8', washA: 0.04 },  // twilight-cool rim
     },
-    castle:  { sky: ['#8fd0ff', '#bfe6ff', '#e8f4ff'], cloud: '#ffffff', cloudN: 4, keep: '#9aa6c8', tower: '#8a96b8', roof: '#ff3b53', banner: '#ff7a18', crowd: '#2a2040', crowdN: 18, bird: '#22324f' },
+    castle:  {
+      sky: ['#8fd0ff', '#bfe6ff', '#e8f4ff'], cloud: '#ffffff', cloudN: 4, keep: '#9aa6c8', tower: '#8a96b8', roof: '#ff3b53', banner: '#ff7a18', crowd: '#2a2040', crowdN: 18, bird: '#22324f',
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        fall: { x: 338, y0: 95, y1: 168 }, mist: [338, 164],
+        trumpeters: [[84, 138], [428, 138]],
+        cloudDriftN: 3, petalN: 7,
+        flyPeriod: 61, flyDur: 5,
+        bannerSway: 1.6, bannerHz: 0.7,
+        petalCol: '#ff8a96', mistCol: '#e8f2ff', glintCol: '#ffe7a8',
+        flyCol: '#26304f', flareCol: '#ffd24a',
+      },
+      key: { color: '#fff6d8', alpha: 0.10, wash: '#b8d0ff', washA: 0.03 },  // airy daylight
+    },
     space:   { core: '#1a1040', edge: '#020108', star: '#ffffff', starN: 22, planet: ['#7a9bff', '#2b4cc0', '#16236a'], ring: 'rgba(111,160,255,0.5)', neb: '#7a5cff', gallery: '#0e1a3a', ast: '#cfe0ff', astN: 6 },
     abyss:   { sky: ['#0a4a52', '#073238', '#04181c'], rock: '#06262b', fireCore: '#fff3c0', fireMid: '#ff8a18', fireGlow: '#ff9a3a', fireN: 3, jelly: ['#ffd0ff', '#c46aff'], jellyN: 5, bub: 'rgba(191,239,255,0.55)', bubN: 8 },
     chesshall: { sky: ['#2a1d3a', '#1a1228', '#0e0a18'], col: '#2e2348', win: '#3a2f6a', chand: '#ffd24a', chandN: 3, table: '#4a3018', tableTop: '#6f4d29', head: '#d8c0a0', headN: 7, piece: '#f0e3c8' },

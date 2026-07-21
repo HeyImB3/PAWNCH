@@ -19,7 +19,11 @@ import { loadAssets } from '../src/assets.js';
 import { drawFighter } from '../src/fighter.js';
 import { HERO_LOOK, DEFAULT_LOOK } from '../src/opponents.js';
 
-const bare = new URLSearchParams(location.search).has('bare');
+const params = new URLSearchParams(location.search);
+const bare = params.has('bare');
+// headless-QA hooks: ?down=1 checks KNOCKDOWN, ?crowd=NN sets the slider, ?scene=id picks the arena
+if (params.has('down')) document.getElementById('down').checked = true;
+if (params.has('crowd')) document.getElementById('crowd').value = params.get('crowd');
 if (!bare) await loadAssets('../assets/sprites');
 // feature-detect later modules so this harness never needs editing
 let RingView = null, L = null;
@@ -33,6 +37,7 @@ ctx.imageSmoothingEnabled = false;
 const sceneSel = document.getElementById('scene');
 for (const id of ['classic', ...SCENERY.OPPONENT_SCENES])
   sceneSel.add(new Option(SCENERY.NAMES[id] || id, id));
+if (params.has('scene')) sceneSel.value = params.get('scene');
 const rv = RingView ? new RingView({ floorTop: 170 }) : null;
 const flash = L ? new L.Flashbulbs() : null;
 document.getElementById('impact').onclick = () => {

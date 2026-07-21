@@ -270,6 +270,12 @@ export const RING = {
   PRESS_FLASH_POINTS: [[40, 418], [112, 410], [430, 414], [482, 420]], // lens xy (screen)
 };
 
+// Lighting/FX presentation (src/lighting.js).
+export const LIGHT = {
+  SPOT: { EASE_MS: 240, DIM: 0.78, CONE_ALPHA: 0.22, TOP_HALF_W: 26, HOLE_R: 150 },
+  FLASH: { LIFE_MS: 190, BIG_HIT: 5, KNOCKDOWN: 12, PARRY: 4, SCATTER: 60 },
+};
+
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a
 // built-in CLASSIC ring. Story forces the opponent's arena; multiplayer uses the
 // player's unlocked, selected arena (see save.settings.arena). All scene tuning

@@ -85,7 +85,10 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   painted by **`tools/paint_ring.py` / `tools/paint_beach.py`** (deterministic,
   master-palette-only via `tools/pawnch_palette.py` — see `docs/ART_BIBLE.md` v2);
   arena scenes add painted parallax layers via `manifest.json` `arenas` + a
-  `drawLayered` on the scene (`scenery.js`; CLASSIC + BEACH shipped, 9 to go).
+  `drawLayered` on the scene (`scenery.js`; **all 11 arenas shipped**, painters in
+  `tools/paint_<arena>.py`). Scene draws stay PURE functions of their params;
+  the boxing state passes read-only `board`/`round` for the "live" arenas
+  (chesshall wall-board, stadium jumbotron).
 
 ## Golden rules (don't break these)
 

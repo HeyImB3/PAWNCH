@@ -429,7 +429,22 @@ export const SCENERY = {
       },
       key: { color: '#6fa0ff', alpha: 0.14, wash: '#13357f', washA: 0.06 },  // drowned blue
     },
-    chesshall: { sky: ['#2a1d3a', '#1a1228', '#0e0a18'], col: '#2e2348', win: '#3a2f6a', chand: '#ffd24a', chandN: 3, table: '#4a3018', tableTop: '#6f4d29', head: '#d8c0a0', headN: 7, piece: '#f0e3c8' },
+    chesshall: {
+      sky: ['#2a1d3a', '#1a1228', '#0e0a18'], col: '#2e2348', win: '#3a2f6a', chand: '#ffd24a', chandN: 3, table: '#4a3018', tableTop: '#6f4d29', head: '#d8c0a0', headN: 7, piece: '#f0e3c8',
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        wallBoard: { x: 54, y: 40, cell: 4 },            // 32x32 playing field
+        chandeliers: [[125, 26], [387, 26]],
+        window: [256, 44],
+        waiterPeriod: 49, waiterDur: 6,
+        drapeSway: 0.8, drapeHz: 0.4,
+        whitePiece: '#ffe7a8', blackPiece: '#0d1226',
+        paneCols: ['#c22037', '#5a8aff', '#ffd24a', '#39d98a'],
+        candleCol: '#ffd24a', dustCol: '#cdd6ff',
+        waiterCol: '#070a16', trayCol: '#cdd6ff', flareCol: '#ffd24a',
+      },
+      key: { color: '#ffe7a8', alpha: 0.12, wash: '#c9962a', washA: 0.03 },  // candlelit gala
+    },
     stadium: { sky: ['#0a1430', '#13357f', '#1a4a9a'], tiers: ['#ff7a18', '#2b6cff', '#ffd24a', '#39d98a'], tierN: 3, light: '#ffffff', jumbo: '#020610', jumboFrame: '#3a4a78', conf: ['#ff7a18', '#ffd24a', '#2b6cff'], floor: '#2a3566' },
   },
 };

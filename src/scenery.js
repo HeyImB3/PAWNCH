@@ -838,6 +838,62 @@ function chesshallScene(ctx, p) {
 }
 SCENES.chesshall = { draw: chesshallScene };
 
+// GRAND CHESS HALL v2 — painted gala + living light: stained-glass beams,
+// chandelier candle flames, dust motes — and the LIVE demonstration wall-board
+// mirroring the actual match position (read-only p.board; null = empty board).
+SCENES.chesshall.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd, board } = p;
+  const C = SCENERY.SCENES.chesshall, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // stained-glass light: colored beams angling down-left from the rose window
+  L.paneCols.forEach((col, i) => {
+    const sh = 0.7 + 0.3 * Math.sin(t * 0.5 + i * 1.7);
+    godRay(ctx, L.window[0] + (i - 1.5) * 12, L.window[1] + 20, L.window[0] - 60 + i * 44, floorTop, 5, 18, col, 0.05 * sh);
+  });
+  // dust motes floating in the window light
+  for (let i = 0; i < 8; i++)
+    twinkle(ctx, L.window[0] - 50 + hash(i) * 100, 60 + hash(i + 3) * 80 + Math.sin(t * 0.6 + i) * 4, 1, L.dustCol, t * 0.8, i * 2.2);
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // THE LIVE DEMONSTRATION BOARD — mirrors the actual match position
+  if (board) {
+    const { x: bx, y: by, cell } = L.wallBoard;
+    for (let i = 0; i < 64; i++) {
+      const pc = board[i];
+      if (!pc) continue;
+      const r = (i / 8) | 0, c2 = i % 8;
+      const isWhite = pc === pc.toUpperCase();
+      ctx.fillStyle = isWhite ? L.whitePiece : L.blackPiece;
+      ctx.fillRect(bx + c2 * cell + 1, by + r * cell + 1, cell - 2, cell - 2);
+    }
+    // a soft scholar's lamp over the board
+    additiveGlow(ctx, bx + 16, by - 6, 16, L.candleCol, 0.18);
+  }
+  // chandeliers: candle glows with a gentle flicker
+  L.chandeliers.forEach(([cx, cy], i) => {
+    additiveGlow(ctx, cx, cy, 20, L.candleCol, 0.35 + 0.06 * Math.sin(t * 5 + i * 2));
+    for (let k = -1; k <= 1; k++)
+      flame(ctx, cx + k * 8, cy - 3, 2, t, i * 2 + k, '#fff6c0', '#ff9a18', '#ffb24a');
+  });
+  // audience pearl/opera-glass glints
+  for (let i = 0; i < 5; i++)
+    twinkle(ctx, 90 + hash(i + 9) * 330, 136 + hash(i + 12) * 20, 1, '#fff6d8', t * 2.5, i * 3.1);
+  // RARE: a waiter crosses with a glinting tray
+  const wph = t % L.waiterPeriod;
+  if (wph < L.waiterDur) {
+    const wx = -10 + (W + 20) * (wph / L.waiterDur), wy = 150;
+    ctx.fillStyle = L.waiterCol;
+    ctx.fillRect(wx | 0, wy - 12, 5, 12);                              // figure
+    ctx.beginPath(); ctx.arc(wx + 2, wy - 15, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = L.trayCol; ctx.fillRect((wx + 5) | 0, wy - 17, 7, 1); // tray
+    if (Math.floor(t * 3) % 2) twinkle(ctx, wx + 8, wy - 19, 1, '#fff6d8', t * 4, 0);
+  }
+  if (layers.near) {
+    ctx.save(); ctx.translate(Math.sin(t * L.drapeHz) * L.drapeSway, 0);
+    ctx.drawImage(layers.near, 0, 0); ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.10); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // MEGA STADIUM (THE PAWNCHION) — packed tiers doing the WAVE, lights, jumbotron, confetti.
 function stadiumScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.stadium;

@@ -15,7 +15,8 @@
     "temple": "arenas/temple",
     "castle": "arenas/castle",
     "space": "arenas/space",
-    "abyss": "arenas/abyss"
+    "abyss": "arenas/abyss",
+    "chesshall": "arenas/chesshall"
   },
   "pieceSets": {
     "celestial": "celestial",

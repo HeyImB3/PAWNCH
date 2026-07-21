@@ -1,5 +1,7 @@
 {
-  "ui": {},
+  "ui": {
+    "chesspanel": "ui/chesspanel.png"
+  },
   "ring": {
     "mat": "ring/mat.png",
     "post": "ring/post.png",

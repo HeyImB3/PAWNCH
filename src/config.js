@@ -280,6 +280,31 @@ export const LIGHT = {
   RIM: { SCALE: 1.0, SPAN: 0.55 },
 };
 
+// Chess-half broadcast panel (states/chess.js _broadcastPanel). All layout Ys
+// are SCREEN coordinates; the painted chrome (assets/sprites/ui/chesspanel.png,
+// blitted at (X,0)) carves its recesses at these same positions.
+export const PANEL = {
+  X: 383, W: 129, PAD: 6,
+  HEADER_Y: 8,
+  OPP_PORTRAIT: [389, 36],   // 44x44 slot (x,y)
+  OPP_PLAQUE: [437, 38],     // name/ELO text block
+  CLOCK_OPP_Y: 88,
+  TRAY_OPP_Y: 124,
+  BADGE_Y: 150,
+  TRAY_YOU_Y: 168,
+  CLOCK_YOU_Y: 196,
+  YOU_PORTRAIT: [389, 232],
+  YOU_PLAQUE: [437, 234],
+  TICKER_Y: 284,
+  FUSE_Y: 332, FUSE_X0: 391, FUSE_X1: 480, BELL: [492, 338],
+  STATUS_Y: 424,
+  CLOCK: { H: 30, LOW_S: 10, PULSE_HZ: 2.2, GLOW: 0.22 },
+  TRAY: { H: 22, ICON: 13, PITCH: 14, X0: 391 },
+  HP: { OPP: [409, 74], YOU: [409, 270], W: 88 },   // glove-bar fill origin + width
+  FLY_MS: 450,
+  TICKER_SLIDE_MS: 220,
+};
+
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a
 // built-in CLASSIC ring. Story forces the opponent's arena; multiplayer uses the
 // player's unlocked, selected arena (see save.settings.arena). All scene tuning

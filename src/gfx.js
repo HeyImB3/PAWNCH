@@ -31,6 +31,9 @@ export function registerRing(key, img) { (SPRITES.ring ||= {})[key] = img; }
 export function ringSprite(key) { return (SPRITES.ring || {})[key]; }
 export function registerArenaLayer(sceneId, layer, img) { ((SPRITES.arenas ||= {})[sceneId] ||= {})[layer] = img; }
 export function arenaLayers(sceneId) { return (SPRITES.arenas || {})[sceneId]; }
+// Painted UI chrome (chess broadcast panel etc — see states/chess.js).
+export function registerUi(key, img) { (SPRITES.ui ||= {})[key] = img; }
+export function uiSprite(key) { return (SPRITES.ui || {})[key]; }
 export function setPieceSet(name) { if (SET_THEME[name]) activePieceSet = name; return activePieceSet; }
 export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.values(SPRITES.pieceSets).reduce((n, s) => n + Object.keys(s).length, 0) > 0; }
 

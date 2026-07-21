@@ -18,7 +18,7 @@
 // Boxer pose keys: front|back : idle|guard|windupL|windupR|punchL|punchR|hurt|down|walk
 // Piece keys: (w|b)(p|n|b|r|q|k)
 
-import { registerSprite, registerPiece, registerBoxer, registerRing, registerArenaLayer } from './gfx.js';
+import { registerSprite, registerPiece, registerBoxer, registerRing, registerArenaLayer, registerUi } from './gfx.js';
 
 const PIECE_KEYS = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk'];
 const BOXER_POSE_KEYS = ['idle', 'guard', 'windupL', 'windupR', 'jabL', 'jabR',
@@ -73,6 +73,11 @@ export async function loadAssets(base = 'assets/sprites') {
       try { registerArenaLayer(scene, layer, await loadImage(`${base}/${dir}/${layer}.png`)); count++; }
       catch { /* layer stays procedural */ }
     }))));
+  // painted UI chrome: flat key -> file (missing = procedural fallback)
+  await Promise.all(Object.entries(manifest.ui || {}).map(async ([key, file]) => {
+    try { registerUi(key, await loadImage(`${base}/${file}`)); count++; }
+    catch { /* chrome stays procedural */ }
+  }));
   // legacy flat "pieces" map -> the default 'celestial' set
   await Promise.all(Object.entries(manifest.pieces || {}).map(async ([key, file]) => {
     try { registerPiece('celestial', key, await loadImage(`${base}/${file}`)); count++; }

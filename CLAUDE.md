@@ -77,6 +77,13 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   piece scatter + name stamp), drawn by the boxing state during a special. `registerSpecialFx(slug,…)`
   per fighter — all 10 are registered, each themed to their move (Rosa's charging rook, Iron's
   gears, Tal's hypnotic storm, …).
+- **The living ring** (visual overhaul V1): `src/ring.js` (`RingView` — painted mat/post/
+  pad/stool/press kit + dynamic ropes + accent-tinted turnbuckles + fight-memory decals,
+  per-piece procedural fallback), `src/ropes.js` (pure rope-wave math, headless-tested),
+  `src/lighting.js` (additive glow pass, knockdown spotlight, mat reflections, press-row
+  flashbulbs). Ring art is painted by **`tools/paint_ring.py`** (deterministic, master-
+  palette-only — see `docs/ART_BIBLE.md` v2); arena scenes may add painted parallax
+  layers via `manifest.json` `arenas` (see `drawLayered` in `scenery.js`).
 
 ## Golden rules (don't break these)
 
@@ -161,9 +168,13 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
 
 ## Verifying a change
 
-There is **no automated test suite** — verify by running the game and exercising
-the change:
+The **sim + rope-math** modules have a headless unit suite; everything visual is
+verified by running the game:
 
+- **Unit tests** (deterministic sim + `src/ropes.js`): `osascript -l JavaScript
+  tools/test/run-headless.js "$PWD"` — expect `[TESTS] N passed, 0 failed`. Same
+  suites run in-browser at `tools/test/index.html`; register new `*.test.js` in
+  BOTH places.
 - `npm run dev`, open the page, play the relevant mode. Story Mode and local hotseat
   work fully offline; online needs `npm run server`.
 - Watch the browser **console**: the loop catches per-frame errors and logs
@@ -171,6 +182,11 @@ the change:
   (the live `Game` + `match`) and **`window.CHESS`** (the chess board module).
 - Quick sanity sweep: title loads → start a match → a full round advances
   (chess → boxing → round break) → a win is detected.
+- **Ring / arena / lighting art**: `tools/arena-preview.html` on the dev server —
+  scene picker, crowd slider, IMPACT / KNOCKDOWN / DECALS controls, plus headless-QA
+  URL params (`?bare=1` zero-asset path, `?down=1`, `?crowd=NN`, `?scene=id`).
+  Judge transparent PNGs only via `tools/check_alpha.py` (the Read tool renders
+  alpha as white and lies).
 
 ## Gotchas
 
@@ -184,9 +200,11 @@ the change:
   AI — don't assume it's present.
 - Save data lives in `localStorage` under `SAVE_KEY` (`pawnch.save.v1`); bump the
   key if you change the save shape.
-- **No Node/npm on the dev machine** — the game is served by Python: `tools/devserver.py
-  [port]` (default 5174, no-cache). `node --check` is unavailable, so verify JS by loading
-  the page. Story Mode is **dev-unlocked on `localhost`** (`DEV_UNLOCK` in `story.js`) so you
+- The game is served by Python: `tools/devserver.py [port]` (default 5174, no-cache).
+  Node **is** installed (homebrew) — `node --check <file>` works for syntax verification,
+  but keep serving via Python and keep the game dependency-free. Headless page QA:
+  Chrome's `--headless --screenshot` (see how tools/arena-preview.html is exercised).
+  Story Mode is **dev-unlocked on `localhost`** (`DEV_UNLOCK` in `story.js`) so you
   can fight any opponent to review sprites; the shipped game keeps normal unlock and the save
   is untouched. Pose QA harness: `tools/fighter-preview.html`. Sprite tools live in `tools/.venv`.
 - **AI image-gen continuity drifts** (gloves recolor, shoulder pauldrons vanish) — audit

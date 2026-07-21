@@ -183,7 +183,13 @@ export class BoxingState {
 
   draw(game, ctx) {
     const W = game.W, H = game.H;
-    drawScene(ctx, this.sceneId, { W, floorTop: 170, t: this.t, crowd: this.crowd, accent: this.accent });
+    drawScene(ctx, this.sceneId, {
+      W, floorTop: 170, t: this.t, crowd: this.crowd, accent: this.accent,
+      // read-only match context for the "live" arenas (chesshall wall-board,
+      // stadium jumbotron) — presentation-only, scenes never write back
+      board: this.m.chess ? this.m.chess.board : null,
+      round: this.m.round ?? null,
+    });
     this.ringView.draw(ctx, W, H, { accent: this.accent, crowd: this.crowd });
 
     const p = this.match.player, e = this.match.enemy;

@@ -18,6 +18,8 @@ import { drawScene } from '../src/scenery.js';
 import { loadAssets } from '../src/assets.js';
 import { drawFighter } from '../src/fighter.js';
 import { HERO_LOOK, DEFAULT_LOOK } from '../src/opponents.js';
+import { newGame } from '../src/chess/board.js';
+const demoBoard = newGame().board;   // populated start position for live-board QA
 
 const params = new URLSearchParams(location.search);
 const bare = params.has('bare');
@@ -52,7 +54,7 @@ let last = performance.now();
   const dt = Math.min(50, now - last); last = now;
   const t = now / 1000, crowd = document.getElementById('crowd').value / 100;
   const down = document.getElementById('down').checked;
-  drawScene(ctx, sceneSel.value, { W: 512, floorTop: 170, t, crowd, accent: PAL.blue });
+  drawScene(ctx, sceneSel.value, { W: 512, floorTop: 170, t, crowd, accent: PAL.blue, board: demoBoard, round: 3 });
   rv?.update(dt); flash?.update(dt);
   if (rv) rv.draw(ctx, 512, 448, { accent: PAL.orange, crowd });
   else ring(ctx, 512, 448, { floorTop: 170, accent: PAL.orange, crowd });

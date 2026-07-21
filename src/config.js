@@ -261,6 +261,15 @@ export const FIGHTER = {
   BOB: { swayX: 2.4, swayFreq: 0.78, bounceY: 2.8, bounceFreq: 1.62 },
 };
 
+// Ring presentation (src/ring.js): rope physics, mat decals, reflections.
+// ROPES starts from src/ropes.js ROPE_DEFAULTS — tune here, not there.
+export const RING = {
+  ROPES: { SAG: 4, IDLE_AMP: 0.7, IDLE_HZ: 0.35, WAVE_AMP: 9, WAVE_HZ: 7, WAVE_K: 0.035, FALLOFF: 130, DECAY_MS: 650, DEAD_MS: 2600 },
+  DECALS: { MAX: 24, SCUFF_ALPHA: 0.16, SWEAT_ALPHA: 0.22 },
+  REFLECT: { ALPHA: 0.13, SQUASH: 0.45 },
+  PRESS_FLASH_POINTS: [[40, 418], [112, 410], [430, 414], [482, 420]], // lens xy (screen)
+};
+
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a
 // built-in CLASSIC ring. Story forces the opponent's arena; multiplayer uses the
 // player's unlocked, selected arena (see save.settings.arena). All scene tuning

@@ -329,9 +329,9 @@ def paint_press():
     head(74, 22, 7); shoulders(74, 29, 16, 13)
     camera(85, 20)
     head(122, 27, 6); shoulders(122, 33, 14, 9)
-    for y in range(34, 41):                     # laptop screen glow
-        for x in range(134, 143):
-            put(x, y, (90, 138, 255) if y > 34 and x > 134 else STEEL0)
+    for y in range(34, 41):                     # laptop screen glow (on the desk)
+        for x in range(103, 112):
+            put(x, y, (90, 138, 255) if y > 34 and x > 103 else STEEL0)
     # right cluster: commentator pair + camera + boom mic dipping in
     desk(362, 512, "l")
     head(388, 25, 6); shoulders(388, 31, 15, 11)

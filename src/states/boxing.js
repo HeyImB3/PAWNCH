@@ -7,7 +7,8 @@
 
 import { MATCH, PAL, BOX, SIM } from '../config.js';
 import { FIGHTER } from '../config.js';
-import { text, textWidth, panel, ring, barH } from '../gfx.js';
+import { text, textWidth, panel, barH } from '../gfx.js';
+import { RingView } from '../ring.js';
 import { drawFighter } from '../fighter.js';
 import { drawSpecialFx } from '../specialfx.js';
 import { drawScene, sceneFor } from '../scenery.js';
@@ -51,6 +52,7 @@ export class BoxingState {
     this.playerLook = HERO_LOOK;
     this.accent = this.oppHue.body;
     this.sceneId = sceneFor(m, game.save);   // story: opponent arena; pvp: player's pick
+    this.ringView = new RingView({ floorTop: 170 });  // fresh mat each boxing half
     // a brightened copy of the opponent's theme — flickered onto them while they
     // wind up a SPECIAL (Punch-Out-style tell), plus a red "staggered" palette.
     this.flareHue = { body: lighten(this.oppHue.body, 0.55), trim: lighten(this.oppHue.trim, 0.45), skin: lighten(this.oppHue.skin, 0.4) };
@@ -73,6 +75,8 @@ export class BoxingState {
         onWindup: (arm, kind, target, special) => { this.tellPopT = 0.2; if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
         onHit: (side, dmg, kind) => {
           audio.sfx.hit();
+          // rope shockwave from the impact (render-only juice)
+          this.ringView.impact(game.W / 2 + (side === 'player' ? this.match.player.offset : this.match.enemy.offset), Math.min(1, dmg / 16));
           const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 200];
           game.fx.burst(x, y, side === 'player' ? PAL.red : PAL.gold, dmg > 14 ? 18 : 11, 3);
           const fz = (kind === 'signature' || kind === 'star') ? 130 : kind === 'hook' ? 90 : 50;
@@ -106,7 +110,7 @@ export class BoxingState {
         onCounter: () => { audio.sfx.check(); game.fx.doFlash(PAL.gold, 0.38); game.fx.doShake(11); game.doFreeze(120); },   // crunchier counter (Feel B)
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
-        onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; },
+        onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; this.ringView.impact(game.W / 2, 1); },
         onGetUpTap: (side, charge) => { if (side === 'player') { audio.sfx.getup(charge); this.crowd = Math.min(1, this.crowd + 0.05); } },
         onGetUp: () => { audio.sfx.bell(); this.crowd = 1; },
       },
@@ -150,6 +154,7 @@ export class BoxingState {
     if (this.specialFxT > 0) this.specialFxT -= dt / 1000;
     this.nameT = Math.min(1, this.nameT + dt / 1000 / 0.4);
     this.crowd = Math.max(0, this.crowd - dt / 1000 * 1.2);
+    this.ringView.update(dt);
     audio.playFightTheme(this.m.fightTrack);
   }
 
@@ -164,7 +169,7 @@ export class BoxingState {
   draw(game, ctx) {
     const W = game.W, H = game.H;
     drawScene(ctx, this.sceneId, { W, floorTop: 170, t: this.t, crowd: this.crowd, accent: this.accent });
-    ring(ctx, W, H, { floorTop: 170, accent: this.accent, crowd: this.crowd });
+    this.ringView.draw(ctx, W, H, { accent: this.accent, crowd: this.crowd });
 
     const p = this.match.player, e = this.match.enemy;
 
@@ -206,6 +211,7 @@ export class BoxingState {
     if (p.pose === 'stun') this._stunFx(ctx, pxs, FIGHTER.PLAYER_FEET_Y - 150);
 
     if (spO) drawSpecialFx(ctx, spSlug, { ...spO, layer: 'front' });
+    this.ringView.drawPress(ctx, W, H);
     this._hud(game, ctx);
     this._nameplate(game, ctx);
     this._banner(game, ctx);

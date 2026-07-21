@@ -3,7 +3,8 @@
 // spar) via freeze-frame windows. Self-contained — no rounds/HP-carry/resolve.
 
 import { PAL, BOX, TUTORIAL, FIGHTER } from '../config.js';
-import { text, ring } from '../gfx.js';
+import { text } from '../gfx.js';
+import { RingView } from '../ring.js';
 import { drawFighter } from '../fighter.js';
 import { drawScene, sceneFor } from '../scenery.js';
 import * as audio from '../audio.js';
@@ -31,6 +32,7 @@ export class TutorialBoxState {
     this.enemyLook = DEFAULT_LOOK; this.playerLook = HERO_LOOK;
     this.accent = HUE.green.body;
     this.sceneId = sceneFor({ mode: 'pvp' }, game.save);
+    this.ringView = new RingView({ floorTop: 170 });
     this.phase = 'teach';                 // teach | await | free
     this.teach = new TeachSequence();
     this.match = new BoxingMatch({
@@ -74,6 +76,7 @@ export class TutorialBoxState {
   update(game, dt) {
     this.t += dt / 1000;
     if (this.clearFx > 0) this.clearFx -= dt;
+    this.ringView.update(dt);
     audio.playFightTheme(0);
 
     if (game.input.pressed('cancel')) { audio.sfx.select(); game.changeState('tutorial'); return; }
@@ -98,7 +101,7 @@ export class TutorialBoxState {
   draw(game, ctx) {
     const W = game.W, H = game.H;
     drawScene(ctx, this.sceneId, { W, floorTop: 170, t: this.t, crowd: 0, accent: this.accent });
-    ring(ctx, W, H, { floorTop: 170, accent: this.accent, crowd: 0 });
+    this.ringView.draw(ctx, W, H, { accent: this.accent, crowd: 0 });
     const p = this.match.player, e = this.match.enemy;
     const em = mapPose(e);
     drawFighter(ctx, W / 2 + e.offset, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, this.enemyLook, em.pose, 1, this.t * 4, em.info);

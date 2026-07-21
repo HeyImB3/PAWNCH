@@ -18,20 +18,14 @@ import os
 import sys
 from PIL import Image
 
-# ---- master palette (mirrors pawnch-master.gpl) -----------------------------
-INK0, INK1, INK2 = (7, 10, 22), (13, 18, 38), (20, 26, 51)
-STEEL0, STEEL1, STEEL2, STEEL3, STEEL4 = (38, 48, 79), (58, 74, 120), (90, 111, 160), (142, 160, 207), (205, 214, 255)
-MAT0, MAT1, MAT2, MAT3, MAT4, MAT5 = (14, 20, 48), (27, 35, 68), (42, 53, 102), (61, 74, 133), (85, 99, 168), (126, 136, 191)
-GOLD0, GOLD1, GOLD2, GOLD3 = (140, 90, 18), (201, 150, 42), (255, 210, 74), (255, 231, 168)
-BLUE1 = (19, 53, 127)
-WOOD1, WOOD2, WOOD3 = (44, 28, 13), (74, 48, 24), (111, 77, 41)
+from pawnch_palette import (
+    INK0, INK1, INK2, STEEL0, STEEL1, STEEL2, STEEL3,
+    MAT0, MAT1, MAT2, MAT3, MAT4, MAT5,
+    GOLD0, GOLD1, GOLD2, GOLD3, BLUE1,
+    WOOD1, WOOD2, WOOD3, n2,
+)
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'assets', 'sprites', 'ring')
-
-# deterministic hash noise in [0,1) — stable art, no RNG state
-def n2(x, y, salt=0):
-    h = math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453
-    return h - math.floor(h)
 
 # ---- the MAT (512x278, opaque) ----------------------------------------------
 W, H = 512, 278

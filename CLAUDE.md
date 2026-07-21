@@ -81,9 +81,11 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   pad/stool/press kit + dynamic ropes + accent-tinted turnbuckles + fight-memory decals,
   per-piece procedural fallback), `src/ropes.js` (pure rope-wave math, headless-tested),
   `src/lighting.js` (additive glow pass, knockdown spotlight, mat reflections, press-row
-  flashbulbs). Ring art is painted by **`tools/paint_ring.py`** (deterministic, master-
-  palette-only — see `docs/ART_BIBLE.md` v2); arena scenes may add painted parallax
-  layers via `manifest.json` `arenas` (see `drawLayered` in `scenery.js`).
+  flashbulbs, per-scene key light: `withRim` fighter rim + wash). Ring/arena art is
+  painted by **`tools/paint_ring.py` / `tools/paint_beach.py`** (deterministic,
+  master-palette-only via `tools/pawnch_palette.py` — see `docs/ART_BIBLE.md` v2);
+  arena scenes add painted parallax layers via `manifest.json` `arenas` + a
+  `drawLayered` on the scene (`scenery.js`; CLASSIC + BEACH shipped, 9 to go).
 
 ## Golden rules (don't break these)
 

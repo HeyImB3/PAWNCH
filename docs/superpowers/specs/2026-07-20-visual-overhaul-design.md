@@ -186,7 +186,7 @@ grin3 (dedicated tier-3 missing-tooth variant); overlays damage1/2/3.
 | Phase | Delivers |
 |---|---|
 | **V1** ✅ DONE 2026-07-21 (branch `visual-v1-ring`, be7e9a2..HEAD) | Art Bible v2, master palette, painted ring kit, lighting system (glow/spotlight/reflections), rope physics, press-row flashbulbs, knockdown spotlight moment, upgraded CLASSIC arena. Note: ring/arena art is painted by `tools/paint_ring.py` (deterministic per-pixel painter; the MCP dither primitives were too coarse) — fighter rim-light deferred to V2. |
-| **V2** | Pilot arena end-to-end: **Beach** (first real fight; golden-hour light shows off the lighting system) |
+| **V2** ✅ DONE 2026-07-21 (branch `visual-v2-beach`) | Pilot arena end-to-end: **Beach**, reimagined as BACKLIT GOLDEN HOUR (sun-path sea, torch flames, swinging lantern string, ember-rimmed frond canopies, bleacher crowd, crab rare-event) — plus the key-light system (`withRim` fighter rim + golden wash), piloted here and ready for every later arena. |
 | **V3** | Remaining 9 arenas, batches of 2–3 per session, story order, each with reactive beats + rare event |
 | **V4** | Chess broadcast panel: clock plates, capture trays + fly-in, fuse timer, move ticker, layout |
 | **V5** | Portraits: hero + Patty first (prove the set), expression engine + damage tracking, roster rollout, reuse across screens |

@@ -1,6 +1,10 @@
 {
   "ring": {
-    "mat": "ring/mat.png"
+    "mat": "ring/mat.png",
+    "post": "ring/post.png",
+    "pad": "ring/pad.png",
+    "stool": "ring/stool.png",
+    "press": "ring/press.png"
   },
   "arenas": {},
   "pieceSets": {

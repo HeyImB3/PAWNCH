@@ -24,6 +24,7 @@ STEEL0, STEEL1, STEEL2, STEEL3, STEEL4 = (38, 48, 79), (58, 74, 120), (90, 111, 
 MAT0, MAT1, MAT2, MAT3, MAT4, MAT5 = (14, 20, 48), (27, 35, 68), (42, 53, 102), (61, 74, 133), (85, 99, 168), (126, 136, 191)
 GOLD0, GOLD1, GOLD2, GOLD3 = (140, 90, 18), (201, 150, 42), (255, 210, 74), (255, 231, 168)
 BLUE1 = (19, 53, 127)
+WOOD1, WOOD2, WOOD3 = (44, 28, 13), (74, 48, 24), (111, 77, 41)
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'assets', 'sprites', 'ring')
 
@@ -182,7 +183,177 @@ def paint_mat():
             p[gx, gy] = GOLD2
     return im
 
-PIECES = {'mat': (paint_mat, 'mat.png')}
+# ---- POST (30x84, transparent bg) — blitted at screen (8, floorTop-60) -----
+# Rows: 0..6 lamp housing (unlit; code adds the glow), 7..10 cap, 11..76 shaft,
+# 77..83 base plate standing on the mat. Cool steel ramp, blue arena rim-light
+# on the inner (right) edge, riveted.
+def paint_post():
+    im = Image.new('RGBA', (30, 84), (0, 0, 0, 0))
+    p = im.load()
+    def put(x, y, c):
+        p[x, y] = (*c, 255)
+    # lamp housing
+    for y in range(0, 7):
+        for x in range(11, 20):
+            put(x, y, GOLD0 if y in (0, 6) or x in (11, 19) else GOLD1)
+    put(15, 3, GOLD3)                          # lens center (glows in-engine)
+    # cap
+    for y in range(7, 11):
+        for x in range(8, 23):
+            put(x, y, STEEL3 if y == 7 else STEEL2 if y == 8 else STEEL1)
+    # shaft with cylinder shading
+    for y in range(11, 77):
+        for x in range(10, 21):
+            if x == 10: c = INK2
+            elif x == 11: c = STEEL0
+            elif x <= 14: c = STEEL1
+            elif x <= 17: c = STEEL2
+            elif x <= 19: c = STEEL1
+            else: c = INK2
+            put(x, y, c)
+        put(20, y, BLUE1 if y % 3 else (31, 79, 192))   # arena-side rim light
+    # rivets down the center line
+    for ry in range(16, 75, 12):
+        put(15, ry, STEEL3)
+        put(15, ry + 1, INK1)
+    # base plate
+    for y in range(77, 84):
+        w0 = 10 - (y - 77)
+        for x in range(w0, 30 - w0):
+            put(x, y, STEEL0 if y == 77 else INK2)
+    return im
+
+# ---- PAD (24x11, grayscale ramp, transparent corners) — accent-tinted in-code
+def paint_pad():
+    im = Image.new('RGBA', (24, 11), (0, 0, 0, 0))
+    p = im.load()
+    SPEC1 = (232, 242, 255)
+    for y in range(11):
+        for x in range(24):
+            # rounded pill: cut the corners
+            cx = 0 if 3 <= x <= 20 else (3 - x if x < 3 else x - 20)
+            cy = abs(y - 5)
+            if cx * cx + (cy * cy) / 2.2 > 9:
+                continue
+            if y <= 1: c = STEEL3
+            elif y <= 4: c = SPEC1 if 2 <= y <= 3 and 4 <= x <= 19 else STEEL3
+            elif y <= 7: c = STEEL2
+            else: c = STEEL1
+            if x in (2, 21) or y in (0, 10):
+                c = STEEL1                      # soft edge
+            p[x, y] = (*c, 255)
+    return im
+
+# ---- STOOL (40x44, transparent) — blue corner seat, wood legs, towel -------
+def paint_stool():
+    im = Image.new('RGBA', (40, 44), (0, 0, 0, 0))
+    p = im.load()
+    BLUE3, BLUE4 = (43, 108, 255), (90, 138, 255)
+    def put(x, y, c):
+        p[x, y] = (*c, 255)
+    # seat (rounded slab)
+    for y in range(8, 17):
+        for x in range(2, 38):
+            if (x in (2, 37)) and y in (8, 16):
+                continue
+            c = BLUE4 if y == 8 else BLUE3 if y <= 13 else BLUE1
+            put(x, y, c)
+    # legs + cross brace
+    for lx in (5, 18, 31):
+        for y in range(17, 43):
+            put(lx, y, WOOD2)
+            put(lx + 1, y, WOOD3)
+            put(lx + 2, y, WOOD1)
+    for x in range(6, 34):
+        put(x, 30, WOOD1)
+    # towel draped over the seat's right edge: a strip lying ON the seat,
+    # folding at the edge, hanging down in soft vertical folds
+    SPEC1, TS = (232, 242, 255), STEEL3
+    for y in range(6, 9):                       # lying on the seat
+        for x in range(28, 37):
+            put(x, y, SPEC1 if y > 6 else TS)
+    for y in range(9, 26):                      # hanging drop with folds
+        sway = 1 if y > 18 else 0
+        for x in range(29 + sway, 38 + sway):
+            if x >= 40:
+                continue
+            k = (x - 29) % 4
+            c = STEEL1 if k == 3 else TS if k == 2 else SPEC1
+            if y >= 24 and (x % 3 == 0):        # ragged hem
+                continue
+            put(x, y, c)
+    # towel contact shadow on the seat
+    for x in range(28, 38):
+        put(x, 9, STEEL1)
+    return im
+
+# ---- PRESS (512x56, transparent middle) — ringside press-row silhouettes ---
+# Clusters only in x0..150 and x362..512; middle stays clear of the player.
+def paint_press():
+    im = Image.new('RGBA', (512, 56), (0, 0, 0, 0))
+    p = im.load()
+    def put(x, y, c):
+        if 0 <= x < 512 and 0 <= y < 56:
+            p[x, y] = (*c, 255)
+    def desk(x0, x1, taper):
+        # taper: 'r' steps the desk lower toward its right end, 'l' toward left
+        for y in range(42, 56):
+            for x in range(x0, x1):
+                inner = (x1 - x) if taper == 'r' else (x - x0)
+                if inner < 24 and y < 42 + (24 - inner) // 3:
+                    continue
+                put(x, y, STEEL0 if y == 42 or (inner < 24 and y == 42 + (24 - inner) // 3) else INK1)
+    def head(cx, cy, r):
+        for y in range(cy - r, cy + r + 1):
+            for x in range(cx - r, cx + r + 1):
+                if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                    put(x, y, INK0)
+        put(cx - r // 2, cy - r // 2, INK1)     # faint crown highlight
+    def shoulders(cx, y0, w, h):
+        for y in range(y0, y0 + h):
+            grow = (y - y0) // 2
+            for x in range(cx - w // 2 - grow, cx + w // 2 + grow):
+                put(x, y, INK0)
+    def camera(cx, cy):
+        for y in range(cy, cy + 7):
+            for x in range(cx, cx + 10):
+                put(x, y, STEEL0 if y > cy else INK1)
+        put(cx + 11, cy + 3, STEEL3)            # lens
+        put(cx + 12, cy + 3, STEEL1)
+        for x in range(cx + 2, cx + 6):
+            put(x, cy - 1, INK2)                # flash unit
+    # left cluster: two photographers + a laptop journalist
+    desk(0, 150, "r")
+    head(28, 26, 6); shoulders(28, 32, 14, 10)
+    camera(38, 24)
+    head(74, 22, 7); shoulders(74, 29, 16, 13)
+    camera(85, 20)
+    head(122, 27, 6); shoulders(122, 33, 14, 9)
+    for y in range(34, 41):                     # laptop screen glow
+        for x in range(134, 143):
+            put(x, y, (90, 138, 255) if y > 34 and x > 134 else STEEL0)
+    # right cluster: commentator pair + camera + boom mic dipping in
+    desk(362, 512, "l")
+    head(388, 25, 6); shoulders(388, 31, 15, 11)
+    camera(398, 22)
+    head(452, 23, 7); shoulders(452, 30, 16, 12)
+    head(492, 27, 5); shoulders(492, 32, 12, 10)
+    for k in range(40):                         # boom pole
+        x, y = 508 - k, 4 + k // 2
+        put(x, y, INK1); put(x, y + 1, INK0)
+    for y in range(24, 31):                     # mic head + foam
+        for x in range(464, 471):
+            put(x, y, INK0)
+    put(467, 25, STEEL0)
+    return im
+
+PIECES = {
+    'mat': (paint_mat, 'mat.png'),
+    'post': (paint_post, 'post.png'),
+    'pad': (paint_pad, 'pad.png'),
+    'stool': (paint_stool, 'stool.png'),
+    'press': (paint_press, 'press.png'),
+}
 
 def main():
     which = sys.argv[1] if len(sys.argv) > 1 else 'all'

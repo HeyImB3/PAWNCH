@@ -299,7 +299,28 @@ export const SCENERY = {
     // drifting haze, phone-light twinkles. Used only when arenas/classic/mid.png
     // is registered; the zero-asset fallback keeps the original classicScene.
     classic: { lampXs: [88, 152, 360, 424], lampY: 24, cone: '#cdd6ff', coneA: 0.10, haze: '#3a4a78', phone: '#b8d0ff', phoneN: 22, twinkleHz: 2 },
-    beach:   { sky: ['#7ad0ff', '#bfe9ff', '#ffd9a0', '#f2c27a'], sun: '#fff6cf', sunGlow: '#ffd24a', sea: '#3aa7e0', seaHi: '#7fd0ef', sand: '#e7c486', palm: '#3a2410', leaf: '#2f9b54', crowd: '#3a2a1a', crowdN: 22, palms: 2 },
+    beach:   {
+      sky: ['#7ad0ff', '#bfe9ff', '#ffd9a0', '#f2c27a'], sun: '#fff6cf', sunGlow: '#ffd24a', sea: '#3aa7e0', seaHi: '#7fd0ef', sand: '#e7c486', palm: '#3a2410', leaf: '#2f9b54', crowd: '#3a2a1a', crowdN: 22, palms: 2,
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        sun: [150, 78], sunGlowR: 34, horizonY: 92,
+        rays: [[150, 78, 300, 170, 0.06], [150, 78, 420, 170, 0.045], [150, 78, 210, 170, 0.05]], // [x0,y0,x1,floorY,alpha]
+        rayW: [10, 46],                    // half-width at source -> at floor
+        sparkleN: 12, sparkleX: [124, 176],
+        foamY: 119, foamAmp: 2.2, foamSpeed: 1.4,
+        torches: [[88, 96], [190, 104], [322, 104], [424, 96]],
+        wire: [[36, 52], [470, 52]], wireSag: 12, lanternN: 7,
+        ballX: [30, 150], ballY: 132,      // beach-ball bounce zone (left bleachers)
+        crabPeriod: 47, crabDur: 6, crabY: 152,
+        frondSway: 1.2, frondHz: 0.8,      // near-layer wind sway (px, cycles/sec)
+        // scene-specific FX colors (namespaced here per Golden Rules 2-3)
+        rayCol: '#ffd24a', bloomCol: '#ff9a3a', sparkleCol: '#ffe7a8',
+        foamCol: 'rgba(232,242,255,0.75)',
+        lantBody: '#c9962a', lantCore: '#ffe7a8', lantGlow: '#ffd24a',
+        ballCol: '#ff7a18', ballHi: '#e8f2ff', crabCol: '#c22037', flareCol: '#ff9a3a',
+      },
+      key: { color: '#ffd24a', alpha: 0.20, wash: '#ff9a3a', washA: 0.05 },  // golden-hour key light
+    },
     woods:   { sky: ['#0d1f15', '#06120c', '#040a06'], trunk: '#0c1c14', trunkN: 5, fireCore: '#fff6c0', fireMid: '#ff9a18', fireGlow: '#ffb24a', candleN: 6, fly: '#bfff7a', flyN: 7, crowd: '#0a140e', crowdN: 14 },
     cyber:   { sky: ['#13062a', '#1a0830', '#070414'], bld: '#0a0618', bldN: 6, neon: ['#ff3bd0', '#22e7ff', '#ffe14a', '#7a5cff'], crowd: '#7a9bff', crowdN: 30, rain: 'rgba(150,200,255,0.10)' },
     dream:   { sky: ['#5a2a8a', '#b85cc0', '#ffb0d6', '#8fd0ff'], cloud: 'rgba(255,255,255,0.6)', shape: 'rgba(255,255,255,0.5)', ghost: 'rgba(255,255,255,0.45)', ghostN: 5, star: '#ffffff', starN: 10 },

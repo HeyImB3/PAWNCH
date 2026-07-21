@@ -166,6 +166,88 @@ function beachScene(ctx, p) {
 }
 SCENES.beach = { draw: beachScene };
 
+// angled god-ray quad (additive) — beach-local helper
+function godRay(ctx, x0, y0, x1, y1, w0, w1, color, a) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, withA(color, a)); g.addColorStop(1, withA(color, 0));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x0 - w0, y0); ctx.lineTo(x0 + w0, y0);
+  ctx.lineTo(x1 + w1, y1); ctx.lineTo(x1 - w1, y1);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// point along the beach's single sagging lantern wire (k = 0..1)
+function wireAt(anchors, sag, k) {
+  const [ax, ay] = anchors[0], [bx, by] = anchors[1];
+  return [ax + (bx - ax) * k, ay + (by - ay) * k + Math.sin(k * Math.PI) * sag];
+}
+
+// TROPICAL BEACH v2 — painted golden hour + living light. Pure fn of t/crowd.
+SCENES.beach.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.beach, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // sun: breathing glow + wide horizon bloom
+  const breathe = 0.5 + 0.08 * Math.sin(t * 1.1);
+  additiveGlow(ctx, L.sun[0], L.sun[1], L.sunGlowR, C.sunGlow, breathe);
+  additiveGlow(ctx, L.sun[0], L.horizonY, 70, L.bloomCol, 0.16);
+  // god-rays fanning from the sun (slow shimmer)
+  L.rays.forEach(([x0, y0, x1, fy, a], i) => {
+    const sh = 0.75 + 0.25 * Math.sin(t * 0.7 + i * 2.1);
+    godRay(ctx, x0, y0, x1, Math.min(fy, floorTop), L.rayW[0], L.rayW[1], L.rayCol, a * sh);
+  });
+  // water sparkle in the sun path
+  for (let i = 0; i < L.sparkleN; i++) {
+    const sx = L.sparkleX[0] + hash(i) * (L.sparkleX[1] - L.sparkleX[0]);
+    twinkle(ctx, sx, L.horizonY + 2 + hash(i + 5) * 22, 1, L.sparkleCol, t * 3, i * 1.7);
+  }
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // rolling surf foam over the waterline
+  ctx.fillStyle = L.foamCol;
+  for (let x = 0; x < W; x += 7) {
+    const fy = L.foamY + Math.sin(t * L.foamSpeed + x * 0.045) * L.foamAmp;
+    if (hash(x) < 0.75) ctx.fillRect(x, fy | 0, 4, 1);
+  }
+  // tiki flames in the painted bowls
+  L.torches.forEach(([tx, ty], i) => flame(ctx, tx, ty - 7, 5, t, i * 1.9, C.sun, '#ff9a18', '#ffb24a'));
+  // swinging string lanterns along the painted wire
+  for (let i = 0; i < L.lanternN; i++) {
+    const k = (i + 0.5) / L.lanternN;
+    const [lx, ly] = wireAt(L.wire, L.wireSag, k);
+    const sway = Math.sin(t * 1.3 + i * 1.1) * 2;
+    additiveGlow(ctx, lx + sway, ly + 5, 8, L.lantGlow, 0.35 + crowd * 0.2);
+    ctx.fillStyle = L.lantBody; ctx.fillRect((lx + sway - 1) | 0, (ly + 2) | 0, 3, 4);
+    ctx.fillStyle = L.lantCore; ctx.fillRect((lx + sway) | 0, (ly + 3) | 0, 1, 2);
+  }
+  // beach ball arcing over the left bleachers
+  const bk = (t * 0.35) % 1, bx = L.ballX[0] + (L.ballX[1] - L.ballX[0]) * bk;
+  const by = L.ballY - Math.abs(Math.sin(bk * Math.PI * 3)) * 16;
+  ctx.fillStyle = L.ballCol; ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = L.ballHi; ctx.fillRect((bx - 1) | 0, (by - 3) | 0, 2, 2);
+  // rare event: a crab scuttles across the sand (deterministic t-schedule)
+  const cph = t % L.crabPeriod;
+  if (cph < L.crabDur) {
+    const cx = -8 + (W + 16) * (cph / L.crabDur), cy = L.crabY + Math.sin(t * 14);
+    ctx.fillStyle = L.crabCol;
+    ctx.fillRect(cx | 0, cy | 0, 5, 3);
+    ctx.fillRect((cx - 1) | 0, (cy + 1) | 0, 1, 1); ctx.fillRect((cx + 5) | 0, (cy + 1) | 0, 1, 1); // claws
+    const leg = Math.floor(t * 10) % 2;
+    ctx.fillRect((cx + (leg ? 0 : 2)) | 0, (cy + 3) | 0, 1, 1); ctx.fillRect((cx + (leg ? 3 : 4)) | 0, (cy + 3) | 0, 1, 1);
+  }
+  // near fronds with a gentle wind sway (whole-layer drift; the canopies hug
+  // the corners so the 1px edge sliver never reads)
+  if (layers.near) {
+    ctx.save();
+    ctx.translate(Math.sin(t * L.frondHz) * L.frondSway, 0);
+    ctx.drawImage(layers.near, 0, 0);
+    ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.14); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // SPOOKY WOODS (Gus Gambit) — dark trunks, bobbing candles, fireflies, hooded crowd.
 function woodsScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.woods;

@@ -3,6 +3,12 @@
 import { LIGHT, RING, PAL } from './config.js';
 import { withA } from './gfx.js';
 
+// FX intensity (Settings VIDEO tab): 'low' halves particle counts and drops
+// the costliest passes. Set once at boot + on toggle (game.js / settings.js).
+let _fxLow = false;
+export function setFxLow(low) { _fxLow = !!low; }
+export function fxLow() { return _fxLow; }
+
 export function additiveGlow(ctx, x, y, r, color, a) {
   if (a <= 0) return;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -39,6 +45,7 @@ export function tintWash(ctx, W, H, color, alpha) {
 
 // faint flipped reflection on the glossy mat: run drawCb mirrored about feetY
 export function reflect(ctx, feetY, drawCb) {
+  if (_fxLow) return;                       // the priciest pass — dropped on LOW
   const R = RING.REFLECT;
   ctx.save();
   ctx.translate(0, feetY); ctx.scale(1, -R.SQUASH); ctx.translate(0, -feetY);
@@ -54,6 +61,7 @@ export function spotlightMoment(ctx, W, H, cx, cy, k, t = performance.now() / 10
   const S = LIGHT.SPOT;
   dimHole(ctx, W, H, cx, cy, S.HOLE_R, S.DIM * k);
   spotCone(ctx, { cx, topY: 0, floorY: cy + 40, topHalfW: S.TOP_HALF_W, botHalfW: S.HOLE_R * 0.8, color: PAL.gold, alpha: S.CONE_ALPHA * k });
+  if (_fxLow) return;
   for (let i = 0; i < 8; i++) {   // dust motes drifting down the beam
     const mx = cx + Math.sin(t * 0.7 + i * 2.4) * (14 + i * 6);
     const my = ((t * 26 + i * 53) % (cy + 30));
@@ -88,6 +96,7 @@ export function withRim(ctx, W, H, key, drawCb) {
 export class Flashbulbs {
   constructor() { this.pops = []; }
   burst(n) {
+    if (_fxLow) n = Math.ceil(n / 2);
     const pts = RING.PRESS_FLASH_POINTS;
     for (let i = 0; i < n; i++) {
       const [x, y] = pts[(Math.random() * pts.length) | 0];

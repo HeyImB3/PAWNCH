@@ -9,7 +9,9 @@
 
 import { SCENERY, PAL } from './config.js';
 import { text, mix, mixA, withA, shade, lerp, arenaLayers, piece } from './gfx.js';
-import { additiveGlow, spotCone } from './lighting.js';
+import { additiveGlow, spotCone, fxLow } from './lighting.js';
+// FX-intensity helper: halve a particle/loop count on the LOW setting
+const fxN = (n) => (fxLow() ? Math.ceil(n / 2) : n);
 
 const TAU = Math.PI * 2;
 // deterministic pseudo-random in [0,1) — stable element placement without state
@@ -103,7 +105,7 @@ SCENES.classic.drawLayered = (ctx, p, layers) => {
   }
   for (let i = 0; i < 2; i++)                        // smoke haze through the beams
     additiveGlow(ctx, drift(t, 4 + i * 3, W, 60, i * 200), 34 + i * 22, 46, C.haze, 0.05);
-  for (let i = 0; i < C.phoneN; i++)                 // phone-light pinpricks
+  for (let i = 0; i < fxN(C.phoneN); i++)                 // phone-light pinpricks
     twinkle(ctx, hash(i) * W, floorTop * (0.45 + 0.4 * hash(i + 3)), 1, C.phone, t * C.twinkleHz, i * 1.9);
   if (layers.near) ctx.drawImage(layers.near, 0, 0);
   if (crowd > 0.01) { ctx.fillStyle = mixA(accent, crowd * 0.16); ctx.fillRect(0, 0, W, floorTop); }
@@ -200,7 +202,7 @@ SCENES.beach.drawLayered = (ctx, p, layers) => {
     godRay(ctx, x0, y0, x1, Math.min(fy, floorTop), L.rayW[0], L.rayW[1], L.rayCol, a * sh);
   });
   // water sparkle in the sun path
-  for (let i = 0; i < L.sparkleN; i++) {
+  for (let i = 0; i < fxN(L.sparkleN); i++) {
     const sx = L.sparkleX[0] + hash(i) * (L.sparkleX[1] - L.sparkleX[0]);
     twinkle(ctx, sx, L.horizonY + 2 + hash(i + 5) * 22, 1, L.sparkleCol, t * 3, i * 1.7);
   }
@@ -290,7 +292,7 @@ SCENES.woods.drawLayered = (ctx, p, layers) => {
     additiveGlow(ctx, fx, fy, 60, L.fogCol, 0.07);
   }
   // fireflies wandering between the trunks
-  for (let i = 0; i < L.flyN; i++) {
+  for (let i = 0; i < fxN(L.flyN); i++) {
     const fx = drift(t, 5 + i, W, 12, i * 60);
     const fy = 60 + hash(i + 3) * 80 + Math.sin(t * 1.8 + i) * 6;
     twinkle(ctx, fx, fy, 2, L.flyCol, t * 2, i * 2.3);
@@ -401,7 +403,7 @@ SCENES.cyber.drawLayered = (ctx, p, layers) => {
   }
   // rain: streaks angling down-left
   ctx.strokeStyle = C.rain; ctx.lineWidth = 1; ctx.beginPath();
-  for (let i = 0; i < L.rainN; i++) {
+  for (let i = 0; i < fxN(L.rainN); i++) {
     const rx = (i * 53 + (t * 240) % W) % W, ry = (i * 41 + t * 340) % floorTop;
     ctx.moveTo(rx, ry); ctx.lineTo(rx - 3, ry + 9);
   }
@@ -763,7 +765,7 @@ SCENES.abyss.drawLayered = (ctx, p, layers) => {
   }
   // caustic light ripples playing over everything behind the ring
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < L.causticN; i++) {
+  for (let i = 0; i < fxN(L.causticN); i++) {
     ctx.strokeStyle = withA(L.causticCol, 0.06);
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -804,7 +806,7 @@ SCENES.abyss.drawLayered = (ctx, p, layers) => {
     ctx.stroke();
   }
   // plankton motes
-  for (let i = 0; i < L.planktonN; i++)
+  for (let i = 0; i < fxN(L.planktonN); i++)
     twinkle(ctx, drift(t, 1.5 + i * 0.5, W, 8, i * 44), 20 + hash(i + 6) * 120, 1, '#bfefff', t * 1.2, i * 2.7);
   if (layers.near) {
     ctx.save(); ctx.translate(Math.sin(t * L.kelpHz) * L.kelpSway, 0);
@@ -981,7 +983,7 @@ SCENES.stadium.drawLayered = (ctx, p, layers) => {
       flame(ctx, px2, py2 - 8, 7 + crowd * 4, t, i * 1.3, L.pyroCore, L.pyroMid, L.pyroGlow));
   }
   // confetti rain (denser with the crowd)
-  const confN = Math.floor(L.confN * (0.5 + crowd));
+  const confN = fxN(Math.floor(L.confN * (0.5 + crowd)));
   for (let i = 0; i < confN; i++) {
     const cx2 = hash(i + 40) * W, cy2 = (t * 34 + i * 31) % floorTop;
     ctx.fillStyle = L.confCols[i % L.confCols.length];

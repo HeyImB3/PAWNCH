@@ -14,6 +14,7 @@ import { VIEW, MATCH, PAL, DEV } from './config.js';
 import { input } from './input.js';
 import * as audio from './audio.js';
 import { FX, bgGradient, scanlines, text, textWidth, setPieceSet } from './gfx.js';
+import { setFxLow } from './lighting.js';
 import { load, save } from './save.js';
 import * as Chess from './chess/board.js';
 import { FixedStep } from './sim/clock.js';
@@ -62,6 +63,7 @@ export class Game {
     this.input.setBindings(this.save.settings.bindings);
     audio.setVolumes(this.save.settings.volume);
     setPieceSet(this.save.settings.pieceSet);   // apply the saved chess set
+    setFxLow(this.save.settings.fx === 'low');  // apply the saved FX intensity
 
     this.state = null;
     this.stateName = null;

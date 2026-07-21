@@ -31,6 +31,7 @@ if (!bare) await loadAssets('../assets/sprites');
 let RingView = null, L = null;
 try { ({ RingView } = await import('../src/ring.js')); } catch {}
 try { L = await import('../src/lighting.js'); } catch {}
+if (params.has('fxlow')) L?.setFxLow(true);   // QA the LOW intensity mode
 document.getElementById('mode').textContent =
   (bare ? ' [BARE] ' : ' [ASSETS] ') + (RingView ? '+ring.js ' : '') + (L ? '+lighting.js' : '');
 

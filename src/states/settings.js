@@ -5,6 +5,7 @@ import { text, panel, barH, setPieceSet } from '../gfx.js';
 import { availableArenas } from '../scenery.js';
 import * as audio from '../audio.js';
 import { DEFAULT_BINDINGS } from '../input.js';
+import { setFxLow } from '../lighting.js';
 
 // pretty-print a KeyboardEvent.code for the UI
 function keyName(code) {
@@ -62,6 +63,7 @@ export class SettingsState {
       if (row === 'BACK') { audio.sfx.confirm(); game.persist(); this._back(game); }
       else if (row === 'RESET') { this._resetBindings(game); }
       else if (row === 'SCANLINES') { game.save.settings.scanlines = !game.save.settings.scanlines; audio.sfx.select(); }
+      else if (row === 'FX') { game.save.settings.fx = game.save.settings.fx === 'low' ? 'full' : 'low'; setFxLow(game.save.settings.fx === 'low'); audio.sfx.select(); }
       else if (row === 'SCALE') { this._cycleScale(game); }
       else if (row === 'PIECES') { this._cyclePieceSet(game); }
       else if (row === 'ARENA') { this._cycleArena(game); }
@@ -218,6 +220,7 @@ export class SettingsState {
     const arenaName = SCENERY.NAMES[s.arena] || 'CLASSIC RING';
     const rows = [
       ['SCANLINES', s.scanlines ? 'ON' : 'OFF', true],
+      ['FX', s.fx === 'low' ? 'LOW' : 'FULL', true],
       ['SCALE', s.scale === 'fit' ? 'FIT SCREEN' : 'INTEGER', true],
       ['PIECES', unlocked ? setLabel : 'LOCKED', unlocked],
       ['ARENA', arenaName, true],

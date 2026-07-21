@@ -21,6 +21,7 @@ const DEFAULT = {
     volume: { master: 0.8, music: 0.7, sfx: 0.9 },
     scale: 'fit',              // 'fit' | 'integer'
     scanlines: true,
+    fx: 'full',                // FX intensity: 'full' | 'low' (halves heavy passes)
     pieceSet: 'celestial',     // active chess set: 'celestial' (default) | 'arcane' (unlock)
     arena: 'classic',          // selected multiplayer arena id (Settings -> DISPLAY)
     bindings: DEFAULT_BINDINGS,

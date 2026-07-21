@@ -10,6 +10,7 @@ import { FX } from '../src/gfx.js';
 import { input } from '../src/input.js';
 import * as Chess from '../src/chess/board.js';
 import { ChessState } from '../src/states/chess.js';
+import { WalkState } from '../src/states/walk.js';
 import { OPPONENTS } from '../src/opponents.js';
 
 const params = new URLSearchParams(location.search);
@@ -39,7 +40,8 @@ const game = { W: 512, H: 448, match, save: {}, input, fx: new FX(),
   doFreeze() {}, resolveChess() {}, changeState() {}, netFlow() {} };
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-const st = new ChessState();
+// ?walk=1 previews the walk-to-the-board state instead (same mock match)
+const st = params.has('walk') ? new WalkState() : new ChessState();
 st.enter(game);
 let last = performance.now();
 (function frame(now) {

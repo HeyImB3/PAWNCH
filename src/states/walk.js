@@ -2,11 +2,13 @@
 // over to the chess table in the corner before the chess half begins.
 
 import { MATCH, PAL, FIGHTER } from '../config.js';
-import { text, ring, chessTable, piece, pieceSprite } from '../gfx.js';
+import { text, chessTable, piece, pieceSprite } from '../gfx.js';
 import { drawFighter } from '../fighter.js';
 import * as audio from '../audio.js';
 import { HUE, HERO_LOOK } from '../opponents.js';
 import { WHITE } from '../chess/board.js';
+import { drawScene, sceneFor } from '../scenery.js';
+import { RingView } from '../ring.js';
 
 export class WalkState {
   enter(game) {
@@ -24,10 +26,18 @@ export class WalkState {
     this.playerColor = m.playerColor;
     this.mode = m.mode;
     this.isNet = !!m.net;
+    // same arena + painted ring as the fight itself (visual overhaul V6 note:
+    // the walk-up must match the match's backdrop, not the legacy ring)
+    this.sceneId = sceneFor(m, game.save);
+    this.ringView = new RingView({ floorTop: 170 });
+    this.sceneT = 0;
+    this.match = m;
   }
 
   update(game, dt) {
     audio.playFightTheme();
+    this.sceneT += dt / 1000;
+    this.ringView.update(dt);
     // hold the walk while the coin spins; let the player skip the reveal
     if (this.tossT < this.tossDur) {
       this.tossT += dt / 1000;
@@ -48,7 +58,12 @@ export class WalkState {
 
   draw(game, ctx) {
     const W = game.W, H = game.H;
-    ring(ctx, W, H, { accent: this.oppHue.body });
+    const m = this.match;
+    drawScene(ctx, this.sceneId, {
+      W, floorTop: 170, t: this.sceneT, crowd: 0, accent: this.oppHue.body,
+      board: m.chess ? m.chess.board : null, round: m.round ?? null,
+    });
+    this.ringView.draw(ctx, W, H, { accent: this.oppHue.body });
 
     // chess table sits in the lower-left corner
     const tableX = 70, tableY = H - 70;

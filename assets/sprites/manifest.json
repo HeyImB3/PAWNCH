@@ -1,5 +1,7 @@
 {
-  "ring": {},
+  "ring": {
+    "mat": "ring/mat.png"
+  },
   "arenas": {},
   "pieceSets": {
     "celestial": "celestial",

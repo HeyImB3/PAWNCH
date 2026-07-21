@@ -510,6 +510,55 @@ function templeScene(ctx, p) {
 }
 SCENES.temple = { draw: templeScene };
 
+// MOUNTAIN TEMPLE v2 — painted twilight monastery + living light: the GONG
+// rings at every round start (t resets per boxing half), candle bowls burn
+// down the monk row, incense rises, a crane glides the peaks.
+SCENES.temple.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.temple, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  for (let i = 0; i < L.cloudN; i++)                     // drifting twilight cloud glows
+    additiveGlow(ctx, drift(t, 4 + i * 2, W, 60, i * 160), 56 + i * 8, 40, '#cdd6ff', 0.05);
+  // RARE: a crane glides across the peaks
+  const cph = t % L.cranePeriod;
+  if (cph < L.craneDur) {
+    const cx = -16 + (W + 32) * (cph / L.craneDur), cy = 58 + Math.sin(cph * 2) * 5;
+    const wing = Math.sin(t * 6) * 4;
+    ctx.strokeStyle = L.craneCol; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, cy - wing); ctx.lineTo(cx, cy); ctx.lineTo(cx + 7, cy - wing);
+    ctx.moveTo(cx, cy); ctx.lineTo(cx + 5, cy + 1);      // trailing legs
+    ctx.stroke();
+  }
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  // THE GONG rings at every round start: warm shimmer + expanding rings
+  if (t < L.gongS) {
+    const k = t / L.gongS;
+    additiveGlow(ctx, L.gong[0], L.gong[1], L.gongR * 2, '#ffd24a', 0.5 * (1 - k));
+    for (let r = 0; r < 2; r++) {
+      ctx.strokeStyle = withA('#ffe7a8', (1 - k) * (0.5 - r * 0.2));
+      ctx.lineWidth = 2 - r;
+      ctx.beginPath(); ctx.arc(L.gong[0], L.gong[1], L.gongR + 4 + k * (26 + r * 14), 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  // stone-lantern glows + monk candle bowls
+  L.lanterns.forEach(([lx, ly], i) => additiveGlow(ctx, lx, ly, 12, L.fireGlow, 0.35 + 0.05 * Math.sin(t * 2 + i)));
+  for (let bx = L.bowls.x0; bx <= L.bowls.x1; bx += L.bowls.pitch)
+    flame(ctx, bx, L.bowls.y - 2, 3, t, bx * 0.13, L.fireCore, L.fireMid, L.fireGlow);
+  // incense: thin rising smoke wisps
+  L.burners.forEach(([sx, sy], i) => {
+    for (let k = 0; k < 3; k++) {
+      const ph = (t * 0.25 + k * 0.33 + i * 0.5) % 1;
+      additiveGlow(ctx, sx + Math.sin(t * 0.8 + k * 2 + i) * (3 + ph * 8), sy - ph * 54, 5 + ph * 7, L.smokeCol, 0.10 * (1 - ph));
+    }
+  });
+  if (layers.near) {
+    ctx.save(); ctx.translate(Math.sin(t * L.flagHz) * L.flagSway, 0);
+    ctx.drawImage(layers.near, 0, 0); ctx.restore();
+  }
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.10); ctx.fillRect(0, 0, W, floorTop); }
+};
+
 // SKY CASTLE (Queen Quake) — bright sky, parallax clouds, floating keep, banners, birds.
 function castleScene(ctx, p) {
   const { W, floorTop, t, crowd } = p; const C = SCENERY.SCENES.castle;

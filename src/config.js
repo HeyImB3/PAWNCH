@@ -369,7 +369,21 @@ export const SCENERY = {
       },
       key: { color: '#ff8a96', alpha: 0.12, wash: '#7a5cff', washA: 0.04 },  // soft pink rim, violet grade
     },
-    temple:  { sky: ['#caa0ff', '#9a5cff', '#5a3a8a'], peak: '#4a2f7a', peak2: '#3a2566', stone: '#3a2566', stoneHi: '#52397f', roof: '#2a1a4a', flag: ['#ff7a18', '#ffd24a'], cloud: 'rgba(255,255,255,0.5)', monk: '#1e1232', monkN: 16 },
+    temple:  {
+      sky: ['#caa0ff', '#9a5cff', '#5a3a8a'], peak: '#4a2f7a', peak2: '#3a2566', stone: '#3a2566', stoneHi: '#52397f', roof: '#2a1a4a', flag: ['#ff7a18', '#ffd24a'], cloud: 'rgba(255,255,255,0.5)', monk: '#1e1232', monkN: 16,
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        gong: [256, 46], gongR: 16, gongS: 1.2,          // rings while t < gongS (every round start)
+        burners: [[150, 132], [362, 132]],
+        lanterns: [[96, 120], [416, 120]],
+        bowls: { y: 142, x0: 116, x1: 396, pitch: 22 },
+        cloudN: 3, cranePeriod: 57, craneDur: 4.5,
+        flagSway: 1.4, flagHz: 0.9,
+        fireCore: '#fff6c0', fireMid: '#ff9a18', fireGlow: '#ffb24a',
+        smokeCol: '#8ea0cf', craneCol: '#e8f2ff', flareCol: '#ffd24a',
+      },
+      key: { color: '#b8d0ff', alpha: 0.12, wash: '#5563a8', washA: 0.04 },  // twilight-cool rim
+    },
     castle:  { sky: ['#8fd0ff', '#bfe6ff', '#e8f4ff'], cloud: '#ffffff', cloudN: 4, keep: '#9aa6c8', tower: '#8a96b8', roof: '#ff3b53', banner: '#ff7a18', crowd: '#2a2040', crowdN: 18, bird: '#22324f' },
     space:   { core: '#1a1040', edge: '#020108', star: '#ffffff', starN: 22, planet: ['#7a9bff', '#2b4cc0', '#16236a'], ring: 'rgba(111,160,255,0.5)', neb: '#7a5cff', gallery: '#0e1a3a', ast: '#cfe0ff', astN: 6 },
     abyss:   { sky: ['#0a4a52', '#073238', '#04181c'], rock: '#06262b', fireCore: '#fff3c0', fireMid: '#ff8a18', fireGlow: '#ff9a3a', fireN: 3, jelly: ['#ffd0ff', '#c46aff'], jellyN: 5, bub: 'rgba(191,239,255,0.55)', bubN: 8 },

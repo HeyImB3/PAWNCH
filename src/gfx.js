@@ -34,6 +34,10 @@ export function arenaLayers(sceneId) { return (SPRITES.arenas || {})[sceneId]; }
 // Painted UI chrome (chess broadcast panel etc — see states/chess.js).
 export function registerUi(key, img) { (SPRITES.ui ||= {})[key] = img; }
 export function uiSprite(key) { return (SPRITES.ui || {})[key]; }
+// Face-tile portraits per fighter slug (see src/portrait.js). Damage overlays
+// register under the reserved slug '_overlays'.
+export function registerPortrait(slug, key, img) { ((SPRITES.portraits ||= {})[slug] ||= {})[key] = img; }
+export function portraitSprite(slug, key) { return slug ? ((SPRITES.portraits || {})[slug] || {})[key] : undefined; }
 export function setPieceSet(name) { if (SET_THEME[name]) activePieceSet = name; return activePieceSet; }
 export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.values(SPRITES.pieceSets).reduce((n, s) => n + Object.keys(s).length, 0) > 0; }
 

@@ -18,13 +18,16 @@
 // Boxer pose keys: front|back : idle|guard|windupL|windupR|punchL|punchR|hurt|down|walk
 // Piece keys: (w|b)(p|n|b|r|q|k)
 
-import { registerSprite, registerPiece, registerBoxer, registerRing, registerArenaLayer, registerUi } from './gfx.js';
+import { registerSprite, registerPiece, registerBoxer, registerRing, registerArenaLayer, registerUi, registerPortrait } from './gfx.js';
 
 const PIECE_KEYS = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk'];
 const BOXER_POSE_KEYS = ['idle', 'guard', 'windupL', 'windupR', 'jabL', 'jabR',
   'hookL', 'hookR', 'special', 'duck', 'hurt', 'stagger', 'down', 'walk'];
 const BOXER_FACINGS = ['front', 'back'];
 const ARENA_LAYER_KEYS = ['far', 'mid', 'near'];
+const PORTRAIT_KEYS = ['neutral', 'pleased', 'smirk', 'beaming', 'concerned',
+  'upset', 'dejected', 'wince', 'shock', 'grin3'];
+const OVERLAY_KEYS = ['damage1', 'damage2', 'damage3'];
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -73,6 +76,19 @@ export async function loadAssets(base = 'assets/sprites') {
       try { registerArenaLayer(scene, layer, await loadImage(`${base}/${dir}/${layer}.png`)); count++; }
       catch { /* layer stays procedural */ }
     }))));
+  // face-tile portraits: slug -> dir of <expr>.png (any subset is fine)
+  await Promise.all(Object.entries(manifest.portraits || {}).map(([slug, dir]) =>
+    Promise.all(PORTRAIT_KEYS.map(async (key) => {
+      try { registerPortrait(slug, key, await loadImage(`${base}/${dir}/${key}.png`)); count++; }
+      catch { /* face stays fallback */ }
+    }))));
+  // shared damage overlays -> reserved slug '_overlays'
+  if (manifest.portraitOverlays) {
+    await Promise.all(OVERLAY_KEYS.map(async (key) => {
+      try { registerPortrait('_overlays', key, await loadImage(`${base}/${manifest.portraitOverlays}/${key}.png`)); count++; }
+      catch { /* no overlays */ }
+    }));
+  }
   // painted UI chrome: flat key -> file (missing = procedural fallback)
   await Promise.all(Object.entries(manifest.ui || {}).map(async ([key, file]) => {
     try { registerUi(key, await loadImage(`${base}/${file}`)); count++; }

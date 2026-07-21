@@ -1,0 +1,61 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>PAWNCH portrait grid</title>
+<style>body{background:#181828;color:#cdd6ff;font:12px monospace;margin:12px}
+canvas{image-rendering:pixelated;width:1100px;height:1232px;border:1px solid #3a4a78}</style>
+</head><body>
+<div>portrait QA — rows: characters · cols: expressions · ?tier=0..3 overlays · ?bare=1 fallback · bottom row: live engine</div>
+<canvas id="cv" width="550" height="616"></canvas>
+<script type="module">
+import { loadAssets } from '../src/assets.js';
+import { PortraitFace, EXPRESSIONS, damageTier } from '../src/portrait.js';
+import { HUE } from '../src/opponents.js';
+import { text } from '../src/gfx.js';
+
+const params = new URLSearchParams(location.search);
+if (!params.has('bare')) await loadAssets('../assets/sprites');
+const tier = Math.max(0, Math.min(3, parseInt(params.get('tier') || '0', 10)));
+
+const SLUGS = [
+  ['player', 'player'], ['patty', 'orange'], ['gus', 'green'], ['rosa', 'red'],
+  ['kid', 'blue'], ['bishop', 'purple'], ['queen', 'pink'], ['iron', 'steel'],
+  ['tal', 'teal'], ['magnus', 'gold'], ['pawnchion', 'champ'],
+];
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+// static grid faces (forced expressions) + one live face at the bottom
+const grid = SLUGS.map(([slug, hue]) => EXPRESSIONS.map((e) => {
+  const f = new PortraitFace({ slug, hue: HUE[hue] });
+  f.force(e);
+  return f;
+}));
+const live = new PortraitFace({ slug: 'pawnchion', hue: HUE.champ });
+let liveMat = -8, liveDir = 1, reactT = 0;
+const REACTS = ['joy', 'anger', 'shock', 'smug'];
+let reactI = 0;
+
+let last = performance.now();
+(function frame(now) {
+  const dt = Math.min(50, now - last); last = now;
+  ctx.fillStyle = '#181828'; ctx.fillRect(0, 0, 550, 616);
+  grid.forEach((row, r) => {
+    const [slug] = SLUGS[r];
+    text(ctx, slug.slice(0, 8), 2, r * 50 + 20, { scale: 1, color: '#8ea0cf' });
+    row.forEach((f, c) => {
+      f.update(dt);
+      f.draw(ctx, 56 + c * 48, r * 50 + 2, { tier });
+    });
+  });
+  // live engine row: material sweeps -8..+8, a reaction fires every 3s
+  liveMat += liveDir * dt / 350;
+  if (liveMat > 8) { liveMat = 8; liveDir = -1; }
+  if (liveMat < -8) { liveMat = -8; liveDir = 1; }
+  live.setMaterial(Math.round(liveMat));
+  reactT += dt;
+  if (reactT > 3000) { reactT = 0; live.react(REACTS[reactI++ % REACTS.length]); }
+  live.update(dt);
+  live.draw(ctx, 56, 560, { tier });
+  text(ctx, 'LIVE mat ' + Math.round(liveMat), 110, 575, { scale: 1, color: '#ffd24a' });
+  EXPRESSIONS.forEach((e, c) => text(ctx, e.slice(0, 7), 56 + c * 48, 556 - 8, { scale: 1, color: '#3a4a78' }));
+  requestAnimationFrame(frame);
+})(last);
+</script></body></html>

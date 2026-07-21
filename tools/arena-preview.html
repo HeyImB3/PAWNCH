@@ -1,0 +1,64 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>PAWNCH arena preview</title>
+<style>body{background:#181828;color:#cdd6ff;font:12px monospace;margin:12px}
+canvas{image-rendering:pixelated;width:768px;height:672px;border:1px solid #3a4a78}
+.row{margin:6px 0}button,select{font:inherit}</style></head><body>
+<div class="row">
+  <select id="scene"></select>
+  crowd <input id="crowd" type="range" min="0" max="100" value="0">
+  <button id="impact">IMPACT</button>
+  <label><input id="down" type="checkbox"> KNOCKDOWN</label>
+  <button id="decals">+DECALS</button>
+  <span id="mode"></span>
+</div>
+<canvas id="cv" width="512" height="448"></canvas>
+<script type="module">
+import { SCENERY, PAL, FIGHTER } from '../src/config.js';
+import { ring } from '../src/gfx.js';
+import { drawScene } from '../src/scenery.js';
+import { loadAssets } from '../src/assets.js';
+import { drawFighter } from '../src/fighter.js';
+import { HERO_LOOK, DEFAULT_LOOK } from '../src/opponents.js';
+
+const bare = new URLSearchParams(location.search).has('bare');
+if (!bare) await loadAssets('../assets/sprites');
+// feature-detect later modules so this harness never needs editing
+let RingView = null, L = null;
+try { ({ RingView } = await import('../src/ring.js')); } catch {}
+try { L = await import('../src/lighting.js'); } catch {}
+document.getElementById('mode').textContent =
+  (bare ? ' [BARE] ' : ' [ASSETS] ') + (RingView ? '+ring.js ' : '') + (L ? '+lighting.js' : '');
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const sceneSel = document.getElementById('scene');
+for (const id of ['classic', ...SCENERY.OPPONENT_SCENES])
+  sceneSel.add(new Option(SCENERY.NAMES[id] || id, id));
+const rv = RingView ? new RingView({ floorTop: 170 }) : null;
+const flash = L ? new L.Flashbulbs() : null;
+document.getElementById('impact').onclick = () => {
+  rv?.impact(120 + Math.random() * 272, 1);
+  flash?.burst(6);
+};
+document.getElementById('decals').onclick = () => {
+  for (let i = 0; i < 6; i++) rv?.addDecal(180 + Math.random() * 150, 330 + Math.random() * 80, Math.random() < 0.5 ? 'scuff' : 'sweat');
+};
+let last = performance.now();
+(function frame(now) {
+  const dt = Math.min(50, now - last); last = now;
+  const t = now / 1000, crowd = document.getElementById('crowd').value / 100;
+  const down = document.getElementById('down').checked;
+  drawScene(ctx, sceneSel.value, { W: 512, floorTop: 170, t, crowd, accent: PAL.blue });
+  rv?.update(dt); flash?.update(dt);
+  if (rv) rv.draw(ctx, 512, 448, { accent: PAL.orange, crowd });
+  else ring(ctx, 512, 448, { floorTop: 170, accent: PAL.orange, crowd });
+  const ex = 256, px = 256;
+  if (L) L.reflect(ctx, FIGHTER.ENEMY_FEET_Y, () =>
+    drawFighter(ctx, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, DEFAULT_LOOK, down ? 'down' : 'idle', 1, t * 4));
+  drawFighter(ctx, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, DEFAULT_LOOK, down ? 'down' : 'idle', 1, t * 4);
+  drawFighter(ctx, px, FIGHTER.PLAYER_FEET_Y, FIGHTER.SIZE.player, HERO_LOOK, 'idle', -1, t * 4);
+  if (rv) rv.drawPress(ctx, 512, 448);
+  if (L && down) L.spotlightMoment(ctx, 512, 448, ex, FIGHTER.ENEMY_FEET_Y - 40, 1);
+  flash?.draw(ctx);
+  requestAnimationFrame(frame);
+})(last);
+</script></body></html>

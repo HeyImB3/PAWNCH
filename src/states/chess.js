@@ -2,8 +2,9 @@
 // run the per-side clocks, animate moves with juice, and report the result
 // back to the Game (checkmate / flag = decisive; timeout / draw = go box).
 
-import { MATCH, PAL, CHESS } from '../config.js';
-import { text, textWidth, panel, piece as drawPiece } from '../gfx.js';
+import { MATCH, PAL, CHESS, PANEL } from '../config.js';
+import { text, textWidth, panel, piece as drawPiece, uiSprite, mix, withA } from '../gfx.js';
+import { additiveGlow } from '../lighting.js';
 import * as audio from '../audio.js';
 import * as Chess from '../chess/board.js';
 import { bestMove } from '../chess/engine.js';
@@ -15,6 +16,27 @@ const SQ = 44;
 const OX = 17, OY = 40;          // board origin (left/right margins balanced ~9px each)
 const BOARD_PX = SQ * 8;         // 352
 
+// Captured pieces DERIVED from the board each frame (no model state): what's
+// missing vs the starting set. Returns value-sorted lowercase type lists:
+// w = black pieces White has taken, b = white pieces Black has taken.
+// (Promotions can push counts negative — clamped to 0.)
+const START_COUNTS = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+function captured(board) {
+  const alive = { w: { p: 0, n: 0, b: 0, r: 0, q: 0 }, b: { p: 0, n: 0, b: 0, r: 0, q: 0 } };
+  for (const pc of board) {
+    if (!pc) continue;
+    const t = pc.toLowerCase();
+    if (t === 'k') continue;
+    alive[pc === pc.toUpperCase() ? 'w' : 'b'][t]++;
+  }
+  const out = { w: [], b: [] };
+  for (const t of ['q', 'r', 'b', 'n', 'p']) {
+    for (let i = 0; i < Math.max(0, START_COUNTS[t] - alive.b[t]); i++) out.w.push(t);
+    for (let i = 0; i < Math.max(0, START_COUNTS[t] - alive.w[t]); i++) out.b.push(t);
+  }
+  return out;
+}
+
 export class ChessState {
   enter(game) {
     const m = game.match;
@@ -23,7 +45,11 @@ export class ChessState {
     // start (game.startMatch) and persist, so we resume right where we left off.
     // Only the per-round wall-time window resets each chess half.
     this.halfTime = (MATCH.CHESS_HALF_SECONDS || MATCH.CHESS_SECONDS || 60) * 1000;
+    this.halfTotal = this.halfTime;   // for the broadcast panel's burning fuse
     this.t = 0;
+    this.flyIns = [];                 // captured pieces flying into the trays
+    this.tickerLen = (m.pgnMoves || []).length;
+    this.tickerSlide = 0;             // ms left on the newest-move slide-in
     // track who actually moved this chess half (skip-the-chess HP deterrent —
     // see game.applyNoMovePenalty). Resets every half.
     m.movedThisHalf = { player: false, enemy: false };
@@ -91,6 +117,19 @@ export class ChessState {
     this.t += dt / 1000;
     if (this.bannerT > 0) this.bannerT -= dt / 1000;
     if (this.placeFx) { this.placeFx.t += dt; if (this.placeFx.t > 200) this.placeFx = null; }
+    // broadcast-panel render anims: capture fly-ins + move-ticker slide
+    for (let i = this.flyIns.length - 1; i >= 0; i--) {
+      const f = this.flyIns[i];
+      f.t += dt;
+      if (f.t >= PANEL.FLY_MS) {
+        this.flyIns.splice(i, 1);
+        audio.sfx.select();
+        game.fx.spark(f.tx, f.ty, PAL.gold, 6);
+      }
+    }
+    if (this.tickerSlide > 0) this.tickerSlide -= dt;
+    const pgnLen = (this.m.pgnMoves || []).length;
+    if (pgnLen > this.tickerLen) { this.tickerLen = pgnLen; this.tickerSlide = PANEL.TICKER_SLIDE_MS; }
     audio.playFightTheme(this.m.fightTrack);
 
     if (this.phase === 'ended') return;
@@ -322,7 +361,18 @@ export class ChessState {
   _commit(game) {
     const m = this.m, a = this.anim;
     const [tx, ty] = this._sqCenter(a.mv.to);
-    if (a.capture) { game.fx.burst(tx, ty, PAL.orange, 14, 3); game.fx.ring(tx, ty, PAL.gold); game.fx.doShake(6); audio.sfx.capture(); }
+    if (a.capture) {
+      game.fx.burst(tx, ty, PAL.orange, 14, 3); game.fx.ring(tx, ty, PAL.gold); game.fx.doShake(6); audio.sfx.capture();
+      // broadcast panel: the victim flies off the board into its captor's tray
+      const victim = a.mv.flag === 'ep'
+        ? (this.preState.turn === Chess.WHITE ? 'p' : 'P')
+        : this.preState.board[a.mv.to];
+      if (victim) {
+        const victimIsPlayers = Chess.colorOf(victim) === m.playerColor;
+        const trayY = (victimIsPlayers ? PANEL.TRAY_OPP_Y : PANEL.TRAY_YOU_Y) + PANEL.TRAY.H / 2;
+        this.flyIns.push({ pc: victim, x: tx, y: ty, tx: PANEL.TRAY.X0 + 46, ty: trayY, t: 0 });
+      }
+    }
     else if (a.drop) { game.fx.ring(tx, ty, a.white ? PAL.blueLite : PAL.orangeLite, 16); game.fx.doShake(2); }
     this.placeFx = { sq: a.mv.to, t: 0 };          // settle bounce
     (m.pgnMoves ||= []).push(Chess.moveLabel(this.preState, a.mv)); // SAN for PGN
@@ -502,7 +552,11 @@ export class ChessState {
     }
     ctx.restore();   // end card-flip squash
 
+    // check alarm: a red breathing vignette hugging the board edges
+    if (uiSprite('chesspanel') && Chess.inCheck(m.chess) && this.phase !== 'ended') this._checkVignette(ctx);
+
     this._sidePanel(game, ctx);
+    this._drawFlyIns(ctx);
     this._controls(game, ctx);
     if (this.phase === 'promote') this._promoPicker(game, ctx);
     this._banner(game, ctx);
@@ -542,6 +596,7 @@ export class ChessState {
   }
 
   _sidePanel(game, ctx) {
+    if (uiSprite('chesspanel')) return this._broadcastPanel(game, ctx);
     const W = game.W, m = this.m;
     const px = OX + BOARD_PX + 14, pw = W - px - 9;    // 383 / 120: slim column beside the bigger board
     // header
@@ -589,6 +644,193 @@ export class ChessState {
       text(ctx, 'THINKING' + dots, px, game.H - 24, { scale: 1, color: PAL.orangeLite });
     } else if (this.myTurn && this.phase === 'play') {
       text(ctx, 'YOUR MOVE', px, game.H - 24, { scale: 1, color: PAL.blueLite });
+    }
+  }
+
+  // ---- broadcast panel (V4): painted chrome + live match graphics ---------
+  _broadcastPanel(game, ctx) {
+    const m = this.m, P = PANEL;
+    ctx.drawImage(uiSprite('chesspanel'), P.X, 0);
+    // header
+    text(ctx, 'PAWNCH', P.X + P.PAD, P.HEADER_Y, { scale: 2, color: PAL.orange, shadow: PAL.ink });
+    text(ctx, 'ROUND ' + m.round + '/' + MATCH.TOTAL_ROUNDS + ' - CHESS', P.X + P.PAD, P.HEADER_Y + 18, { scale: 1, color: PAL.textDim });
+
+    // portraits (V5 fills these; the slot fn is the single draw point)
+    this._portraitSlot(ctx, P.OPP_PORTRAIT[0], P.OPP_PORTRAIT[1], 'enemy');
+    this._portraitSlot(ctx, P.YOU_PORTRAIT[0], P.YOU_PORTRAIT[1], 'player');
+
+    // nameplates + carried-HP glove bars (channels are painted in the chrome)
+    const oppName = (m.mode === 'story' && m.opponent) ? m.opponent.name.split(' ')[0] : 'OPPONENT';
+    text(ctx, oppName, P.OPP_PLAQUE[0] + 3, P.OPP_PLAQUE[1] + 3, { scale: 1, color: PAL.white });
+    if (m.mode === 'story' && m.opponent) text(ctx, 'ELO ' + m.opponent.elo, P.OPP_PLAQUE[0] + 3, P.OPP_PLAQUE[1] + 16, { scale: 1, color: PAL.orangeLite });
+    text(ctx, 'YOU', P.YOU_PLAQUE[0] + 3, P.YOU_PLAQUE[1] + 3, { scale: 1, color: PAL.white });
+    ctx.fillStyle = PAL.orange;
+    ctx.fillRect(P.HP.OPP[0], P.HP.OPP[1], Math.round(P.HP.W * Math.max(0, m.hp.enemy) / 100), P.HP.H);
+    ctx.fillStyle = PAL.blue;
+    ctx.fillRect(P.HP.YOU[0], P.HP.YOU[1], Math.round(P.HP.W * Math.max(0, m.hp.player) / 100), P.HP.H);
+
+    // physical clocks
+    const myColor = m.playerColor, oppColor = myColor === Chess.WHITE ? Chess.BLACK : Chess.WHITE;
+    this._plateClock(ctx, P.CLOCK_OPP_Y, m.clocks[oppColor], m.chess.turn === oppColor, PAL.orange);
+    this._plateClock(ctx, P.CLOCK_YOU_Y, m.clocks[myColor], m.chess.turn === myColor, PAL.blue);
+
+    // captured-piece trays + advantage badge
+    const cap = captured(m.chess.board);
+    const oppTaken = oppColor === Chess.WHITE ? cap.w : cap.b;   // pieces the OPPONENT captured (= yours)
+    const youTaken = myColor === Chess.WHITE ? cap.w : cap.b;
+    this._tray(ctx, P.TRAY_OPP_Y, oppTaken, myColor === Chess.WHITE);
+    this._tray(ctx, P.TRAY_YOU_Y, youTaken, oppColor === Chess.WHITE);
+    const mat = Chess.material(m.chess.board);
+    const myMat = myColor === Chess.WHITE ? mat.diff : -mat.diff;
+    const badgeCx = P.X + 64, badgeCy = P.BADGE_Y + 4;
+    if (myMat === 0) text(ctx, 'EVEN', badgeCx, badgeCy + 2, { scale: 1, color: PAL.textDim, align: 'center' });
+    else text(ctx, (myMat > 0 ? '+' : '') + myMat, badgeCx, badgeCy, { scale: 2, color: myMat > 0 ? PAL.green : PAL.red, align: 'center', shadow: PAL.ink });
+
+    this._ticker(ctx);
+    this._fuse(game, ctx);
+
+    // status line
+    if (this.phase === 'aithink') {
+      const dots = '.'.repeat(1 + (Math.floor(this.t * 3) % 3));
+      text(ctx, 'THINKING' + dots, P.X + P.PAD, P.STATUS_Y, { scale: 1, color: PAL.orangeLite });
+    } else if (this.myTurn && this.phase === 'play') {
+      text(ctx, 'YOUR MOVE', P.X + P.PAD, P.STATUS_Y, { scale: 1, color: PAL.blueLite });
+    }
+  }
+
+  // a physical clock plate: glowing digits in the painted screen window
+  _plateClock(ctx, y, ms, active, col) {
+    const P = PANEL, cx = P.X + 60, s = Math.max(0, ms / 1000);
+    const mm = Math.floor(s / 60), ss = Math.floor(s % 60);
+    const str = mm + ':' + String(ss).padStart(2, '0');
+    const low = s < P.CLOCK.LOW_S && active;
+    ctx.save();
+    if (low) {
+      // heartbeat pulse + a nervous 1px shake + steam off the plate corners
+      const pulse = 1 + 0.03 * Math.sin(this.t * Math.PI * 2 * P.CLOCK.PULSE_HZ);
+      const cy = y + P.CLOCK.H / 2;
+      ctx.translate(cx + Math.round(Math.sin(this.t * 31) * 1), cy);
+      ctx.scale(pulse, pulse);
+      ctx.translate(-cx, -cy);
+      for (const sx of [P.X + 10, P.X + 108]) {
+        const ph = (this.t * 0.7 + sx) % 1;
+        additiveGlow(ctx, sx, y - 2 - ph * 12, 4 + ph * 6, '#cdd6ff', 0.14 * (1 - ph));
+      }
+    }
+    additiveGlow(ctx, cx + 4, y + 16, 30, low ? PAL.red : col, P.CLOCK.GLOW * (active ? 1 : 0.4));
+    text(ctx, str, cx + 4, y + 9, { scale: 2, color: low ? PAL.red : active ? col : PAL.textDim, align: 'center', shadow: PAL.ink });
+    if (active) { ctx.strokeStyle = withA(low ? PAL.red : col, 0.8); ctx.lineWidth = 1; ctx.strokeRect(P.X + 4.5, y + 0.5, 120, P.CLOCK.H - 1); }
+    ctx.restore();
+  }
+
+  // the portrait slot: V5 portraits land here; V4 draws a hue-tinted bust
+  // silhouette. Also carries the check alarm + winner spotlight.
+  _portraitSlot(ctx, x, y, side) {
+    const m = this.m;
+    const hue = side === 'enemy' ? this.oppHue.body : PAL.blue;
+    const cx = x + 22, cy = y + 22;
+    ctx.fillStyle = mix(hue, '#000000', 0.55);
+    ctx.beginPath(); ctx.arc(cx, cy - 6, 8, 0, Math.PI * 2); ctx.fill();       // head
+    ctx.beginPath();
+    ctx.moveTo(cx - 15, y + 43); ctx.quadraticCurveTo(cx, y + 20, cx + 15, y + 43);
+    ctx.closePath(); ctx.fill();                                               // shoulders
+    ctx.strokeStyle = withA(hue, 0.7); ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, 43, 43);                                  // accent frame
+    // check alarm: red pulsing frame on the CHECKED side's portrait
+    const checkedSide = Chess.inCheck(m.chess) ? (m.chess.turn === m.playerColor ? 'player' : 'enemy') : null;
+    if (checkedSide === side && this.phase !== 'ended') {
+      ctx.strokeStyle = withA(PAL.red, 0.5 + 0.5 * Math.sin(this.t * 10));
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 0.5, y - 0.5, 45, 45);
+    }
+    // winner spotlight at the end of a decisive chess game
+    if (this.phase === 'ended' && this.m.lastChessResult?.winner === side) {
+      additiveGlow(ctx, cx, cy, 30, PAL.gold, 0.3 + 0.1 * Math.sin(this.t * 6));
+      ctx.strokeStyle = PAL.gold; ctx.lineWidth = 1;
+      ctx.strokeRect(x - 0.5, y - 0.5, 45, 45);
+    }
+  }
+
+  // a captured-piece tray row (max 8 icons + overflow count)
+  _tray(ctx, y, taken, piecesAreWhite) {
+    const P = PANEL;
+    const shown = taken.slice(0, 8);
+    shown.forEach((t2, i) => {
+      const px2 = P.TRAY.X0 + i * P.TRAY.PITCH;
+      drawPiece(ctx, piecesAreWhite ? t2.toUpperCase() : t2, px2, y + P.TRAY.H / 2 + 1, P.TRAY.ICON, piecesAreWhite, { clean: true, shadow: false });
+    });
+    if (taken.length > 8) text(ctx, '+' + (taken.length - 8), P.TRAY.X0 + 8 * P.TRAY.PITCH, y + 7, { scale: 1, color: PAL.textDim });
+  }
+
+  // the move ticker: last three SAN moves, newest sliding in at the top
+  _ticker(ctx) {
+    const P = PANEL, pgn = this.m.pgnMoves || [];
+    const n = pgn.length;
+    const rows = pgn.slice(-3).reverse();                 // newest first
+    rows.forEach((san, i) => {
+      const rowY = P.TICKER_Y + 4 + i * 14;
+      const moveIdx = n - 1 - i;                          // 0-based ply; even = white
+      const moverWhite = moveIdx % 2 === 0;
+      let slide = 0, alpha = 1;
+      if (i === 0 && this.tickerSlide > 0) {
+        const k = this.tickerSlide / PANEL.TICKER_SLIDE_MS;
+        slide = k * 36; alpha = 1 - k * 0.7;
+      }
+      ctx.globalAlpha = alpha * (i === 0 ? 1 : i === 1 ? 0.7 : 0.45);
+      const glyphChar = 'NBRQK'.includes(san[0]) ? san[0] : (san.startsWith('O-O') ? 'K' : 'P');
+      drawPiece(ctx, moverWhite ? glyphChar : glyphChar.toLowerCase(), P.X + 14 + slide, rowY + 5, 11, moverWhite, { clean: true, shadow: false });
+      text(ctx, san, P.X + 24 + slide, rowY, { scale: 1, color: moverWhite ? PAL.text : PAL.orangeLite });
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  // the burning-fuse half-timer: the rope burns toward the painted bell
+  _fuse(game, ctx) {
+    const P = PANEL;
+    const k = Math.min(1, Math.max(0, 1 - this.halfTime / this.halfTotal));
+    const fx2 = P.FUSE_X0 + (P.FUSE_X1 - P.FUSE_X0) * k;
+    // burnt track goes dark behind the flame
+    ctx.fillStyle = 'rgba(7,10,22,0.6)';
+    ctx.fillRect(P.FUSE_X0, P.FUSE_Y + 3, Math.max(0, fx2 - P.FUSE_X0), 9);
+    // the burning tip
+    additiveGlow(ctx, fx2, P.FUSE_Y + 6, 8, PAL.gold, 0.5 + 0.15 * Math.sin(this.t * 12));
+    ctx.fillStyle = '#fff6c0'; ctx.fillRect(fx2 - 1, P.FUSE_Y + 4, 2, 3);
+    ctx.fillStyle = '#ff9a18'; ctx.fillRect(fx2 - 1, P.FUSE_Y + 2, 2, 2);
+    // sparks in the final 10 seconds; the bell tolls at zero
+    if (this.halfTime < 10000 && Math.random() < 0.3) {
+      game.fx.parts.push({ x: fx2, y: P.FUSE_Y + 4, vx: (Math.random() - 0.5) * 1.4, vy: -Math.random() * 1.6, g: 0.08, life: 14, max: 14, color: PAL.gold, size: 1 });
+    }
+    if (this.halfTime < 3000) {
+      additiveGlow(ctx, P.BELL[0], P.BELL[1] - 2, 12, PAL.gold, 0.25 + 0.2 * Math.sin(this.t * 14));
+    }
+  }
+
+  // red breathing vignette hugging the board while a king is in check
+  _checkVignette(ctx) {
+    const a = 0.10 + 0.06 * Math.sin(this.t * 8);
+    const x0 = OX - 8, y0 = OY - 8, w = BOARD_PX + 16, h = BOARD_PX + 16, d = 24;
+    const sides = [
+      [x0, y0, w, d, 0, y0, 0, y0 + d],           // top
+      [x0, y0 + h - d, w, d, 0, y0 + h, 0, y0 + h - d],
+      [x0, y0, d, h, x0, 0, x0 + d, 0],           // left
+      [x0 + w - d, y0, d, h, x0 + w, 0, x0 + w - d, 0],
+    ];
+    for (const [rx, ry, rw, rh, gx0, gy0, gx1, gy1] of sides) {
+      const g = ctx.createLinearGradient(gx0, gy0, gx1, gy1);
+      g.addColorStop(0, `rgba(255,59,83,${a})`); g.addColorStop(1, 'rgba(255,59,83,0)');
+      ctx.fillStyle = g; ctx.fillRect(rx, ry, rw, rh);
+    }
+  }
+
+  // captured pieces arcing off the board into their tray slot
+  _drawFlyIns(ctx) {
+    for (const f of this.flyIns) {
+      const k = Math.min(1, f.t / PANEL.FLY_MS);
+      const e = 1 - Math.pow(1 - k, 3);
+      const x = f.x + (f.tx - f.x) * e;
+      const y = f.y + (f.ty - f.y) * e - Math.sin(k * Math.PI) * 14;
+      const size = (SQ - 6) + (PANEL.TRAY.ICON - (SQ - 6)) * e;
+      drawPiece(ctx, f.pc, x, y, size, Chess.colorOf(f.pc) === Chess.WHITE, { t: this.t, glow: 1.5, clean: true, shadow: false });
     }
   }
 

@@ -299,8 +299,8 @@ export const PANEL = {
   FUSE_Y: 332, FUSE_X0: 391, FUSE_X1: 480, BELL: [492, 338],
   STATUS_Y: 424,
   CLOCK: { H: 30, LOW_S: 10, PULSE_HZ: 2.2, GLOW: 0.22 },
-  TRAY: { H: 22, ICON: 13, PITCH: 14, X0: 391 },
-  HP: { OPP: [409, 74], YOU: [409, 270], W: 88 },   // glove-bar fill origin + width
+  TRAY: { H: 22, ICON: 13, PITCH: 14, X0: 394 },
+  HP: { OPP: [450, 71], YOU: [450, 267], W: 53, H: 6 },  // painted channel interior
   FLY_MS: 450,
   TICKER_SLIDE_MS: 220,
 };

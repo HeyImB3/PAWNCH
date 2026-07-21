@@ -2,6 +2,20 @@
   "ui": {
     "chesspanel": "ui/chesspanel.png"
   },
+  "portraits": {
+    "player": "portraits/player",
+    "patty": "portraits/patty",
+    "gus": "portraits/gus",
+    "rosa": "portraits/rosa",
+    "kid": "portraits/kid",
+    "bishop": "portraits/bishop",
+    "queen": "portraits/queen",
+    "iron": "portraits/iron",
+    "tal": "portraits/tal",
+    "magnus": "portraits/magnus",
+    "pawnchion": "portraits/pawnchion"
+  },
+  "portraitOverlays": "portraits/_overlays",
   "ring": {
     "mat": "ring/mat.png",
     "post": "ring/post.png",

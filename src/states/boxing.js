@@ -9,6 +9,8 @@ import { MATCH, PAL, BOX, SIM } from '../config.js';
 import { FIGHTER } from '../config.js';
 import { text, textWidth, panel, barH } from '../gfx.js';
 import { RingView } from '../ring.js';
+import { reflect, spotlightMoment, Flashbulbs } from '../lighting.js';
+import { LIGHT } from '../config.js';
 import { drawFighter } from '../fighter.js';
 import { drawSpecialFx } from '../specialfx.js';
 import { drawScene, sceneFor } from '../scenery.js';
@@ -53,6 +55,8 @@ export class BoxingState {
     this.accent = this.oppHue.body;
     this.sceneId = sceneFor(m, game.save);   // story: opponent arena; pvp: player's pick
     this.ringView = new RingView({ floorTop: 170 });  // fresh mat each boxing half
+    this.flash = new Flashbulbs();
+    this.spotK = 0;            // knockdown-spotlight ease (0..1)
     // a brightened copy of the opponent's theme — flickered onto them while they
     // wind up a SPECIAL (Punch-Out-style tell), plus a red "staggered" palette.
     this.flareHue = { body: lighten(this.oppHue.body, 0.55), trim: lighten(this.oppHue.trim, 0.45), skin: lighten(this.oppHue.skin, 0.4) };
@@ -75,8 +79,13 @@ export class BoxingState {
         onWindup: (arm, kind, target, special) => { this.tellPopT = 0.2; if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
         onHit: (side, dmg, kind) => {
           audio.sfx.hit();
-          // rope shockwave from the impact (render-only juice)
+          // rope shockwave + press flashes + a mat decal (render-only juice)
           this.ringView.impact(game.W / 2 + (side === 'player' ? this.match.player.offset : this.match.enemy.offset), Math.min(1, dmg / 16));
+          if (dmg > 12) this.flash.burst(LIGHT.FLASH.BIG_HIT);
+          this.ringView.addDecal(
+            game.W / 2 + (side === 'player' ? this.match.player.offset : this.match.enemy.offset) + (Math.random() - 0.5) * 30,
+            (side === 'player' ? 400 : FIGHTER.ENEMY_FEET_Y + 8) + Math.random() * 10,
+            Math.random() < 0.5 ? 'scuff' : 'sweat');
           const [x, y] = side === 'player' ? [game.W / 2, game.H - 130] : [game.W / 2, 200];
           game.fx.burst(x, y, side === 'player' ? PAL.red : PAL.gold, dmg > 14 ? 18 : 11, 3);
           const fz = (kind === 'signature' || kind === 'star') ? 130 : kind === 'hook' ? 90 : 50;
@@ -101,6 +110,7 @@ export class BoxingState {
           // a clean parry: star twinkle, a bright flash, a beat of hit-stop, and a
           // gold star burst over the parrier — they just earned a free opening.
           audio.sfx.parry();
+          this.flash.burst(LIGHT.FLASH.PARRY);
           game.fx.doFlash(side === 'player' ? PAL.blueLite : PAL.gold, 0.4);
           game.doFreeze(120);
           this.crowd = 1;
@@ -110,7 +120,7 @@ export class BoxingState {
         onCounter: () => { audio.sfx.check(); game.fx.doFlash(PAL.gold, 0.38); game.fx.doShake(11); game.doFreeze(120); },   // crunchier counter (Feel B)
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
-        onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; this.ringView.impact(game.W / 2, 1); },
+        onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; this.ringView.impact(game.W / 2, 1); this.flash.burst(LIGHT.FLASH.KNOCKDOWN); },
         onGetUpTap: (side, charge) => { if (side === 'player') { audio.sfx.getup(charge); this.crowd = Math.min(1, this.crowd + 0.05); } },
         onGetUp: () => { audio.sfx.bell(); this.crowd = 1; },
       },
@@ -155,6 +165,10 @@ export class BoxingState {
     this.nameT = Math.min(1, this.nameT + dt / 1000 / 0.4);
     this.crowd = Math.max(0, this.crowd - dt / 1000 * 1.2);
     this.ringView.update(dt);
+    this.flash.update(dt);
+    // knockdown spotlight eases in while anyone is DOWN, back out on the rise
+    const anyDown = this.match.player.pose === 'down' || this.match.enemy.pose === 'down';
+    this.spotK = Math.max(0, Math.min(1, this.spotK + (anyDown ? dt : -dt) / LIGHT.SPOT.EASE_MS));
     audio.playFightTheme(this.m.fightTrack);
   }
 
@@ -175,6 +189,10 @@ export class BoxingState {
 
     // opponent (center, facing camera)
     const ex = W / 2 + e.offset;
+    const em = mapPose(e);
+    // glossy-mat reflection (drawn before the fighter, so it sits under him)
+    reflect(ctx, FIGHTER.ENEMY_FEET_Y, () =>
+      drawFighter(ctx, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, this.enemyLook, em.pose, 1, this.t * 4, em.info));
     // boss SPECIAL spectacle (chess-themed): a back layer behind the fighter + a front layer over both.
     const spSlug = this.enemyLook.sprite;
     const spActive = (!!e.special && (e.pose === 'windup' || e.pose === 'stance')) || this.specialFxT > 0;
@@ -187,7 +205,6 @@ export class BoxingState {
     if (e.pose === 'stun') eLook = Math.floor(this.t * 12) % 2 ? { ...this.enemyLook, hue: this.redHue } : this.enemyLook;
     else if (eFlaring) eLook = { ...this.enemyLook, hue: this.flareHue };
     if (e.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
-    const em = mapPose(e);
     drawFighter(ctx, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, eLook, em.pose, 1, this.t * 4, em.info);
     ctx.globalAlpha = 1;
     if (e.pose === 'stun') this._stunFx(ctx, ex, FIGHTER.ENEMY_FEET_Y - 150);
@@ -211,7 +228,14 @@ export class BoxingState {
     if (p.pose === 'stun') this._stunFx(ctx, pxs, FIGHTER.PLAYER_FEET_Y - 150);
 
     if (spO) drawSpecialFx(ctx, spSlug, { ...spO, layer: 'front' });
+    // knockdown spotlight: world dims, one warm cone on the downed fighter
+    if (this.spotK > 0) {
+      const d = p.pose === 'down' ? p : e;
+      const dx = W / 2 + d.offset, dy = d.side === 'player' ? H - 120 : FIGHTER.ENEMY_FEET_Y - 40;
+      spotlightMoment(ctx, W, H, dx, dy, this.spotK);
+    }
     this.ringView.drawPress(ctx, W, H);
+    this.flash.draw(ctx);
     this._hud(game, ctx);
     this._nameplate(game, ctx);
     this._banner(game, ctx);

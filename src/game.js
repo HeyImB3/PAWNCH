@@ -123,6 +123,10 @@ export class Game {
       chess: Chess.newGame(),
       clocks: { w: MATCH.CHESS_SECONDS * 1000, b: MATCH.CHESS_SECONDS * 1000 },
       hp: { player: 100, enemy: 100 },
+      // cumulative boxing punishment per side (hits + knockdowns), for the
+      // portrait battle-damage tiers (src/portrait.js). Round heals restore
+      // HP — this never heals. Presentation-only; the sim doesn't read it.
+      damage: { player: 0, enemy: 0 },
       fightTrack: (config.opponent?.index || 0) % 2,  // rotate in-match music per opponent
       over: false,
       winner: null,           // 'player'|'enemy'|'draw'

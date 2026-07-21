@@ -305,6 +305,18 @@ export const PANEL = {
   TICKER_SLIDE_MS: 220,
 };
 
+// Portrait face-tiles (src/portrait.js): battle-damage tiers + expression
+// engine timing. score = boxing damage taken + KD_SCORE per knockdown;
+// tier k when score >= TIERS[k-1]. Damage persists the whole match.
+export const PORTRAIT = {
+  TIERS: [100, 220, 360],
+  KD_SCORE: 50,
+  REACT_MS: 1500,
+  EASE_MS: 900,
+  BLINK_S: [2.5, 6.5],
+  SIZE: 44,
+};
+
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a
 // built-in CLASSIC ring. Story forces the opponent's arena; multiplayer uses the
 // player's unlocked, selected arena (see save.settings.arena). All scene tuning

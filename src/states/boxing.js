@@ -10,7 +10,7 @@ import { FIGHTER } from '../config.js';
 import { text, textWidth, panel, barH } from '../gfx.js';
 import { RingView } from '../ring.js';
 import { reflect, spotlightMoment, Flashbulbs, withRim, tintWash } from '../lighting.js';
-import { LIGHT, SCENERY } from '../config.js';
+import { LIGHT, SCENERY, PORTRAIT } from '../config.js';
 import { drawFighter } from '../fighter.js';
 import { drawSpecialFx } from '../specialfx.js';
 import { drawScene, sceneFor } from '../scenery.js';
@@ -80,6 +80,8 @@ export class BoxingState {
         onWindup: (arm, kind, target, special) => { this.tellPopT = 0.2; if (kind === 'signature' || special) { audio.sfx.check(); this.sigWarnT = 0.6; } },
         onHit: (side, dmg, kind) => {
           audio.sfx.hit();
+          // battle-damage score for the portrait tiers (never healed)
+          (this.m.damage ||= { player: 0, enemy: 0 })[side] += dmg;
           // rope shockwave + press flashes + a mat decal (render-only juice)
           this.ringView.impact(game.W / 2 + (side === 'player' ? this.match.player.offset : this.match.enemy.offset), Math.min(1, dmg / 16));
           if (dmg > 12) this.flash.burst(LIGHT.FLASH.BIG_HIT);
@@ -121,7 +123,7 @@ export class BoxingState {
         onCounter: () => { audio.sfx.check(); game.fx.doFlash(PAL.gold, 0.38); game.fx.doShake(11); game.doFreeze(120); },   // crunchier counter (Feel B)
         onStar: () => audio.sfx.confirm(),
         onCombo: (side, n) => { if (side === 'player') this.comboFlash = 0.7; },
-        onKnockdown: () => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; this.ringView.impact(game.W / 2, 1); this.flash.burst(LIGHT.FLASH.KNOCKDOWN); },
+        onKnockdown: (side) => { audio.sfx.ko(); game.fx.doShake(16); game.fx.doFlash('#fff', 0.6); game.doFreeze(120); this.crowd = 1; this.ringView.impact(game.W / 2, 1); this.flash.burst(LIGHT.FLASH.KNOCKDOWN); if (side) (this.m.damage ||= { player: 0, enemy: 0 })[side] += PORTRAIT.KD_SCORE; },
         onGetUpTap: (side, charge) => { if (side === 'player') { audio.sfx.getup(charge); this.crowd = Math.min(1, this.crowd + 0.05); } },
         onGetUp: () => { audio.sfx.bell(); this.crowd = 1; },
       },

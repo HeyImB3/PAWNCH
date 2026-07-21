@@ -176,6 +176,18 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   halves); each half is windowed to `CHESS_HALF_SECONDS`; new rounds heal
   `HEAL_MIN..HEAL_MAX`; and skipping your chess move caps that round's boxing HP at
   `NO_MOVE_HP_CAP`.
+- **Add or refresh a painted arena** → the V3 pattern: a `tools/paint_<arena>.py`
+  painter (imports `tools/pawnch_palette.py`; far/mid/near 512×170 layers) →
+  manifest `arenas` entry → an `L` knob block + `key` light on the scene in
+  `SCENERY.SCENES` → a `drawLayered(ctx, p, layers)` on the scene in `scenery.js`
+  (follow `SCENES.beach.drawLayered` structurally; the procedural `draw` stays as
+  the zero-asset fallback). Every arena gets a reactive beat + one rare
+  `t % PERIOD < DUR` event. QA in `tools/arena-preview.html`.
+- **Tune portraits / battle damage** → `PORTRAIT` in `src/config.js` (damage
+  tiers, reaction/blink timing). Expressions & faces: `tools/paint_portraits.py`
+  — its 44×44 rig contract is mirrored in `src/portrait.js` (blink bar, emote
+  anchors, overlay boxes): **change both together**. Damage accrues in
+  `match.damage` from boxing hits/knockdowns and is never healed.
 - **Add a sound** → `audio.js` (the `sfx` object / song data). Chiptune only — no
   audio files.
 

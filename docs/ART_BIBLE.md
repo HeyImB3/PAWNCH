@@ -38,6 +38,31 @@ Spec: `docs/superpowers/specs/2026-07-20-visual-overhaul-design.md`.
    highest-contrast band; backdrops sit lower-contrast behind them (Golden
    Rules 8–9). If a backdrop element competes with a windup tell, darken it.
 
+### Craft lessons from the V1–V6 build (hard-won; don't relearn them)
+
+- **The ink-on-ink rule.** A near-black silhouette against a near-black region
+  is INVISIBLE (beach fronds vs night sky, woods congregation, the abyss
+  anglerfish — all failed this way first). Every dark shape needs an edge
+  value: a warm rim on the sun side, a lit crown, a brighter interior step.
+- **The scripted painter IS the master.** Deterministic per-pixel Python
+  (`tools/paint_*.py` + `tools/pawnch_palette.py`) beats interactive tools for
+  environmental/texture work — reproducible, diffable, tweakable by parameter.
+  Committed `.aseprite` files are derived snapshots, not sources. (The
+  Aseprite MCP's coarse dither primitives lost this fight in V1.)
+- **Rig standardization multiplies art.** The 44×44 portrait face rig (fixed
+  eye/brow/mouth boxes) is why 11 characters × 10 expressions took one arc and
+  why 3 GLOBAL damage overlays + procedural blinks/emotes work on every face.
+  The rig contract lives in `tools/paint_portraits.py` AND `src/portrait.js`
+  — change both together.
+- **Paint emissives UNLIT; light them in code.** Lamps, neon, candles, gongs,
+  jumbotrons are painted as dead housings; `src/lighting.js` blooms them live.
+  That's what makes them reactive (flicker, surge, ring) for free.
+- **Iconic shapes come from stencils, not composed blobs** (the dream knight
+  bust). When a silhouette must READ, author the bitmap by hand.
+- **Scenes are pure functions of `t`/`crowd` (+ read-only `board`/`round`).**
+  `t` resets each half, so `t < N` = "at round start" (the temple gong) with
+  zero sim coupling. Rare events are deterministic `t % PERIOD < DUR` schedules.
+
 ### Workflow & QA gates (all three, every asset)
 
 - Layered `.aseprite` masters committed to `assets/aseprite/`; the game PNGs

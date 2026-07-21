@@ -1,4 +1,6 @@
 {
+  "ring": {},
+  "arenas": {},
   "pieceSets": {
     "celestial": "celestial",
     "arcane": "arcane"

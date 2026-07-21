@@ -18,12 +18,13 @@
 // Boxer pose keys: front|back : idle|guard|windupL|windupR|punchL|punchR|hurt|down|walk
 // Piece keys: (w|b)(p|n|b|r|q|k)
 
-import { registerSprite, registerPiece, registerBoxer } from './gfx.js';
+import { registerSprite, registerPiece, registerBoxer, registerRing, registerArenaLayer } from './gfx.js';
 
 const PIECE_KEYS = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk'];
 const BOXER_POSE_KEYS = ['idle', 'guard', 'windupL', 'windupR', 'jabL', 'jabR',
   'hookL', 'hookR', 'special', 'duck', 'hurt', 'stagger', 'down', 'walk'];
 const BOXER_FACINGS = ['front', 'back'];
+const ARENA_LAYER_KEYS = ['far', 'mid', 'near'];
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -61,6 +62,17 @@ export async function loadAssets(base = 'assets/sprites') {
       try { registerBoxer(set, `${face}:${pose}`, await loadImage(`${base}/${dir}/${face}_${pose}.png`)); count++; }
       catch { /* a set may supply only some poses/facings; that's fine */ }
     })))));
+  // ring kit: flat key -> file (any missing piece stays procedural)
+  await Promise.all(Object.entries(manifest.ring || {}).map(async ([key, file]) => {
+    try { registerRing(key, await loadImage(`${base}/${file}`)); count++; }
+    catch { /* piece stays procedural */ }
+  }));
+  // arena scenes: sceneId -> sub-dir of far/mid/near.png (any subset is fine)
+  await Promise.all(Object.entries(manifest.arenas || {}).map(([scene, dir]) =>
+    Promise.all(ARENA_LAYER_KEYS.map(async (layer) => {
+      try { registerArenaLayer(scene, layer, await loadImage(`${base}/${dir}/${layer}.png`)); count++; }
+      catch { /* layer stays procedural */ }
+    }))));
   // legacy flat "pieces" map -> the default 'celestial' set
   await Promise.all(Object.entries(manifest.pieces || {}).map(async ([key, file]) => {
     try { registerPiece('celestial', key, await loadImage(`${base}/${file}`)); count++; }

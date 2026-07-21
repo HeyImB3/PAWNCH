@@ -25,6 +25,12 @@ export function registerSprite(group, key, img) { (SPRITES[group] ||= {})[key] =
 export function registerBoxer(set, key, img) { (SPRITES.boxerSets[set] ||= {})[key] = img; }
 export function boxerSprite(set, key) { return set ? (SPRITES.boxerSets[set] || {})[key] : undefined; }
 export function registerPiece(set, key, img) { (SPRITES.pieceSets[set] ||= {})[key] = img; }
+// Painted ring kit pieces (mat/post/pad/stool/press — see src/ring.js) and
+// arena backdrop layers (far/mid/near per scene id — see src/scenery.js).
+export function registerRing(key, img) { (SPRITES.ring ||= {})[key] = img; }
+export function ringSprite(key) { return (SPRITES.ring || {})[key]; }
+export function registerArenaLayer(sceneId, layer, img) { ((SPRITES.arenas ||= {})[sceneId] ||= {})[layer] = img; }
+export function arenaLayers(sceneId) { return (SPRITES.arenas || {})[sceneId]; }
 export function setPieceSet(name) { if (SET_THEME[name]) activePieceSet = name; return activePieceSet; }
 export function hasSprites() { return Object.keys(SPRITES.boxers).length + Object.values(SPRITES.pieceSets).reduce((n, s) => n + Object.keys(s).length, 0) > 0; }
 

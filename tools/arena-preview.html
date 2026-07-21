@@ -13,7 +13,7 @@ canvas{image-rendering:pixelated;width:768px;height:672px;border:1px solid #3a4a
 <canvas id="cv" width="512" height="448"></canvas>
 <script type="module">
 import { SCENERY, PAL, FIGHTER } from '../src/config.js';
-import { ring } from '../src/gfx.js';
+import { ring, panel, text } from '../src/gfx.js';
 import { drawScene } from '../src/scenery.js';
 import { loadAssets } from '../src/assets.js';
 import { drawFighter } from '../src/fighter.js';
@@ -65,6 +65,22 @@ let last = performance.now();
   drawFighter(ctx, px, FIGHTER.PLAYER_FEET_Y, FIGHTER.SIZE.player, HERO_LOOK, 'idle', -1, t * 4);
   if (rv) rv.drawPress(ctx, 512, 448);
   if (L && down) L.spotlightMoment(ctx, 512, 448, ex, FIGHTER.ENEMY_FEET_Y - 40, 1);
+  // ?tell=1 — facsimile of the boxing attack-tell at its REAL position, for
+  // readability QA over every arena (mirrors boxing.js _tellBanner geometry)
+  if (params.has('tell')) {
+    panel(ctx, 14, 100, 150, 45, { fill: 'rgba(7,10,22,0.82)', border: PAL.orange, border2: PAL.ink, glow: true });
+    text(ctx, 'HAYMAKER !!', 21, 105, { scale: 2, color: PAL.orangeLite, shadow: PAL.ink });
+    text(ctx, '< HIGH !!', 21, 125, { scale: 2, color: PAL.orangeLite, shadow: PAL.ink });
+  }
+  // ?perf=1 — rolling frame-time overlay (real numbers in a live browser;
+  // headless virtual-time runs are not wall-clock)
+  if (params.has('perf')) {
+    window.__ft = window.__ft || [];
+    window.__ft.push(dt);
+    if (window.__ft.length > 60) window.__ft.shift();
+    const avg = window.__ft.reduce((a, b) => a + b, 0) / window.__ft.length;
+    text(ctx, avg.toFixed(1) + 'MS ' + Math.round(1000 / avg) + 'FPS', 380, 8, { scale: 1, color: PAL.green });
+  }
   flash?.draw(ctx);
   requestAnimationFrame(frame);
 })(last);

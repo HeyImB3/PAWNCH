@@ -274,6 +274,10 @@ export const RING = {
 export const LIGHT = {
   SPOT: { EASE_MS: 240, DIM: 0.78, CONE_ALPHA: 0.22, TOP_HALF_W: 26, HOLE_R: 150 },
   FLASH: { LIFE_MS: 190, BIG_HIT: 5, KNOCKDOWN: 12, PARRY: 4, SCATTER: 60 },
+  // per-scene key light on fighters (withRim): SPAN = fraction of the screen
+  // width the directional sun-side gradient covers; SCALE multiplies the
+  // scene's key.alpha (global dial).
+  RIM: { SCALE: 1.0, SPAN: 0.55 },
 };
 
 // Arena scenery (boxing-half backdrops). One scene per Story fighter, plus a

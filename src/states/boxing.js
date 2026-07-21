@@ -9,8 +9,8 @@ import { MATCH, PAL, BOX, SIM } from '../config.js';
 import { FIGHTER } from '../config.js';
 import { text, textWidth, panel, barH } from '../gfx.js';
 import { RingView } from '../ring.js';
-import { reflect, spotlightMoment, Flashbulbs } from '../lighting.js';
-import { LIGHT } from '../config.js';
+import { reflect, spotlightMoment, Flashbulbs, withRim, tintWash } from '../lighting.js';
+import { LIGHT, SCENERY } from '../config.js';
 import { drawFighter } from '../fighter.js';
 import { drawSpecialFx } from '../specialfx.js';
 import { drawScene, sceneFor } from '../scenery.js';
@@ -54,6 +54,7 @@ export class BoxingState {
     this.playerLook = HERO_LOOK;
     this.accent = this.oppHue.body;
     this.sceneId = sceneFor(m, game.save);   // story: opponent arena; pvp: player's pick
+    this.keyLight = SCENERY.SCENES[this.sceneId]?.key || null;  // scene's key light (rim + wash)
     this.ringView = new RingView({ floorTop: 170 });  // fresh mat each boxing half
     this.flash = new Flashbulbs();
     this.spotK = 0;            // knockdown-spotlight ease (0..1)
@@ -205,7 +206,8 @@ export class BoxingState {
     if (e.pose === 'stun') eLook = Math.floor(this.t * 12) % 2 ? { ...this.enemyLook, hue: this.redHue } : this.enemyLook;
     else if (eFlaring) eLook = { ...this.enemyLook, hue: this.flareHue };
     if (e.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
-    drawFighter(ctx, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, eLook, em.pose, 1, this.t * 4, em.info);
+    withRim(ctx, W, H, this.keyLight, (c2) =>
+      drawFighter(c2, ex, FIGHTER.ENEMY_FEET_Y, FIGHTER.SIZE.enemy, eLook, em.pose, 1, this.t * 4, em.info));
     ctx.globalAlpha = 1;
     if (e.pose === 'stun') this._stunFx(ctx, ex, FIGHTER.ENEMY_FEET_Y - 150);
 
@@ -223,10 +225,13 @@ export class BoxingState {
     }
     if (p.flash > 0 && Math.floor(this.t * 30) % 2) ctx.globalAlpha = 0.6;
     const pm = mapPose(p);
-    drawFighter(ctx, pxs, FIGHTER.PLAYER_FEET_Y, FIGHTER.SIZE.player, pLook, pm.pose, -1, this.t * 4, pm.info);
+    withRim(ctx, W, H, this.keyLight, (c2) =>
+      drawFighter(c2, pxs, FIGHTER.PLAYER_FEET_Y, FIGHTER.SIZE.player, pLook, pm.pose, -1, this.t * 4, pm.info));
     ctx.globalAlpha = 1;
     if (p.pose === 'stun') this._stunFx(ctx, pxs, FIGHTER.PLAYER_FEET_Y - 150);
 
+    // golden-hour color grade over the whole scene (scenes with a key light)
+    if (this.keyLight) tintWash(ctx, W, H, this.keyLight.wash, this.keyLight.washA);
     if (spO) drawSpecialFx(ctx, spSlug, { ...spO, layer: 'front' });
     // knockdown spotlight: world dims, one warm cone on the downed fighter
     if (this.spotK > 0) {

@@ -61,6 +61,29 @@ export function spotlightMoment(ctx, W, H, cx, cy, k, t = performance.now() / 10
   }
 }
 
+// Per-scene key light on sprites: draw into a scratch canvas, tint the drawn
+// pixels with a directional gradient (sun side -> transparent), blit back.
+// Cheap pilot of a true edge-rim; reads as directional golden-hour light.
+// NOTE: drawCb receives the SCRATCH context — draw with it, not the outer ctx.
+let _rimCv = null;
+export function withRim(ctx, W, H, key, drawCb) {
+  if (!key) return drawCb(ctx);
+  const cv = (_rimCv ||= document.createElement('canvas'));
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const c = cv.getContext('2d');
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, W, H);
+  drawCb(c);
+  c.save();
+  c.globalCompositeOperation = 'source-atop';
+  const g = c.createLinearGradient(0, 0, W * LIGHT.RIM.SPAN, 0);
+  g.addColorStop(0, withA(key.color, key.alpha * LIGHT.RIM.SCALE));
+  g.addColorStop(1, withA(key.color, 0));
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.restore();
+  ctx.drawImage(cv, 0, 0);
+}
+
 // press-row camera flashes: short white pops with a glow halo
 export class Flashbulbs {
   constructor() { this.pops = []; }

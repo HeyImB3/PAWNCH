@@ -113,7 +113,8 @@ def paint_far():
 
 # ---- MID: sand, driftwood bleachers, palm trunks, unlit torches -------------
 TORCHES = [(88, 96), (190, 104), (322, 104), (424, 96)]
-WIRE = [(36, 52), (256, 40), (470, 52)]
+WIRE = [(36, 52), (470, 52)]     # one palm-to-palm span
+WIRE_SAG = 12
 
 def paint_mid():
     im = Image.new('RGBA', (W, H), (0, 0, 0, 0))
@@ -146,21 +147,22 @@ def paint_mid():
                     if (x - x0) % 22 == 0:
                         c = WOOD0                         # plank gap
                     put(x, y, c)
-            # seated crowd silhouettes on this tier
-            for hx in range(x0 + tier * 10 + 6, x1 - tier * 10 - 4, 9):
-                jit = int(n2(hx, ty, 55) * 3) - 1
-                cx, cy = hx + jit, ty - 4 + int(n2(hx, ty, 56) * 2)
-                r = 3 + (n2(hx, ty, 57) < 0.4)
+            # seated crowd silhouettes on this tier (spaced so heads READ)
+            for hx in range(x0 + tier * 10 + 6, x1 - tier * 10 - 4, 12):
+                jit = int(n2(hx, ty, 55) * 4) - 2
+                cx, cy = hx + jit, ty - 5 + int(n2(hx, ty, 56) * 4) - 1
+                r = 3 + (n2(hx, ty, 57) < 0.35)
                 for dy in range(-r, r + 1):
                     for dx in range(-r + 1, r):
                         if dx * dx + dy * dy <= r * r:
                             put(cx + dx, cy + dy, INK1)
-                for dy in range(r - 1, r + 3):            # shoulders
-                    for dx in range(-r - 1, r + 2):
+                for dy in range(r, r + 4):                # narrow shoulders
+                    for dx in range(-r, r + 1):
                         put(cx + dx, cy + dy, INK1)
                 if n2(hx, ty, 58) < 0.6:                  # backlit crown rim (left)
                     put(cx - r + 1, cy - r + 1, GOLD0)
                     put(cx - r + 2, cy - r, GOLD0)
+                    put(cx - r, cy - r + 2, GOLD0)
                 if n2(hx, ty, 59) < 0.12:                 # a raised arm
                     for dy in range(1, 7):
                         put(cx + r, cy - r - dy, INK1)
@@ -189,15 +191,14 @@ def paint_mid():
                     put(tx + dx, ty - 5 + dy, INK1)
         for dx in range(-2, 3):
             put(tx + dx, ty - 4, WOOD0)                   # bowl interior
-    # lantern wire (two sagging spans; code hangs the glowing lanterns)
-    for span in range(2):
-        (ax, ay), (bx, by) = WIRE[span], WIRE[span + 1]
-        steps = abs(bx - ax)
-        for i in range(steps + 1):
-            u = i / steps
-            x = ax + (bx - ax) * u
-            y = ay + (by - ay) * u + __import__('math').sin(u * 3.14159) * 8
-            put(int(x), int(y), INK2)
+    # lantern wire: one sagging palm-to-palm span (code hangs the lanterns)
+    (ax, ay), (bx, by) = WIRE
+    steps = abs(bx - ax)
+    for i in range(steps + 1):
+        u = i / steps
+        x = ax + (bx - ax) * u
+        y = ay + (by - ay) * u + __import__('math').sin(u * 3.14159) * WIRE_SAG
+        put(int(x), int(y), INK2)
     return im
 
 # ---- NEAR: overhanging frond framing (top corners only) ---------------------
@@ -207,40 +208,76 @@ def paint_near():
     def put(x, y, c):
         if 0 <= x < W and 0 <= y < H:
             p[x, y] = (*c, 255)
+    import math as _m
     def frond(ox, oy, dx, dy, ln, wid):
-        """One tapering serrated blade from (ox,oy) along (dx,dy)."""
+        """A palm frond: thick tapered spine + swept-back leaflets both sides."""
+        mag = _m.hypot(dx, dy)
+        ux, uy = dx / mag, dy / mag              # along the spine
+        px_, py_ = -uy, ux                       # perpendicular
+        droop = 0.0
         for i in range(ln):
             k = i / ln
-            x = ox + dx * i
-            y = oy + dy * i
-            w = max(1, int(wid * (1 - k)))
-            for off in range(-w, w + 1):
-                # serrated bite-outs along the edges
-                if abs(off) == w and n2(i, off, 60 + ox) < 0.45:
-                    continue
-                px_, py_ = int(x + off * (abs(dy) > abs(dx))), int(y + off * (abs(dx) >= abs(dy)))
-                c = INK0 if abs(off) < max(1, w - 1) else INK1
-                if off == -w and n2(i, ox, 62) < 0.3:
-                    c = EMBER1                            # sun-side streak
-                put(px_, py_, c)
-    # left cluster: blades fanning down-right from off-screen top-left
+            droop += 0.012                       # tip bends downward
+            x = ox + ux * i
+            y = oy + uy * i + droop * i * 0.5
+            # spine (2px, tapering to 1)
+            sw = 2 if k < 0.5 else 1
+            for s in range(sw):
+                put(int(x + px_ * s), int(y + py_ * s), INK0)
+            # leaflets every 2 steps, shrinking toward the tip, swept back
+            if i % 2 == 0 and i > 3:
+                llen = max(2, int(wid * 2.6 * (1 - k)))
+                for side in (-1, 1):
+                    if n2(i, side, 63 + ox) < 0.12:
+                        continue                  # missing leaflet (ragged)
+                    for j in range(llen):
+                        jx = x + (px_ * side + ux * 0.55) * j
+                        jy = y + (py_ * side + uy * 0.55) * j + j * 0.18
+                        c = INK0 if j < llen * 0.6 else INK1
+                        # underside leaflets catch the low sun (rim from below)
+                        if side == 1 and j > llen * 0.4 and n2(i, j, 64) < 0.5:
+                            c = EMBER2 if n2(i, j, 66) < 0.4 else EMBER1
+                        put(int(jx), int(jy), c)
+    def canopy(cx, cy, rx, ry, salt):
+        """Serrated canopy mass at a corner. The sun sits BELOW the fronds, so
+        the underside edge catches a warm ember rim (that's what makes the
+        silhouette read against the near-black top sky)."""
+        for y in range(max(0, cy - ry), cy + ry):
+            for x in range(max(0, cx - rx), min(W, cx + rx)):
+                dx, dy = (x - cx) / rx, (y - cy) / ry
+                d = dx * dx + dy * dy
+                bite = (n2(x // 3, y // 3, salt) - 0.5) * 0.5
+                dd = d + bite
+                if dd < 1.0:
+                    if dd > 0.72 and dy > 0:              # sunlit underside rim
+                        c = EMBER2 if n2(x, y, salt + 1) < 0.55 else EMBER1
+                    elif d < 0.6:
+                        c = INK0
+                    else:
+                        c = INK1
+                    put(x, y, c)
+    # left cluster: corner mass + blades fanning down-right
+    canopy(-10, 0, 85, 42, 65)
     for (ox, oy, ddx, ddy, ln, wd) in [
-        (-4, 2, 1.8, 0.42, 96, 4), (2, -2, 1.5, 0.62, 88, 4), (10, 6, 1.2, 0.34, 80, 3),
-        (-2, 14, 1.9, 0.22, 82, 3), (20, -2, 0.9, 0.55, 62, 3), (32, 2, 0.6, 0.48, 48, 2),
+        (-4, 2, 1.8, 0.42, 96, 5), (2, -2, 1.5, 0.62, 88, 5), (10, 6, 1.2, 0.34, 80, 4),
+        (-2, 14, 1.9, 0.22, 82, 4), (20, -2, 0.9, 0.55, 62, 4), (32, 2, 0.6, 0.48, 48, 3),
+        (6, 20, 1.4, 0.5, 70, 4), (26, 12, 1.0, 0.4, 58, 3), (-2, 28, 1.6, 0.12, 60, 3),
     ]:
         frond(ox, oy, ddx, ddy, ln, wd)
-    # hanging coconuts under the left cluster
-    for (cx, cy) in ((58, 34), (70, 30)):
+    # hanging coconuts under the left canopy
+    for (cx, cy) in ((62, 40), (74, 35)):
         for dy in range(-4, 5):
             for dx in range(-4, 5):
                 if dx * dx + dy * dy <= 16:
                     put(cx + dx, cy + dy, INK1)
         for dy in range(-3, 2):
             put(cx - 4, cy + dy, EMBER1)                  # left rim
-    # right cluster: blades fanning down-left from off-screen top-right
+    # right cluster: corner mass + blades fanning down-left
+    canopy(520, -2, 80, 38, 66)
     for (ox, oy, ddx, ddy, ln, wd) in [
-        (515, 0, -1.7, 0.4, 92, 4), (508, -3, -1.4, 0.6, 82, 4), (502, 8, -1.1, 0.3, 74, 3),
-        (512, 16, -1.8, 0.18, 76, 3), (492, 0, -0.8, 0.52, 56, 2),
+        (515, 0, -1.7, 0.4, 92, 5), (508, -3, -1.4, 0.6, 82, 5), (502, 8, -1.1, 0.3, 74, 4),
+        (512, 16, -1.8, 0.18, 76, 4), (492, 0, -0.8, 0.52, 56, 3),
+        (506, 22, -1.5, 0.35, 66, 4), (486, 8, -1.0, 0.28, 52, 3),
     ]:
         frond(ox, oy, ddx, ddy, ln, wd)
     return im

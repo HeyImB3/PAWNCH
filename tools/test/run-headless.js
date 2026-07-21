@@ -49,6 +49,7 @@ var MODULES = [
   'src/sim/chessclock.js',
   'src/sim/inputview.js',
   'src/sim/match.js',
+  'src/ropes.js',
 ];
 var TESTS = [
   'tools/test/runner.test.js',
@@ -60,6 +61,7 @@ var TESTS = [
   'src/sim/chessclock.test.js',
   'src/sim/inputview.test.js',
   'src/sim/match.test.js',
+  'src/ropes.test.js',
 ];
 
 var EPILOGUE = [

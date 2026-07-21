@@ -8,7 +8,7 @@
 // colors come from PAL. Zero image assets (Golden Rule 5).
 
 import { SCENERY, PAL } from './config.js';
-import { text, mix, mixA, withA, shade, lerp, arenaLayers } from './gfx.js';
+import { text, mix, mixA, withA, shade, lerp, arenaLayers, piece } from './gfx.js';
 import { additiveGlow, spotCone } from './lighting.js';
 
 const TAU = Math.PI * 2;
@@ -346,6 +346,69 @@ function cyberScene(ctx, p) {
   crowdRow(ctx, W, floorTop - 12, 10, C.crowdN, C.crowd, t, { wave: 1.5, speed: 2.5, alpha: 0.55, flare: crowd * SCENERY.CROWD_FLARE });
 }
 SCENES.cyber = { draw: cyberScene };
+
+// CYBERPUNK STREET v2 — painted neon canyon + living light: sign flicker,
+// glitching holo-rook billboard, steam, circling drones, rain, and a rare
+// monorail crossing. `crowd` spikes to 1 on knockdowns (boxing), so the whole
+// street SURGES on the big moments — the "neon surge + drone swarm" beat.
+SCENES.cyber.drawLayered = (ctx, p, layers) => {
+  const { W, floorTop, t, crowd } = p;
+  const C = SCENERY.SCENES.cyber, L = C.L;
+  if (layers.far) ctx.drawImage(layers.far, 0, 0);
+  // RARE: a monorail train crosses the far viaduct (lit window strip)
+  const tph = t % L.trainPeriod;
+  if (tph < L.trainDur) {
+    const tx = -80 + (W + 160) * (tph / L.trainDur);
+    for (let c2 = 0; c2 < L.trainCars; c2++) {
+      const cx = tx - c2 * 22;
+      ctx.fillStyle = '#0d1226'; ctx.fillRect(cx | 0, L.railY - 6, 20, 5);
+      ctx.fillStyle = L.trainWin;
+      for (let wdx = 2; wdx < 18; wdx += 4) ctx.fillRect((cx + wdx) | 0, L.railY - 5, 2, 2);
+    }
+    additiveGlow(ctx, tx, L.railY - 4, 16, L.trainWin, 0.2);
+  }
+  if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
+  const surge = 1 + crowd * 0.6;
+  // HOTEL ROOK sign: flickers between half-dead and blazing
+  const on = Math.sin(t * 7) > -0.35 ? 1 : 0.3;
+  additiveGlow(ctx, L.sign[0], L.sign[1], 34, L.neonM, 0.4 * on * surge);
+  additiveGlow(ctx, L.sign[0], L.sign[1] + 30, 24, L.neonM, 0.25 * on * surge);
+  // holographic ROOK on the billboard: ghostly glyph, scanline glitches
+  const gj = hash(Math.floor(t * 9)) < 0.18 ? (hash(Math.floor(t * 9) + 1) - 0.5) * 6 : 0;
+  ctx.save();
+  ctx.globalAlpha = 0.5 + 0.15 * Math.sin(t * 3);
+  piece(ctx, 'R', L.billboard[0] + gj, L.billboard[1], 30, true, { t, glow: 2, shadow: false, clean: true });
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = L.neonC;                                 // holo scanlines
+  for (let sy = L.billboard[1] - 16; sy < L.billboard[1] + 16; sy += 3)
+    ctx.fillRect(L.billboard[0] - 22, sy + (Math.floor(t * 20) % 3), 44, 1);
+  ctx.restore();
+  additiveGlow(ctx, L.billboard[0], L.billboard[1], 30, L.neonC, 0.22 * surge);
+  // steam vents: rising cool-lit puffs
+  L.steam.forEach(([sx, sy], i) => {
+    const k = (t * 0.6 + i * 0.5) % 1;
+    additiveGlow(ctx, sx + Math.sin(t + i) * 3, sy - k * 26, 8 + k * 10, '#8ea0cf', 0.16 * (1 - k));
+  });
+  // camera drones: circling lights with blink + tiny search cones — they
+  // orbit faster and dive lower when the crowd surges (knockdowns)
+  for (let i = 0; i < L.droneN; i++) {
+    const dx = W / 2 + Math.cos(t * 0.5 * surge + i * Math.PI) * (150 + i * 40 - crowd * 40);
+    const dy = 40 + crowd * 22 + Math.sin(t * 0.8 * surge + i * 2) * 14;
+    ctx.fillStyle = '#26304f'; ctx.fillRect(dx | 0, dy | 0, 4, 2);
+    ctx.fillStyle = Math.floor(t * 4 + i) % 2 ? '#ff3b53' : L.neonC;
+    ctx.fillRect((dx + 1) | 0, (dy - 1) | 0, 1, 1);
+    spotCone(ctx, { cx: dx + 2, topY: dy + 2, floorY: dy + 34, topHalfW: 1, botHalfW: 8, color: L.neonC, alpha: 0.06 });
+  }
+  // rain: streaks angling down-left
+  ctx.strokeStyle = C.rain; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i < L.rainN; i++) {
+    const rx = (i * 53 + (t * 240) % W) % W, ry = (i * 41 + t * 340) % floorTop;
+    ctx.moveTo(rx, ry); ctx.lineTo(rx - 3, ry + 9);
+  }
+  ctx.stroke();
+  if (layers.near) ctx.drawImage(layers.near, 0, 0);
+  if (crowd > 0.01) { ctx.fillStyle = mixA(L.flareCol, crowd * 0.14); ctx.fillRect(0, 0, W, floorTop); }
+};
 
 // DREAM WORLD (Kid Knightmare) — hue-shifting pastel sky, floating shapes, spectres.
 function dreamScene(ctx, p) {

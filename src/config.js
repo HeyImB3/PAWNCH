@@ -341,7 +341,20 @@ export const SCENERY = {
       },
       key: { color: '#8ea0cf', alpha: 0.14, wash: '#17573a', washA: 0.035 },  // cold moon rim, faint forest grade
     },
-    cyber:   { sky: ['#13062a', '#1a0830', '#070414'], bld: '#0a0618', bldN: 6, neon: ['#ff3bd0', '#22e7ff', '#ffe14a', '#7a5cff'], crowd: '#7a9bff', crowdN: 30, rain: 'rgba(150,200,255,0.10)' },
+    cyber:   {
+      sky: ['#13062a', '#1a0830', '#070414'], bld: '#0a0618', bldN: 6, neon: ['#ff3bd0', '#22e7ff', '#ffe14a', '#7a5cff'], crowd: '#7a9bff', crowdN: 30, rain: 'rgba(150,200,255,0.10)',
+      // layered-scene (drawLayered) knobs — geometry mirrors the painted layers
+      L: {
+        sign: [44, 74],                  // HOTEL ROOK glow center
+        billboard: [256, 30],            // holo-rook projection center
+        steam: [[170, 150], [352, 146]],
+        railY: 58, trainPeriod: 41, trainDur: 3.5, trainCars: 4,
+        droneN: 2, rainN: 46,
+        neonM: '#ff3bd0', neonC: '#22e7ff',
+        trainWin: '#ffd24a', flareCol: '#7a5cff',
+      },
+      key: { color: '#ff3bd0', alpha: 0.15, wash: '#7a5cff', washA: 0.05 },  // magenta rim, violet grade
+    },
     dream:   { sky: ['#5a2a8a', '#b85cc0', '#ffb0d6', '#8fd0ff'], cloud: 'rgba(255,255,255,0.6)', shape: 'rgba(255,255,255,0.5)', ghost: 'rgba(255,255,255,0.45)', ghostN: 5, star: '#ffffff', starN: 10 },
     temple:  { sky: ['#caa0ff', '#9a5cff', '#5a3a8a'], peak: '#4a2f7a', peak2: '#3a2566', stone: '#3a2566', stoneHi: '#52397f', roof: '#2a1a4a', flag: ['#ff7a18', '#ffd24a'], cloud: 'rgba(255,255,255,0.5)', monk: '#1e1232', monkN: 16 },
     castle:  { sky: ['#8fd0ff', '#bfe6ff', '#e8f4ff'], cloud: '#ffffff', cloudN: 4, keep: '#9aa6c8', tower: '#8a96b8', roof: '#ff3b53', banner: '#ff7a18', crowd: '#2a2040', crowdN: 18, bird: '#22324f' },

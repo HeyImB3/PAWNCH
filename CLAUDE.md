@@ -89,6 +89,14 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   `tools/paint_<arena>.py`). Scene draws stay PURE functions of their params;
   the boxing state passes read-only `board`/`round` for the "live" arenas
   (chesshall wall-board, stadium jumbotron).
+- **The chess broadcast panel + living portraits** (V4+V5): `states/chess.js`
+  `_broadcastPanel` (painted chrome `ui/chesspanel.png` + `PANEL` config; legacy text
+  panel = zero-asset fallback) and **`src/portrait.js`** (`PortraitFace`: material-driven
+  moods, reaction pops on captures/checks, blinks, and PERSISTENT battle damage —
+  `match.damage` accrues from boxing hits/knockdowns, tiers via `PORTRAIT` config,
+  heals never fix faces). Portrait art: `tools/paint_portraits.py` (one 44×44 face RIG,
+  all 11 characters; the rig contract is mirrored in portrait.js — change both together).
+  QA harnesses: `tools/chess-preview.html`, `tools/portrait-preview.html`.
 
 ## Golden rules (don't break these)
 

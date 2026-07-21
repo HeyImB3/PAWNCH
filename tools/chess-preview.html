@@ -49,6 +49,14 @@ let last = performance.now();
   ctx.fillStyle = '#070a16'; ctx.fillRect(0, 0, 512, 448);
   st.draw(game, ctx);
   game.fx.draw(ctx);
+  if (params.has('perf')) {
+    window.__ft = window.__ft || [];
+    window.__ft.push(dt);
+    if (window.__ft.length > 60) window.__ft.shift();
+    const avg = window.__ft.reduce((a, b) => a + b, 0) / window.__ft.length;
+    ctx.fillStyle = '#39d98a';
+    ctx.fillText(avg.toFixed(1) + 'ms ' + Math.round(1000 / avg) + 'fps', 6, 10);
+  }
   requestAnimationFrame(frame);
 })(last);
 </script></body></html>

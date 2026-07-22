@@ -9,7 +9,7 @@ round number), letter cards, pyro nozzles, brand flags.
 Geometry contract with src/config.js SCENERY.SCENES.stadium.L:
   jumbotron screen x216-296/y16-48 · pyro (140,152)(372,152) ·
   searchlight pivots (70,6)(442,6) · tiers y58-88 / 92-122 / 126-156 ·
-  neon PAWNCH board x166-346 / y93-121 (letters 12x20 @ lx0=200 pitch 20).
+  neon PAWNCH board x166-346 / y93-121 (letters 15x21 @ lx0=200 pitch 20).
 """
 import os
 import sys
@@ -35,6 +35,15 @@ F35 = {  # letters for the card block
     'N': ['#.#', '###', '###', '#.#', '#.#'],
     'C': ['###', '#..', '#..', '#..', '###'],
     'H': ['#.#', '#.#', '###', '#.#', '#.#'],
+}
+
+F57 = {  # sign-scale letters with real diagonals (W/N stay legible)
+    'P': ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
+    'A': ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+    'W': ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'],
+    'N': ['#...#', '##..#', '##..#', '#.#.#', '#..##', '#..##', '#...#'],
+    'C': ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
+    'H': ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
 }
 
 def paint_far():
@@ -122,7 +131,7 @@ def crowd_decor(put):
             put(dx2, dy2 - 3, GOLD3)
 
 # ---- the NEON SIGNBOARD (geometry contract: config L.sign) ------------------
-SIGN = dict(x=166, y=93, w=180, h=28, lx0=200, ly=97, sc=4, pitch=20)
+SIGN = dict(x=166, y=93, w=180, h=28, lx0=200, ly=97, sc=3, pitch=20)
 
 def neon_board(put):
     x0b, y0b, wb, hb = SIGN['x'], SIGN['y'], SIGN['w'], SIGN['h']
@@ -150,7 +159,7 @@ def neon_board(put):
     sc2 = SIGN['sc']
     for li, ch2 in enumerate('PAWNCH'):
         gx = SIGN['lx0'] + li * SIGN['pitch']
-        cells = {(rx, ry) for ry, rowg in enumerate(F35[ch2])
+        cells = {(rx, ry) for ry, rowg in enumerate(F57[ch2])
                  for rx, cell in enumerate(rowg) if cell == '#'}
         for (rx, ry) in cells:
             for yy in range(sc2):

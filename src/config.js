@@ -347,7 +347,7 @@ export const SCENERY = {
         sun: [150, 78], sunGlowR: 34, horizonY: 92,
         rays: [[150, 78, 300, 170, 0.06], [150, 78, 420, 170, 0.045], [150, 78, 210, 170, 0.05]], // [x0,y0,x1,floorY,alpha]
         rayW: [10, 46],                    // half-width at source -> at floor
-        sparkleN: 12, sparkleX: [124, 176],
+        glintN: 3, glintSpeed: 0.07, glintSpan: 24, glintHalf: [8, 1.05],
         foamY: 119, foamAmp: 2.2, foamSpeed: 1.4,
         torches: [[88, 96], [190, 104], [322, 104], [424, 96]],
         wire: [[36, 52], [470, 52]], wireSag: 12, lanternN: 7,
@@ -355,7 +355,7 @@ export const SCENERY = {
         crabPeriod: 47, crabDur: 6, crabY: 152,
         frondSway: 1.2, frondHz: 0.8,      // near-layer wind sway (px, cycles/sec)
         // scene-specific FX colors (namespaced here per Golden Rules 2-3)
-        rayCol: '#ffd24a', bloomCol: '#ff9a3a', sparkleCol: '#ffe7a8',
+        rayCol: '#ffd24a', bloomCol: '#ff9a3a', glintCol: '#ffe7a8',
         foamCol: 'rgba(232,242,255,0.75)',
         lantBody: '#c9962a', lantCore: '#ffe7a8', lantGlow: '#ffd24a',
         ballCol: '#ff7a18', ballHi: '#e8f2ff', crabCol: '#c22037', flareCol: '#ff9a3a',

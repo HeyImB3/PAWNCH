@@ -201,10 +201,18 @@ SCENES.beach.drawLayered = (ctx, p, layers) => {
     const sh = 0.75 + 0.25 * Math.sin(t * 0.7 + i * 2.1);
     godRay(ctx, x0, y0, x1, Math.min(fy, floorTop), L.rayW[0], L.rayW[1], L.rayCol, a * sh);
   });
-  // water sparkle in the sun path
-  for (let i = 0; i < fxN(L.sparkleN); i++) {
-    const sx = L.sparkleX[0] + hash(i) * (L.sparkleX[1] - L.sparkleX[0]);
-    twinkle(ctx, sx, L.horizonY + 2 + hash(i + 5) * 22, 1, L.sparkleCol, t * 3, i * 1.7);
+  // slow glitter drifting down the painted sun lane (coherent horizontal
+  // glints — the lane itself is painted; these just make it feel alive)
+  for (let i = 0; i < fxN(L.glintN); i++) {
+    const k = (((t * L.glintSpeed + i / L.glintN) % 1) + 1) % 1;   // 0..1 down the lane
+    const gy = L.horizonY + 2 + k * L.glintSpan;
+    const half = L.glintHalf[0] + (gy - L.horizonY) * L.glintHalf[1];
+    const gx = L.sun[0] + (hash(i * 3.1) - 0.5) * half * 1.1;
+    const fade = Math.sin(k * Math.PI) * (0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 1.6 + i * 2.4)));
+    ctx.globalAlpha = 0.55 * fade;
+    ctx.fillStyle = L.glintCol;
+    ctx.fillRect((gx - 2) | 0, gy | 0, 5, 1);
+    ctx.globalAlpha = 1;
   }
   if (layers.mid) ctx.drawImage(layers.mid, 0, 0);
   // rolling surf foam over the waterline

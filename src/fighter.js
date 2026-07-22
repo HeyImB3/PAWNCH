@@ -352,6 +352,8 @@ export function drawFighter(ctx, x, y, size, look, pose='idle', facing=1, step=0
 // Head-&-shoulders bust for the Story select grid. Fills the cell (x,y,w,h).
 // silhouette:true => anonymous all-dark bust (a fighter you haven't beaten).
 export function drawPortrait(ctx, x, y, w, h, look, { silhouette=false, t=0 } = {}){
+  const spr = look?.sprite ? boxerSprite(look.sprite, 'front:idle') : null;
+  if (spr) return spritePortrait(ctx, x, y, w, h, look, spr, silhouette);
   const { lined, geom: g } = render(look, 'idle', t*3, 1, null);
   // studio backdrop
   ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
@@ -374,6 +376,48 @@ export function drawPortrait(ctx, x, y, w, h, look, { silhouette=false, t=0 } = 
     ctx.drawImage(lined, dx, dy, dw, dh);
   }
   ctx.restore();
+}
+// authored-sprite bust for the roster cards: head -> mid-chest crop of the
+// fighter's real front_idle, over the same studio-gradient backdrop.
+function spritePortrait(ctx, x, y, w, h, look, spr, silhouette){
+  ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  const bg=ctx.createLinearGradient(x,y,x,y+h);
+  bg.addColorStop(0, silhouette ? '#1b2344' : mixHex(look.hue.body,'#0a1024',0.55));
+  bg.addColorStop(1,'#070a16'); ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+  const b = bustBox(spr);
+  const scale = Math.min(w/b.w, h/b.h)*1.06;
+  const dw=b.w*scale, dh=b.h*scale;
+  const dx=x+(w-dw)/2, dy=y+h*0.06;
+  if(silhouette){
+    const [sil,sc]=newCv(b.w,b.h);
+    sc.drawImage(spr, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+    sc.globalCompositeOperation='source-in'; sc.fillStyle='#0a1022'; sc.fillRect(0,0,b.w,b.h);
+    ctx.drawImage(sil, dx, dy, dw, dh);
+    ctx.fillStyle='rgba(140,165,225,0.10)'; ctx.fillRect(x,y,w,2);
+  } else {
+    ctx.drawImage(spr, b.x, b.y, b.w, b.h, dx, dy, dw, dh);
+  }
+  ctx.restore();
+}
+
+// head -> mid-chest box from the sprite's alpha (cached per image): top of
+// the opaque bbox down 52% of the way to the feet line, width from those rows
+const bustCache = new Map();
+function bustBox(spr){
+  if (bustCache.has(spr)) return bustCache.get(spr);
+  const [cv,c2]=newCv(spr.width,spr.height); c2.drawImage(spr,0,0);
+  const a=c2.getImageData(0,0,spr.width,spr.height).data;
+  let top=0;
+  outer: for (let yy=0; yy<spr.height; yy++)
+    for (let xx=0; xx<spr.width; xx++)
+      if (a[(yy*spr.width+xx)*4+3]>16){ top=yy; break outer; }
+  const bot=Math.min(spr.height, top+Math.round((FEET-top)*0.52));
+  let left=spr.width, right=0;
+  for (let yy=top; yy<bot; yy++)
+    for (let xx=0; xx<spr.width; xx++)
+      if (a[(yy*spr.width+xx)*4+3]>16){ if(xx<left)left=xx; if(xx>right)right=xx; }
+  const box={ x:left, y:Math.max(0,top-4), w:Math.max(1,right-left+1), h:bot-Math.max(0,top-4) };
+  bustCache.set(spr, box); return box;
 }
 function mixHex(a,b,t){ const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);
   const r=Math.round((A>>16&255)*(1-t)+(B>>16&255)*t), g=Math.round((A>>8&255)*(1-t)+(B>>8&255)*t), c=Math.round((A&255)*(1-t)+(B&255)*t);

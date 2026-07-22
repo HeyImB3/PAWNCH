@@ -266,7 +266,7 @@ git commit -m "polish(beach): 2-3 slow drifting lane glints replace the 12-twink
 
 **Interfaces:**
 - Consumes: `pawnch_palette` colors, `n2`, existing `TIERS = [(58, 88), (92, 122), (126, 156)]`, `F35` letter font (3×5 glyphs).
-- Produces: sign geometry that Task 5's config `L.sign` MUST mirror exactly: board `x=166, y=93, w=180, h=28` (frame is 2px, so the interior is 24px tall); letters at `lx0=200, ly=97`, scale `4` (12×20 px glyphs — they must fit the interior), pitch `20`.
+- Produces: sign geometry that Task 5's config `L.sign` MUST mirror exactly: board `x=166, y=93, w=180, h=28` (frame is 2px, so the interior is 24px tall); letters at `lx0=200, ly=97`, pitch `20`, drawn from a dedicated 5×7 sign font at scale `3` (15×21 px glyphs — the shared 3×5 `F35` font has no diagonals and makes W/N read as H at sign scale; discovered in visual QA).
 
 - [ ] **Step 1: Expand the palette import**
 
@@ -504,8 +504,8 @@ Still in `drawLayered`, after the searchlights block (before `// THE LIVE JUMBOT
     const li = Math.floor(t * 10) % 6;
     const lx2 = SG.lx0 + li * SG.pitch;
     ctx.fillStyle = mixA(SG.neonHi, 0.35);
-    ctx.fillRect(lx2 - 2, SG.ly - 2, 16, 24);
-    additiveGlow(ctx, lx2 + 6, SG.ly + 10, 18, SG.neonHi, 0.5);
+    ctx.fillRect(lx2 - 2, SG.ly - 2, 19, 25);
+    additiveGlow(ctx, lx2 + 7, SG.ly + 10, 18, SG.neonHi, 0.5);
   }
 ```
 

@@ -967,12 +967,40 @@ SCENES.stadium.drawLayered = (ctx, p, layers) => {
     ctx.fillRect(x0 - L.waveW, ty0, L.waveW * 2, ty1 - ty0);
   });
   ctx.restore();
+  // physical WAVE: cheering arms pop up where the light band crosses each tier
+  L.tiers.forEach(([ty0, ty1], ti) => {
+    const span = W + L.waveW * 2;
+    const x0 = ((t * L.waveSpeed + ti * 60) % span) - L.waveW;
+    for (let a2 = 0; a2 < fxN(L.armN); a2++) {
+      const ax = x0 + (hash(a2 * 7.3 + ti) - 0.5) * L.waveW * 1.4;
+      if (ax < -2 || ax > W + 2) continue;
+      const lift = Math.max(0, 1 - Math.abs(ax - x0) / L.waveW);
+      if (lift <= 0.1) continue;
+      const seatY = ty0 + 6 + hash(a2 * 3.7 + ti * 9) * (ty1 - ty0 - 12);
+      const ah = Math.round(2 + lift * L.armLift);
+      ctx.fillStyle = L.armCols[(a2 + ti) % L.armCols.length];
+      ctx.fillRect(ax | 0, (seatY - ah) | 0, 1, ah);                 // arm
+      ctx.fillRect((ax - 1) | 0, (seatY - ah - 2) | 0, 2, 2);        // fist
+    }
+  });
   // sweeping searchlights from the roof pivots
   L.lights.forEach(([lx, ly], i) => {
     const sweep = Math.sin(t * 0.6 + i * 2.4) * 120;
     spotCone(ctx, { cx: lx + sweep * 0.4, topY: ly, floorY: floorTop, topHalfW: 4, botHalfW: 30, color: L.beamCol, alpha: 0.08 + crowd * 0.04 });
     additiveGlow(ctx, lx, ly, 8, L.beamCol, 0.4);
   });
+  // THE NEON SIGN: breathing glow, a rare half-dead flicker, letter-chase on surges
+  const SG = L.sign;
+  const flick = (t % SG.flickerPeriod) < SG.flickerDur ? (Math.floor(t * 30) % 2 ? 0.15 : 0.7) : 1;
+  const pulse = (0.75 + 0.25 * Math.sin(t * 1.7)) * flick;
+  additiveGlow(ctx, SG.x + SG.w / 2, SG.y + SG.h / 2, SG.w * 0.45, SG.neon, 0.16 * pulse + crowd * 0.10);
+  if (crowd > 0.5) {
+    const li = Math.floor(t * 10) % 6;
+    const lx2 = SG.lx0 + li * SG.pitch;
+    ctx.fillStyle = mixA(SG.neonHi, 0.35);
+    ctx.fillRect(lx2 - 2, SG.ly - 2, 19, 25);
+    additiveGlow(ctx, lx2 + 7, SG.ly + 10, 18, SG.neonHi, 0.5);
+  }
   // THE LIVE JUMBOTRON: round number when known, marquee chase always
   const S = L.screen;
   const mi = Math.floor(t * 6) % L.marquee.length;
@@ -996,6 +1024,11 @@ SCENES.stadium.drawLayered = (ctx, p, layers) => {
     const cx2 = hash(i + 40) * W, cy2 = (t * 34 + i * 31) % floorTop;
     ctx.fillStyle = L.confCols[i % L.confCols.length];
     ctx.fillRect(cx2 | 0, cy2 | 0, 2, 3);
+  }
+  // phone lights twinkling in the upper tiers
+  for (let i = 0; i < fxN(L.phoneN); i++) {
+    const px3 = hash(i * 11.7) * W, py3 = 58 + hash(i * 5.3) * 60;
+    twinkle(ctx, px3 | 0, py3 | 0, 1, L.phoneCol, t, i * 2.2);
   }
   if (layers.near) {
     ctx.save(); ctx.translate(Math.sin(t * L.flagHz) * L.flagSway, 0);

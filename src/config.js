@@ -497,6 +497,10 @@ export const SCENERY = {
         pyroCore: '#fff6c0', pyroMid: '#ff9a18', pyroGlow: '#ffb24a',
         beamCol: '#cdd6ff', blimpCol: '#26304f', flareCol: '#ff7a18',
         confCols: ['#ff7a18', '#ffd24a', '#2b6cff', '#39d98a', '#e8f2ff'],
+        sign: { x: 166, y: 93, w: 180, h: 28, lx0: 200, ly: 97, pitch: 20,
+                neon: '#ffd24a', neonHi: '#fff6d8', flickerPeriod: 19, flickerDur: 1.1 },
+        armN: 14, armLift: 7, armCols: ['#f2b07a', '#c8a888', '#9a7140', '#6f4d29'],
+        phoneN: 10, phoneCol: '#b8d0ff',
       },
       key: { color: '#fff6d8', alpha: 0.10, wash: '#ff7a18', washA: 0.03 },  // arena floodlight
     },

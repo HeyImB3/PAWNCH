@@ -18,7 +18,7 @@ import sys
 from PIL import Image
 
 from pawnch_palette import (
-    INK0, INK1, INK2, BLUE0, EMBER1, EMBER2, EMBER3, EMBER4,
+    INK0, INK1, INK2, BLUE0, BLUE1, EMBER1, EMBER2, EMBER3, EMBER4,
     GOLD0, GOLD1, GOLD2, GOLD3, GOLD4,
     WOOD0, WOOD1, WOOD2, WOOD3, WOOD4, SPEC1, n2,
 )
@@ -61,17 +61,30 @@ def paint_far():
                 # horizon line: hot near the sun, ember elsewhere
                 p[x, y] = GOLD2 if 120 <= x <= 180 and x % 3 else EMBER3
             else:
-                # sea: deep dusk water + wave strokes + the sun path
-                c = BLUE0
-                row_h = 5 + int(n2(0, y, 43) * 4)
-                if (y + int(n2(x // 13, y // 3, 44) * 2)) % row_h == 0:
-                    c = INK1                              # wave stroke
-                # sun path: warm sparkle column widening/fading downward
-                half = 22 + (y - HORIZON) // 3
-                if abs(x - SUN[0]) < half:
-                    fade = 0.2 - (y - HORIZON) * 0.0018
-                    if n2(x, y, 45) < max(0.04, fade):
-                        c = GOLD1 if n2(x, y, 46) < 0.5 else EMBER4
+                # sea: dusk gradient deepening off the horizon + horizontal
+                # wave strokes + the sun's glitter lane (solid tapering core
+                # with dashed shimmer — coherent runs, never lone pixels)
+                d = y - HORIZON
+                band = d + (n2(x // 7, y, 43) - 0.5) * 3
+                if band < 4:
+                    c = BLUE1
+                elif band < 8:
+                    c = BLUE1 if n2(x // 3, y, 44) < (8 - band) / 4.0 * 0.6 else BLUE0
+                elif band < 18:
+                    c = BLUE0
+                else:
+                    c = INK1 if n2(x // 3, y, 44) < (band - 18) / 8.0 else BLUE0
+                row_h = 3 + int(n2(0, y, 45) * 3)
+                if y % row_h == 0 and n2(x // 9, y, 46) < 0.45:
+                    c = EMBER2 if (d < 7 and n2(x // 9, y, 47) < 0.5) else INK1
+                half = 8.0 + d * 1.05          # narrow at the sun, widening down
+                u = abs(x - SUN[0]) / half
+                if u < 1.0:
+                    core, lite = (GOLD2, GOLD1) if d < 6 else (GOLD1, EMBER4) if d < 14 else (EMBER4, EMBER3)
+                    if u < 0.45:               # solid core + brighter dash rows
+                        c = core if (y % 2 == 0 and n2(x // 5, y, 48) < 0.7) else lite
+                    elif n2(x // 4, y, 49) < (1.0 - u) * 0.9:
+                        c = lite               # dithered soft edge in 4px runs
                 p[x, y] = c
     # backlit stratus clouds (lens silhouettes, gold under-rims)
     for (cx, cy, cw, ch) in CLOUDS:

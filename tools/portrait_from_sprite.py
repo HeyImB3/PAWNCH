@@ -8,20 +8,31 @@ tool still owns _overlays/damage*.png. Usage:
 Expressions map to POSES (fighters wear different faces per pose):
   neutral/pleased -> idle · concerned/upset/wince -> hurt ·
   shock/dejected -> stagger · smirk/beaming/grin3 -> special
-A missing pose file, or a pose in the slug's bad=() -> falls back to idle.
+A missing pose file, or a pose in the slug's bad=() -> falls back to idle. A
+slug's FACE[slug]['expr'] map overrides this per-EXPRESSION (see below) — it
+wins over the global map above.
 
 RIG CONTRACT (mirrored in src/portrait.js — do not drift): 44x44, head cx=22,
 crown y5, chin y31, eye band y17-21 (blink bar x12 y16 w20 h6). We anchor on
 EYES and CHIN: scale = (31-19)/(chin-eyeY); tall hats crop at the tile top
-like a tight broadcast shot.
+like a tight broadcast shot. src/portrait.js only draws the skin-tone blink
+bar for the four CALM expressions (neutral/pleased/smirk/concerned) — those
+four MUST land with eyes in the y17-21 band on every slug, or the periodic
+blink paints a skin stripe across whatever else occupies that band (an arm,
+a gauntlet, empty background). The dramatic (non-calm) expressions don't get
+a blink bar, so their framing can be looser.
 
 FACE gives per-slug head geometry in SPRITE px measured on front_idle (hand-tuned
 via --audit; an un-tuned slug falls back to the HEAD_K alpha-bbox estimate):
 eyeY/chin/cx set the idle head and every pose reuses it, with optional per-pose
 shift={pose:(dx,dy)} translations, per-pose pose={pose:dict(eyeY,chin,cx)} FULL
-overrides (for a pose whose head is a different size), and bad=(poses,) to force
-idle. --audit writes tools/_portrait_audit.png (checkerboard, 2x, rows=slugs) —
-judge THAT, never the raw PNGs (the Read tool renders alpha as white).
+overrides (for a pose whose head is a different size), bad=(poses,) to force
+idle, and expr={expr:pose} to force a specific EXPRESSION (not pose) to a
+given pose — used to keep a calm expression blink-safe when its mapped pose
+can't deliver a face at rig position for this slug (usually remapped to
+'idle'; see the module-level comment above FACE). --audit writes
+tools/_portrait_audit.png (checkerboard, 2x, rows=slugs) — judge THAT, never
+the raw PNGs (the Read tool renders alpha as white).
 """
 import os
 import sys
@@ -55,32 +66,49 @@ HEAD_K = {'patty': 0.30, 'kid': 0.28, 'gus': 0.26, 'player': 0.24,
 #                   head is a different SIZE (a lean-in special), so its own
 #                   eye->chin sets the scale. Wins over shift's base.
 #   bad=(pose,)   — a pose too occluded/tilted to use; falls back to idle.
+#   expr={expr:pose} — per-EXPRESSION pose override, consulted BEFORE EXPR_POSE.
+#                   Use this when the globally-mapped pose is fine for most slugs
+#                   but this one slug's version of it can't deliver a blink-safe
+#                   face (a flexed arm/gauntlet crosses the eye band) — remap just
+#                   that expression (usually to 'idle') without touching the
+#                   pose's other expressions (blink-band fix, 2026-07-22).
 FACE = {
     'player':    dict(eyeY=72, chin=85,  cx=68,
-                      shift={'special': (-8, -18)}),
+                      shift={'special': (-8, -18)},
+                      expr={'smirk': 'idle'}),   # special: raised fist crosses the face -> idle
     'patty':     dict(eyeY=109, chin=127, cx=66),
     'gus':       dict(eyeY=61, chin=76,  cx=88,
-                      shift={'hurt': (-48, 3), 'special': (-36, 10)}),
+                      shift={'hurt': (-48, 3), 'special': (-36, 10)},
+                      expr={'smirk': 'idle'}),   # special: flexed bicep fills the tile -> idle
     'rosa':      dict(eyeY=90, chin=103, cx=70,
                       shift={'stagger': (-15, 1), 'special': (-8, -10)},
-                      bad=('hurt',)),   # hurt: head tilts so far the rook crown fills the tile -> idle
+                      bad=('hurt',),   # hurt: head tilts so far the rook crown fills the tile -> idle
+                      expr={'smirk': 'idle'}),   # special: crop lands on the arena wall, no face -> idle
     'kid':       dict(eyeY=84, chin=98,  cx=78,
-                      shift={'hurt': (-8, -4), 'special': (-19, -14)}),
+                      shift={'hurt': (-8, -4), 'special': (-19, -14)},
+                      expr={'concerned': 'idle', 'smirk': 'idle'}),  # hurt/special: raised arm crosses the face -> idle
     'bishop':    dict(eyeY=24, chin=38,  cx=64,
                       shift={'hurt': (-24, 33), 'stagger': (-24, 10)},
-                      bad=('special',)),   # special: skull buried in the dark raised-arm cape -> idle
+                      bad=('special',),   # special: skull buried in the dark raised-arm cape -> idle
+                      expr={'concerned': 'idle'}),   # hurt: crop mostly misses the head -> idle
     'queen':     dict(eyeY=79, chin=93,  cx=72,
                       shift={'hurt': (0, 3)},
-                      pose={'special': dict(eyeY=51, chin=71, cx=52)}),
+                      pose={'special': dict(eyeY=51, chin=71, cx=52)},
+                      expr={'concerned': 'idle'}),   # hurt: bigger head -> eyes crop above the band -> idle
     'iron':      dict(eyeY=35, chin=47,  cx=62,
                       shift={'hurt': (-7, 40), 'stagger': (-4, 32),
-                             'special': (-2, 9)}),
+                             'special': (-2, 9)},
+                      expr={'concerned': 'idle'}),   # hurt: crop mostly misses the helmet -> idle
     'tal':       dict(eyeY=70, chin=85,  cx=66,
-                      shift={'hurt': (-18, -2), 'special': (-21, -5)}),
+                      shift={'hurt': (-18, -2), 'special': (-21, -5)},
+                      expr={'concerned': 'idle'}),   # hurt: crop mostly misses the head -> idle
     'magnus':    dict(eyeY=63, chin=80,  cx=70,
-                      shift={'hurt': (8, -2), 'special': (-18, -6)}),
+                      shift={'hurt': (8, -2), 'special': (-18, -6)},
+                      expr={'concerned': 'idle', 'smirk': 'idle'}),  # hurt: eyes crop above the band (hairline);
+                                                                      # special: raised glove crosses the face -> idle
     'pawnchion': dict(eyeY=55, chin=71,  cx=68,
-                      shift={'hurt': (0, 23), 'special': (-16, -12)}),
+                      shift={'hurt': (0, 23), 'special': (-16, -12)},
+                      expr={'concerned': 'idle', 'smirk': 'idle'}),  # hurt/special: raised gauntlet crosses the face -> idle
 }
 
 
@@ -165,7 +193,9 @@ def main():
     tiles = {}
     for slug in slugs:
         os.makedirs(os.path.join(OUT, slug), exist_ok=True)
-        for expr, pose in EXPR_POSE.items():
+        overrides = FACE.get(slug, {}).get('expr', {})
+        for expr, default_pose in EXPR_POSE.items():
+            pose = overrides.get(expr, default_pose)
             tile = crop_face(slug, pose)
             tile.save(os.path.join(OUT, slug, f'{expr}.png'))
             tiles[(slug, expr)] = tile

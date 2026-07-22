@@ -94,8 +94,9 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   panel = zero-asset fallback) and **`src/portrait.js`** (`PortraitFace`: material-driven
   moods, reaction pops on captures/checks, blinks, and PERSISTENT battle damage —
   `match.damage` accrues from boxing hits/knockdowns, tiers via `PORTRAIT` config,
-  heals never fix faces). Portrait art: `tools/paint_portraits.py` (one 44×44 face RIG,
-  all 11 characters; the rig contract is mirrored in portrait.js — change both together).
+  heals never fix faces). Portrait art: `tools/portrait_from_sprite.py` (44×44 faces
+  cropped from the fighter sprites; expressions map to poses) + `tools/paint_portraits.py`
+  for the damage `_overlays`; the rig contract is mirrored in portrait.js — change both together.
   QA harnesses: `tools/chess-preview.html`, `tools/portrait-preview.html`.
 
 ## Golden rules (don't break these)
@@ -184,7 +185,8 @@ There is **no build, bundler, or transpile step** — edit a file and reload the
   the zero-asset fallback). Every arena gets a reactive beat + one rare
   `t % PERIOD < DUR` event. QA in `tools/arena-preview.html`.
 - **Tune portraits / battle damage** → `PORTRAIT` in `src/config.js` (damage
-  tiers, reaction/blink timing). Expressions & faces: `tools/paint_portraits.py`
+  tiers, reaction/blink timing). Expressions & faces: `tools/portrait_from_sprite.py`
+  (crops the fighter sprites; per-slug FACE table)
   — its 44×44 rig contract is mirrored in `src/portrait.js` (blink bar, emote
   anchors, overlay boxes): **change both together**. Damage accrues in
   `match.damage` from boxing hits/knockdowns and is never healed.
